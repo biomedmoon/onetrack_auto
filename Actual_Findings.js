@@ -1,5 +1,4 @@
-javascript:(function(){
-  const DEFAULT_CLIENT_MAPPING = {
+ const DEFAULT_CLIENT_MAPPING = {
     "CORAM": ["Shana Brown", "Amy Kwong"],
     "CVS": ["William Maturo"],
     "OPTUM": ["Janey Mechler", "Heather LeClair"],
@@ -693,4 +692,3 @@ javascript:(function(){
   }
 
   showMainModal();
-})();
