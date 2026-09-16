@@ -21,7 +21,7 @@
     ];
 
     // --- Persistent Preferences & State ---
-    let currentTheme = localStorage.getItem('onetrack_theme') || 'light';
+    let currentTheme = localStorage.getItem('onetrack_theme') || 'auto';
     let customHotkey = localStorage.getItem('onetrack_hotkey') || 'KeyP';
     let compactMode = localStorage.getItem('onetrack_compact') === 'true';
 
@@ -30,51 +30,68 @@
     applyCompactMode(compactMode);
 
     // --- Theme Manager ---
-    function applyTheme(theme) {
-        currentTheme = theme;
-        localStorage.setItem('onetrack_theme', theme);
-        
-        let styleTag = document.getElementById('onetrack-theme-styles');
-        if (!styleTag) {
-            styleTag = document.createElement('style');
-            styleTag.id = 'onetrack-theme-styles';
-            document.head.appendChild(styleTag);
-        }
-
-        if (theme === 'dark') {
-            styleTag.innerHTML = `
-                .onetrack-modal { background: #1e1e1e !important; color: #e0e0e0 !important; border-color: #444 !important; }
-                .onetrack-modal input, .onetrack-modal select { background: #2d2d2d !important; color: #fff !important; border-color: #555 !important; }
-            `;
-        } else {
-            styleTag.innerHTML = `
-                .onetrack-modal { background: #ffffff !important; color: #222222 !important; border-color: #ccc !important; }
-                .onetrack-modal input, .onetrack-modal select { background: #fff !important; color: #000 !important; border-color: #ccc !important; }
-            `;
-        }
+    function applyTheme(themeChoice) {
+    currentTheme = themeChoice;
+    localStorage.setItem('onetrack_theme', themeChoice);
+    
+    const rootElement = document.documentElement;
+    if (themeChoice === 'auto') {
+        rootElement.removeAttribute('data-theme');
+    } else {
+        rootElement.setAttribute('data-theme', themeChoice);
     }
+}
+
+// Execute on startup
+applyTheme(currentTheme);
 
     // --- Compact Mode Manager ---
     function applyCompactMode(isCompact) {
         compactMode = isCompact;
         localStorage.setItem('onetrack_compact', isCompact);
 
-        let styleTag = document.getElementById('onetrack-compact-styles');
-        if (!styleTag) {
-            styleTag = document.createElement('style');
-            styleTag.id = 'onetrack-compact-styles';
-            document.head.appendChild(styleTag);
-        }
+        let themeStyleTag = document.getElementById('onetrack-theme-variables');
+if (!themeStyleTag) {
+    themeStyleTag = document.createElement('style');
+    themeStyleTag.id = 'onetrack-theme-variables';
+    document.head.appendChild(themeStyleTag);
+}
 
-        if (isCompact) {
-            styleTag.innerHTML = `
-                .onetrack-modal { padding: 12px !important; font-size: 12px !important; }
-                .onetrack-btn { padding: 4px 8px !important; font-size: 11px !important; }
-            `;
-        } else {
-            styleTag.innerHTML = '';
+themeStyleTag.innerHTML = `
+    :root {
+        --bg-main: #ffffff;
+        --bg-input: #ffffff;
+        --bg-card: #f9f9f9;
+        --text-color: #222222;
+        --border-color: #cccccc;
+    }
+
+    @media (prefers-color-scheme: dark) {
+        :root {
+            --bg-main: #181818;
+            --bg-input: #1e1e1e;
+            --bg-card: #2d2d2d;
+            --text-color: #e0e0e0;
+            --border-color: #444444;
         }
     }
+
+    [data-theme="light"] {
+        --bg-main: #ffffff !important;
+        --bg-input: #ffffff !important;
+        --bg-card: #f9f9f9 !important;
+        --text-color: #222222 !important;
+        --border-color: #cccccc !important;
+    }
+
+    [data-theme="dark"] {
+        --bg-main: #181818 !important;
+        --bg-input: #1e1e1e !important;
+        --bg-card: #2d2d2d !important;
+        --text-color: #e0e0e0 !important;
+        --border-color: #444444 !important;
+    }
+`;
 
     // --- Draggable Helper ---
     function makeDraggable(elm, handleElm) {
