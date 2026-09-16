@@ -69,6 +69,23 @@ function getCurrentCompany() {
     return "Other";
 }
 
+function showToast(message) {
+    let existingToast = document.getElementById('preset-toast-test');
+    if (existingToast) existingToast.remove();
+
+    let toast = document.createElement('div');
+    toast.id = 'preset-toast-test';
+    toast.innerText = message;
+    toast.style.cssText = 'position:fixed; bottom:20px; right:20px; background:#28a745; color:#fff; padding:10px 16px; border-radius:6px; z-index:999999; font-size:12px; font-weight:bold; box-shadow:0 4px 10px rgba(0,0,0,0.2); transition:opacity 0.3s ease;';
+    
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 300);
+    }, 2500);
+}
+
 function processTextSelection(text) {
     let appendMode = localStorage.getItem('preset_notes_append_mode') === 'true';
     let targetFields = document.querySelectorAll('textarea, input[type="text"]');
@@ -99,8 +116,11 @@ function processTextSelection(text) {
         }
         targetInput.dispatchEvent(new Event('input', { bubbles: true }));
         targetInput.dispatchEvent(new Event('change', { bubbles: true }));
+        
+        showToast("✓ Notes applied successfully!");
     } else {
         navigator.clipboard.writeText(text).then(() => {
+            showToast("✓ Copied to clipboard!");
             console.log("Text copied to clipboard: " + text);
         }).catch(err => {
             console.error("Could not copy text: ", err);
@@ -197,11 +217,11 @@ function showMainModal() {
         iam = localStorage.getItem('preset_notes_append_mode') === 'true',
         hrm = localStorage.getItem('preset_hide_recent') === 'true';
 
-    let ex = document.getElementById('preset-notes-modal');
+    let ex = document.getElementById('preset-notes-modal-test');
     if (ex) ex.remove();
 
     let ov = document.createElement('div');
-    ov.id = 'preset-notes-modal';
+    ov.id = 'preset-notes-modal-test';
     ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;';
 
     let box = document.createElement('div');
@@ -209,7 +229,7 @@ function showMainModal() {
     applyUIScale(box);
 
     let h = document.createElement('h3');
-    h.innerText = `Preset Notes: ${dt}`;
+    h.innerText = `[TEST] Preset Notes: ${dt}`;
     h.style.cssText = 'margin-top:0;margin-bottom:4px;font-size:16px;color:#222;text-align:center;';
     box.appendChild(h);
 
@@ -401,14 +421,20 @@ function showMainModal() {
 
     ov.appendChild(box);
     document.body.appendChild(ov);
+
+    // Auto-focus first interactive element inside the modal
+    setTimeout(() => {
+        let firstInput = box.querySelector('input, button');
+        if (firstInput) firstInput.focus();
+    }, 50);
 }
 
 function showDeclineActionModal() {
-    let ex = document.getElementById('preset-notes-modal');
+    let ex = document.getElementById('preset-notes-modal-test');
     if (ex) ex.remove();
 
     let ov = document.createElement('div');
-    ov.id = 'preset-notes-modal';
+    ov.id = 'preset-notes-modal-test';
     ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;';
 
     let box = document.createElement('div');
@@ -467,11 +493,11 @@ function showClientSelectModal(ap, sao) {
         sao = true;
     }
 
-    let ex = document.getElementById('preset-notes-modal');
+    let ex = document.getElementById('preset-notes-modal-test');
     if (ex) ex.remove();
 
     let ov = document.createElement('div');
-    ov.id = 'preset-notes-modal';
+    ov.id = 'preset-notes-modal-test';
     ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;';
 
     let box = document.createElement('div');
@@ -564,11 +590,11 @@ function showEditModal() {
         ph = [...getPhrasesForDevice(dt)],
         map = getClientMapping();
 
-    let ex = document.getElementById('preset-notes-modal');
+    let ex = document.getElementById('preset-notes-modal-test');
     if (ex) ex.remove();
 
     let ov = document.createElement('div');
-    ov.id = 'preset-notes-modal';
+    ov.id = 'preset-notes-modal-test';
     ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;';
 
     let box = document.createElement('div');
@@ -576,7 +602,7 @@ function showEditModal() {
     applyUIScale(box);
 
     let title = document.createElement('h3');
-    title.innerText = "Edit Configuration";
+    title.innerText = "[TEST] Edit Configuration";
     title.style.cssText = "margin-top:0;color:#333;font-size:16px;text-align:center;";
     box.appendChild(title);
 
@@ -817,13 +843,12 @@ function showEditModal() {
     ov.appendChild(box);
     document.body.appendChild(ov);
 }
-// Global Hotkey Listener: Alt + Q
+
+// Global Hotkey Listener: Alt + P (Test Hotkey)
 window.addEventListener('keydown', (e) => {
     if (e.altKey && e.code === 'KeyP') {
-        e.preventDefault(); // Prevents any default browser shortcut behavior
-        
-        // Check if modal is already open; toggle it closed or refresh it
-        let existingModal = document.getElementById('preset-notes-modal');
+        e.preventDefault();
+        let existingModal = document.getElementById('preset-notes-modal-test');
         if (existingModal) {
             existingModal.remove();
         } else {
@@ -832,5 +857,5 @@ window.addEventListener('keydown', (e) => {
     }
 });
 
-// Automatically trigger main modal when script loads/runs if needed, or bind as desired
+// Automatically trigger modal when script loads
 showMainModal();
