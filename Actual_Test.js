@@ -1,10 +1,19 @@
-const CURRENT_VERSION = '1.2.0'; 
+const CURRENT_VERSION = '1.3.0';
 const RELEASE_NOTES = [
-    "🚀 Added Alt + P test hotkey for instant modal toggling.",
-    "⚡ Integrated clean bottom-right toast notifications for successful actions.",
-    "🎯 Added auto-focus to input fields and modals to speed up typing workflows.",
-    "ℹ️ Moved release info, changelog, and UI scale settings into a dedicated Advanced Settings menu."
+    "Added customizable Theme Toggle (Dark/Light Mode).",
+    "Enabled draggable floating UI panels.",
+    "Added user-configurable hotkeys via settings menu.",
+    "Introduced UI Compact Mode preferences.",
+    "Added JSON Settings Export and Import backup functionality."
 ];
+
+// --- Place the State Variables & Managers here ---
+let currentTheme = localStorage.getItem('onetrack_theme') || 'light';
+let customHotkey = localStorage.getItem('onetrack_hotkey') || 'KeyP';
+let compactMode = localStorage.getItem('onetrack_compact') === 'true';
+
+applyTheme(currentTheme);
+applyCompactMode(compactMode);
 
 function checkWhatsNew(force = false) {
     let lastSeenVersion = localStorage.getItem('preset_notes_last_version');
@@ -43,6 +52,231 @@ function checkWhatsNew(force = false) {
     ov.appendChild(box);
     document.body.appendChild(ov);
 }
+// --- Theme Manager ---
+    function applyTheme(theme) {
+        currentTheme = theme;
+        localStorage.setItem('onetrack_theme', theme);
+        
+        let styleTag = document.getElementById('onetrack-theme-styles');
+        if (!styleTag) {
+            styleTag = document.createElement('style');
+            styleTag.id = 'onetrack-theme-styles';
+            document.head.appendChild(styleTag);
+        }
+
+        if (theme === 'dark') {
+            styleTag.innerHTML = `
+                .onetrack-modal { background: #1e1e1e !important; color: #e0e0e0 !important; border-color: #444 !important; }
+                .onetrack-modal input, .onetrack-modal select { background: #2d2d2d !important; color: #fff !important; border-color: #555 !important; }
+            `;
+        } else {
+            styleTag.innerHTML = `
+                .onetrack-modal { background: #ffffff !important; color: #222222 !important; border-color: #ccc !important; }
+                .onetrack-modal input, .onetrack-modal select { background: #fff !important; color: #000 !important; border-color: #ccc !important; }
+            `;
+        }
+    }
+
+    // --- Compact Mode Manager ---
+    function applyCompactMode(isCompact) {
+        compactMode = isCompact;
+        localStorage.setItem('onetrack_compact', isCompact);
+
+        let styleTag = document.getElementById('onetrack-compact-styles');
+        if (!styleTag) {
+            styleTag = document.createElement('style');
+            styleTag.id = 'onetrack-compact-styles';
+            document.head.appendChild(styleTag);
+        }
+
+        if (isCompact) {
+            styleTag.innerHTML = `
+                .onetrack-modal { padding: 12px !important; font-size: 12px !important; }
+                .onetrack-btn { padding: 4px 8px !important; font-size: 11px !important; }
+            `;
+        } else {
+            styleTag.innerHTML = '';
+        }
+    }
+
+    // --- Draggable Helper ---
+    function makeDraggable(elm, handleElm) {
+        let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+        handleElm.style.cursor = 'move';
+        handleElm.onmousedown = dragMouseDown;
+
+        function dragMouseDown(e) {
+            e.preventDefault();
+            pos3 = e.clientX;
+            pos4 = e.clientY;
+            document.onmouseup = closeDragElement;
+            document.onmousemove = elementDrag;
+        }
+
+        function elementDrag(e) {
+            e.preventDefault();
+            pos1 = pos3 - e.clientX;
+            pos2 = pos4 - e.clientY;
+            pos3 = e.clientX;
+            pos4 = e.clientY;
+            elm.style.top = (elm.offsetTop - pos2) + "px";
+            elm.style.left = (elm.offsetLeft - pos1) + "px";
+            elm.style.bottom = 'auto';
+            elm.style.right = 'auto';
+        }
+
+        function closeDragElement() {
+            document.onmouseup = null;
+            document.onmousemove = null;
+        }
+    }
+
+    // --- Settings & Advanced Modal ---
+    function openSettingsModal() {
+        if (document.getElementById('onetrack-settings-modal')) return;
+
+        let overlay = document.createElement('div');
+        overlay.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.5); z-index:99999; display:flex; align-items:center; justify-content:center;';
+        
+        let modal = document.createElement('div');
+        modal.className = 'onetrack-modal';
+        modal.style.cssText = 'background:#fff; padding:24px; border-radius:8px; box-shadow:0 8px 24px rgba(0,0,0,0.3); width:420px; max-width:90vw; font-family:sans-serif; position:relative;';
+
+        let header = document.createElement('div');
+        header.style.cssText = 'font-size:16px; font-weight:bold; margin-bottom:16px; border-bottom:1px solid #ddd; padding-bottom:8px;';
+        header.innerText = `Advanced Settings (v${CURRENT_VERSION})`;
+        modal.appendChild(header);
+
+        makeDraggable(modal, header);
+
+        // 1. Theme Toggle Setting
+        let themeRow = createSettingRow('Theme Mode');
+        let themeSelect = document.createElement('select');
+        themeSelect.innerHTML = '<option value="light">Light</option><option value="dark">Dark</option>';
+        themeSelect.value = currentTheme;
+        themeSelect.className = 'onetrack-btn';
+        themeSelect.style.cssText = 'padding:4px 8px; border-radius:4px;';
+        themeSelect.onchange = (e) => {
+            applyTheme(e.target.value);
+            showToast(`Theme changed to ${e.target.value}`);
+        };
+        themeRow.appendChild(themeSelect);
+        modal.appendChild(themeRow);
+
+        // 2. Hotkey Config Setting
+        let hotkeyRow = createSettingRow('Trigger Hotkey (Alt + )');
+        let hotkeyInput = document.createElement('input');
+        hotkeyInput.type = 'text';
+        hotkeyInput.maxLength = 1;
+        hotkeyInput.value = customHotkey.replace('Key', '');
+        hotkeyInput.style.cssText = 'width:40px; text-align:center; padding:4px; font-weight:bold; border-radius:4px; border:1px solid #ccc;';
+        hotkeyInput.onkeydown = (e) => {
+            e.preventDefault();
+            if (e.key.length === 1) {
+                let newKey = 'Key' + e.key.toUpperCase();
+                customHotkey = newKey;
+                localStorage.setItem('onetrack_hotkey', newKey);
+                hotkeyInput.value = e.key.toUpperCase();
+                showToast(`Hotkey updated to Alt + ${e.key.toUpperCase()}`);
+            }
+        };
+        hotkeyRow.appendChild(hotkeyInput);
+        modal.appendChild(hotkeyRow);
+
+        // 3. Compact Mode Setting
+        let compactRow = createSettingRow('Compact UI Mode');
+        let compactToggle = document.createElement('input');
+        compactToggle.type = 'checkbox';
+        compactToggle.checked = compactMode;
+        compactToggle.onchange = (e) => {
+            applyCompactMode(e.target.checked);
+            showToast(`Compact Mode ${e.target.checked ? 'Enabled' : 'Disabled'}`);
+        };
+        compactRow.appendChild(compactToggle);
+        modal.appendChild(compactRow);
+
+        // 4. Export / Import Actions
+        let actionRow = document.createElement('div');
+        actionRow.style.cssText = 'display:flex; justify-content:space-between; margin-top:20px; gap:8px;';
+        
+        let exportBtn = document.createElement('button');
+        exportBtn.innerText = 'Export Config';
+        exportBtn.className = 'onetrack-btn';
+        exportBtn.style.cssText = 'padding:6px 12px; cursor:pointer; border-radius:4px; background:#1976d2; color:#fff; border:none;';
+        exportBtn.onclick = exportSettings;
+
+        let importLabel = document.createElement('label');
+        importLabel.innerText = 'Import Config';
+        importLabel.className = 'onetrack-btn';
+        importLabel.style.cssText = 'padding:6px 12px; cursor:pointer; border-radius:4px; background:#388e3c; color:#fff; text-align:center; display:inline-block;';
+        
+        let importInput = document.createElement('input');
+        importInput.type = 'file';
+        importInput.accept = '.json';
+        importInput.style.display = 'none';
+        importInput.onchange = importSettings;
+        importLabel.appendChild(importInput);
+
+        actionRow.appendChild(exportBtn);
+        actionRow.appendChild(importLabel);
+        modal.appendChild(actionRow);
+
+        // Close Button
+        let closeBtn = document.createElement('button');
+        closeBtn.innerText = 'Close & Save';
+        closeBtn.style.cssText = 'width:100%; margin-top:16px; padding:8px; background:#444; color:#fff; border:none; border-radius:4px; cursor:pointer; font-weight:bold;';
+        closeBtn.onclick = () => overlay.remove();
+        modal.appendChild(closeBtn);
+
+        overlay.appendChild(modal);
+        document.body.appendChild(overlay);
+    }
+
+    function createSettingRow(labelText) {
+        let row = document.createElement('div');
+        row.style.cssText = 'display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; font-size:14px;';
+        let label = document.createElement('span');
+        label.innerText = labelText;
+        row.appendChild(label);
+        return row;
+    }
+
+    // --- Export / Import Handlers ---
+    function exportSettings() {
+        let settings = {
+            theme: localStorage.getItem('onetrack_theme'),
+            hotkey: localStorage.getItem('onetrack_hotkey'),
+            compact: localStorage.getItem('onetrack_compact'),
+            version: CURRENT_VERSION
+        };
+        let blob = new Blob([JSON.stringify(settings, null, 2)], { type: 'application/json' });
+        let url = URL.createObjectURL(blob);
+        let a = document.createElement('a');
+        a.href = url;
+        a.download = 'onetrack_settings_backup.json';
+        a.click();
+        showToast('Settings exported successfully!');
+    }
+
+    function importSettings(event) {
+        let file = event.target.files[0];
+        if (!file) return;
+        let reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                let settings = JSON.parse(e.target.result);
+                if (settings.theme) localStorage.setItem('onetrack_theme', settings.theme);
+                if (settings.hotkey) localStorage.setItem('onetrack_hotkey', settings.hotkey);
+                if (settings.compact !== undefined) localStorage.setItem('onetrack_compact', settings.compact);
+                
+                showToast('Settings imported successfully! Reloading...');
+                setTimeout(() => location.reload(), 1000);
+            } catch (err) {
+                showToast('Invalid configuration file.', 'error');
+            }
+        };
+        reader.readAsText(file);
+    }
 
 const DEFAULT_CLIENT_MAPPING = {
     "CORAM": ["Shana Brown", "Amy Kwong"],
@@ -953,15 +1187,14 @@ function showEditModal() {
     document.body.appendChild(ov);
 }
 
-// Global Hotkey Listener: Alt + P (Test Hotkey)
 window.addEventListener('keydown', (e) => {
-    if (e.altKey && e.code === 'KeyP') {
+    if (e.altKey && e.code === customHotkey) {
         e.preventDefault();
         let existingModal = document.getElementById('preset-notes-modal-test');
         if (existingModal) {
             existingModal.remove();
         } else {
-            showMainModal();
+            showMainModal(); // Or openSettingsModal() depending on what you want Alt + Key to trigger!
         }
     }
 });
