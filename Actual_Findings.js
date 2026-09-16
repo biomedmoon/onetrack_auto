@@ -69,6 +69,45 @@ function getCurrentCompany() {
     return "Other";
 }
 
+function processTextSelection(text) {
+    let appendMode = localStorage.getItem('preset_notes_append_mode') === 'true';
+    let targetFields = document.querySelectorAll('textarea, input[type="text"]');
+    let activeEl = document.activeElement;
+
+    let targetInput = null;
+    if (activeEl && (activeEl.tagName === 'TEXTAREA' || (activeEl.tagName === 'INPUT' && activeEl.type === 'text'))) {
+        targetInput = activeEl;
+    } else {
+        for (let el of targetFields) {
+            let label = el.getAttribute('aria-label') || el.name || el.id || '';
+            if (/finding|note|comment|description/i.test(label) || targetFields.length === 1) {
+                targetInput = el;
+                break;
+            }
+        }
+        if (!targetInput && targetFields.length > 0) {
+            targetInput = targetFields[targetFields.length - 1];
+        }
+    }
+
+    if (targetInput) {
+        let existing = targetInput.value || '';
+        if (appendMode && existing.trim().length > 0) {
+            targetInput.value = existing.trim() + ' ' + text;
+        } else {
+            targetInput.value = text;
+        }
+        targetInput.dispatchEvent(new Event('input', { bubbles: true }));
+        targetInput.dispatchEvent(new Event('change', { bubbles: true }));
+    } else {
+        navigator.clipboard.writeText(text).then(() => {
+            console.log("Text copied to clipboard: " + text);
+        }).catch(err => {
+            console.error("Could not copy text: ", err);
+        });
+    }
+}
+
 function calculateInfinityFlatRateFindings() {
     let pageText = document.body.innerText;
     let match = pageText.match(/Serial Number\D*([569]\d{8})/i) || pageText.match(/\b([569]\d{8})\b/);
@@ -544,7 +583,6 @@ function showEditModal() {
     let sa = document.createElement('div');
     sa.style.cssText = "flex-grow:1;overflow-y:auto;margin-bottom:15px;padding-right:5px;max-height:350px;";
 
-    // UI Scale Settings Block
     let scaleHeader = document.createElement('h4');
     scaleHeader.innerText = "🖥️ UI Scale Setting";
     scaleHeader.style.cssText = "margin:0 0 6px 0;font-size:13px;color:#444;";
@@ -779,3 +817,6 @@ function showEditModal() {
     ov.appendChild(box);
     document.body.appendChild(ov);
 }
+
+// Automatically trigger main modal when script loads/runs if needed, or bind as desired
+showMainModal();
