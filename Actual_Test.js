@@ -24,15 +24,13 @@
 // 1. Inject clean, non-destructive theme styles
 const themeStyles = document.createElement('style');
 themeStyles.innerHTML = `
-    /* Light Mode Defaults */
+    /* Light Mode Defaults for the Popup */
     #preset-notes-modal-test, .onetrack-ui-panel {
         background-color: #ffffff;
         color: #333333;
     }
     
-    /* Dark Mode: Make the outer modal background dark */
-    html[data-theme="dark"] #preset-notes-modal-test,
-    html[data-theme="dark"] .onetrack-ui-panel,
+    /* Dark Mode: Apply ONLY to the popup container (Leaves the page background untouched) */
     #preset-notes-modal-test[data-theme="dark"],
     .onetrack-ui-panel[data-theme="dark"] {
         background-color: #181a1b !important;
@@ -40,17 +38,17 @@ themeStyles.innerHTML = `
         border: 1px solid #2d3133 !important;
     }
 
-    /* Dark Mode: Keep inner elements readable and distinct */
-    html[data-theme="dark"] #preset-notes-modal-test fieldset,
-    html[data-theme="dark"] #preset-notes-modal-test .section-box,
-    html[data-theme="dark"] #preset-notes-modal-test div > div {
+    /* Dark Mode Inner Elements */
+    #preset-notes-modal-test[data-theme="dark"] fieldset,
+    #preset-notes-modal-test[data-theme="dark"] .section-box,
+    #preset-notes-modal-test[data-theme="dark"] div > div {
         background-color: transparent !important;
         color: #e8e6e3 !important;
     }
 
-    html[data-theme="dark"] #preset-notes-modal-test input,
-    html[data-theme="dark"] #preset-notes-modal-test textarea,
-    html[data-theme="dark"] #preset-notes-modal-test select {
+    #preset-notes-modal-test[data-theme="dark"] input,
+    #preset-notes-modal-test[data-theme="dark"] textarea,
+    #preset-notes-modal-test[data-theme="dark"] select {
         background-color: #121415 !important;
         color: #ffffff !important;
         border: 1px solid #43484c !important;
@@ -61,19 +59,18 @@ document.head.appendChild(themeStyles);
 // 2. Define the applyTheme function
 function applyTheme(themeChoice) {
     localStorage.setItem('onetrack_theme', themeChoice);
-    const root = document.documentElement;
     const modal = document.getElementById('preset-notes-modal-test');
     
     const activeTheme = (themeChoice === 'auto') 
         ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
         : themeChoice;
 
-    if (activeTheme === 'dark') {
-        root.setAttribute('data-theme', 'dark');
-        if (modal) modal.setAttribute('data-theme', 'dark');
-    } else {
-        root.removeAttribute('data-theme');
-        if (modal) modal.removeAttribute('data-theme');
+    if (modal) {
+        if (activeTheme === 'dark') {
+            modal.setAttribute('data-theme', 'dark');
+        } else {
+            modal.removeAttribute('data-theme');
+        }
     }
 }
 
