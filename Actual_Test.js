@@ -22,14 +22,20 @@
 
     // --- 1. Define Helper Functions First ---
     function applyTheme(themeChoice) {
-        localStorage.setItem('onetrack_theme', themeChoice);
-        const rootElement = document.documentElement;
-        if (themeChoice === 'auto') {
-            rootElement.removeAttribute('data-theme');
-        } else {
-            rootElement.setAttribute('data-theme', themeChoice);
-        }
+    localStorage.setItem('onetrack_theme', themeChoice);
+    const rootElement = document.documentElement;
+    
+    if (themeChoice === 'auto') {
+        rootElement.removeAttribute('data-theme');
+    } else {
+        rootElement.setAttribute('data-theme', themeChoice);
     }
+    
+    // Force trigger a style update for shadow DOM or injected UI components if applicable
+    document.querySelectorAll('.onetrack-ui-panel').forEach(panel => {
+        panel.setAttribute('data-theme', themeChoice);
+    });
+}
 
     function applyCompactMode(isCompact) {
         localStorage.setItem('onetrack_compact', isCompact);
@@ -38,6 +44,19 @@
             modal.classList.toggle('onetrack-compact-mode', isCompact);
         }
     }
+    // Example of where your modal is grabbed/created in the DOM:
+    const modal = document.getElementById('preset-notes-modal-test');
+
+        if (modal) {
+    // Ensure the modal has proper positioning styles so dragging works
+        modal.style.position = 'fixed';
+    
+    // Select your header/drag handle inside the modal (create one if it doesn't exist)
+        const dragHandle = modal.querySelector('.modal-header') || modal; 
+
+    // CALL IT HERE:
+    makeDraggable(modal, dragHandle);
+}
 
     // --- 2. Persistent Preferences & State ---
     let currentTheme = localStorage.getItem('onetrack_theme') || 'auto';
@@ -100,37 +119,37 @@
     `;
 
     // --- Draggable Helper ---
-    function makeDraggable(elm, handleElm) {
-        let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
-        handleElm.style.cursor = 'move';
-        handleElm.onmousedown = dragMouseDown;
+    function makeDraggable(element, handle) {
+    let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+    
+    const dragMouseDown = (e) => {
+        e.preventDefault();
+        pos3 = e.clientX;
+        pos4 = e.clientY;
+        document.onmouseup = closeDragElement;
+        document.onmousemove = elementDrag;
+    };
 
-        function dragMouseDown(e) {
-            e.preventDefault();
-            pos3 = e.clientX;
-            pos4 = e.clientY;
-            document.onmouseup = closeDragElement;
-            document.onmousemove = elementDrag;
-        }
+    const elementDrag = (e) => {
+        e.preventDefault();
+        pos1 = pos3 - e.clientX;
+        pos2 = pos4 - e.clientY;
+        pos3 = e.clientX;
+        pos4 = e.clientY;
+        
+        element.style.top = (element.offsetTop - pos2) + "px";
+        element.style.left = (element.offsetLeft - pos1) + "px";
+        element.style.position = 'fixed';
+    };
 
-        function elementDrag(e) {
-            e.preventDefault();
-            pos1 = pos3 - e.clientX;
-            pos2 = pos4 - e.clientY;
-            pos3 = e.clientX;
-            pos4 = e.clientY;
-            elm.style.top = (elm.offsetTop - pos2) + "px";
-            elm.style.left = (elm.offsetLeft - pos1) + "px";
-            elm.style.bottom = 'auto';
-            elm.style.right = 'auto';
-        }
+    const closeDragElement = () => {
+        document.onmouseup = null;
+        document.onmousemove = null;
+    };
 
-        function closeDragElement() {
-            document.onmouseup = null;
-            document.onmousemove = null;
-        }
-    }
-
+    const targetHandle = handle || element;
+    targetHandle.onmousedown = dragMouseDown;
+}
     // --- Export / Import Handlers ---
     function exportSettings() {
         let settings = {
