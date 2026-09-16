@@ -24,27 +24,27 @@
 // 1. Inject clean, non-destructive theme styles
 const themeStyles = document.createElement('style');
 themeStyles.innerHTML = `
-    /* Light Mode Defaults (Applied normally without harsh !important constraints) */
+    /* Light Mode Defaults */
     #preset-notes-modal-test, .onetrack-ui-panel {
         background-color: #ffffff;
         color: #333333;
     }
     
-    /* Dark Theme Overrides (Triggered when data-theme="dark" is present) */
+    /* Dark Mode: Make the outer modal background dark */
     html[data-theme="dark"] #preset-notes-modal-test,
     html[data-theme="dark"] .onetrack-ui-panel,
     #preset-notes-modal-test[data-theme="dark"],
     .onetrack-ui-panel[data-theme="dark"] {
         background-color: #181a1b !important;
         color: #e8e6e3 !important;
-        border-color: #2d3133 !important;
+        border: 1px solid #2d3133 !important;
     }
 
-    /* Dark Theme Inner Elements */
+    /* Dark Mode: Keep inner elements readable and distinct */
     html[data-theme="dark"] #preset-notes-modal-test fieldset,
     html[data-theme="dark"] #preset-notes-modal-test .section-box,
     html[data-theme="dark"] #preset-notes-modal-test div > div {
-        background-color: #222527 !important;
+        background-color: transparent !important;
         color: #e8e6e3 !important;
     }
 
