@@ -28,19 +28,36 @@ themeStyles.innerHTML = `
         color: #333333;
     }
     
-    /* Target child elements and inner content for dark mode instead of the outer backdrop */
-    [data-theme="dark"] #preset-notes-modal-test *, 
-    [data-theme="dark"] .onetrack-ui-panel * {
-        background-color: #1e1e1e !important;
-        color: #f0f0f0 !important;
-        border-color: #444444 !important;
-    }
-
-    /* Keep the main modal wrapper background controlled cleanly */
+    /* Dark Theme: Main Modal Container */
     [data-theme="dark"] #preset-notes-modal-test,
     [data-theme="dark"] .onetrack-ui-panel {
-        background-color: #121212 !important;
-        color: #f0f0f0 !important;
+        background-color: #181a1b !important;
+        color: #e8e6e3 !important;
+        border-color: #2d3133 !important;
+    }
+
+    /* Dark Theme: Inner Cards / Sections / Containers */
+    [data-theme="dark"] #preset-notes-modal-test fieldset,
+    [data-theme="dark"] #preset-notes-modal-test .section-box,
+    [data-theme="dark"] #preset-notes-modal-test div > div {
+        background-color: #222527 !important;
+        color: #e8e6e3 !important;
+    }
+
+    /* Dark Theme: Inputs, Textareas, and Select fields keep distinct contrast */
+    [data-theme="dark"] #preset-notes-modal-test input,
+    [data-theme="dark"] #preset-notes-modal-test textarea,
+    [data-theme="dark"] #preset-notes-modal-test select {
+        background-color: #121415 !important;
+        color: #ffffff !important;
+        border: 1px solid #43484c !important;
+    }
+
+    /* Dark Theme: Buttons */
+    [data-theme="dark"] #preset-notes-modal-test button {
+        background-color: #2c3237 !important;
+        color: #ffffff !important;
+        border: 1px solid #52595d !important;
     }
 `;
 document.head.appendChild(themeStyles);
