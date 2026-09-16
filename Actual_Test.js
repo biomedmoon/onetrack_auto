@@ -817,6 +817,20 @@ function showEditModal() {
     ov.appendChild(box);
     document.body.appendChild(ov);
 }
+// Global Hotkey Listener: Alt + Q
+window.addEventListener('keydown', (e) => {
+    if (e.altKey && e.code === 'KeyQ') {
+        e.preventDefault(); // Prevents any default browser shortcut behavior
+        
+        // Check if modal is already open; toggle it closed or refresh it
+        let existingModal = document.getElementById('preset-notes-modal');
+        if (existingModal) {
+            existingModal.remove();
+        } else {
+            showMainModal();
+        }
+    }
+});
 
 // Automatically trigger main modal when script loads/runs if needed, or bind as desired
 showMainModal();
