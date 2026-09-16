@@ -819,7 +819,7 @@ function showEditModal() {
 }
 // Global Hotkey Listener: Alt + Q
 window.addEventListener('keydown', (e) => {
-    if (e.altKey && e.code === 'KeyQ') {
+    if (e.altKey && e.code === 'KeyP') {
         e.preventDefault(); // Prevents any default browser shortcut behavior
         
         // Check if modal is already open; toggle it closed or refresh it
