@@ -21,15 +21,16 @@
     ];
 
 // 1. Inject robust dark mode styles targeting both attributes and explicit classes
+// 1. Inject clean, non-destructive theme styles
 const themeStyles = document.createElement('style');
 themeStyles.innerHTML = `
-    /* Light Theme Defaults */
+    /* Light Mode Defaults (Applied normally without harsh !important constraints) */
     #preset-notes-modal-test, .onetrack-ui-panel {
-        background-color: #ffffff !important;
-        color: #333333 !important;
+        background-color: #ffffff;
+        color: #333333;
     }
     
-    /* Dark Theme: Root & Modal Background */
+    /* Dark Theme Overrides (Triggered when data-theme="dark" is present) */
     html[data-theme="dark"] #preset-notes-modal-test,
     html[data-theme="dark"] .onetrack-ui-panel,
     #preset-notes-modal-test[data-theme="dark"],
@@ -39,7 +40,7 @@ themeStyles.innerHTML = `
         border-color: #2d3133 !important;
     }
 
-    /* Dark Theme: Inner Cards, Fieldsets, and Sections */
+    /* Dark Theme Inner Elements */
     html[data-theme="dark"] #preset-notes-modal-test fieldset,
     html[data-theme="dark"] #preset-notes-modal-test .section-box,
     html[data-theme="dark"] #preset-notes-modal-test div > div {
@@ -47,7 +48,6 @@ themeStyles.innerHTML = `
         color: #e8e6e3 !important;
     }
 
-    /* Dark Theme: Inputs, Selects, and Textareas */
     html[data-theme="dark"] #preset-notes-modal-test input,
     html[data-theme="dark"] #preset-notes-modal-test textarea,
     html[data-theme="dark"] #preset-notes-modal-test select {
