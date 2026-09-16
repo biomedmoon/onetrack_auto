@@ -1,3 +1,49 @@
+const CURRENT_VERSION = '1.2.0'; 
+const RELEASE_NOTES = [
+    "🚀 Added Alt + P test hotkey for instant modal toggling.",
+    "⚡ Integrated clean bottom-right toast notifications for successful actions.",
+    "🎯 Added auto-focus to input fields and modals to speed up typing workflows.",
+    "ℹ️ Added an on-demand Release Info & Changelog button inside the config menu."
+];
+
+function checkWhatsNew(force = false) {
+    let lastSeenVersion = localStorage.getItem('preset_notes_last_version');
+    if (!force && lastSeenVersion === CURRENT_VERSION) return;
+
+    let ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;';
+
+    let box = document.createElement('div');
+    box.style.cssText = 'background:#fff;padding:24px;border-radius:8px;box-shadow:0 6px 16px rgba(0,0,0,0.2);width:420px;max-width:90vw;display:flex;flex-direction:column;color:#333;';
+
+    let title = document.createElement('h3');
+    title.innerText = `🎉 What's New in Preset Notes (v${CURRENT_VERSION})`;
+    title.style.cssText = 'margin-top:0;margin-bottom:12px;font-size:16px;color:#222;text-align:center;';
+    box.appendChild(title);
+
+    let list = document.createElement('ul');
+    list.style.cssText = 'margin:0 0 20px 0;padding-left:20px;font-size:13px;line-height:1.6;color:#444;';
+    RELEASE_NOTES.forEach(note => {
+        let li = document.createElement('li');
+        li.innerText = note;
+        list.appendChild(li);
+    });
+    box.appendChild(list);
+
+    let btn = document.createElement('button');
+    btn.innerText = force ? 'Close' : 'Got it, let’s work!';
+    btn.style.cssText = 'width:100%;padding:10px;background:#28a745;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:13px;font-weight:bold;';
+    btn.onclick = () => {
+        localStorage.setItem('preset_notes_last_version', CURRENT_VERSION);
+        ov.remove();
+        if (force) showEditModal();
+    };
+    box.appendChild(btn);
+
+    ov.appendChild(box);
+    document.body.appendChild(ov);
+}
+
 const DEFAULT_CLIENT_MAPPING = {
     "CORAM": ["Shana Brown", "Amy Kwong"],
     "CVS": ["William Maturo"],
@@ -422,7 +468,6 @@ function showMainModal() {
     ov.appendChild(box);
     document.body.appendChild(ov);
 
-    // Auto-focus first interactive element inside the modal
     setTimeout(() => {
         let firstInput = box.querySelector('input, button');
         if (firstInput) firstInput.focus();
@@ -608,6 +653,21 @@ function showEditModal() {
 
     let sa = document.createElement('div');
     sa.style.cssText = "flex-grow:1;overflow-y:auto;margin-bottom:15px;padding-right:5px;max-height:350px;";
+
+    // --- WHAT'S NEW SECTION IN CONFIG ---
+    let whatsNewHeader = document.createElement('h4');
+    whatsNewHeader.innerText = "ℹ️ Release Info & Changelog";
+    whatsNewHeader.style.cssText = "margin:0 0 6px 0;font-size:13px;color:#444;";
+    sa.appendChild(whatsNewHeader);
+
+    let whatsNewBtn = document.createElement('button');
+    whatsNewBtn.innerText = "🎉 View What's New / Changelog";
+    whatsNewBtn.style.cssText = "background:#eef7fe;color:#0366d6;border:1px solid #c8e1ff;padding:6px;border-radius:4px;cursor:pointer;font-weight:bold;font-size:11px;width:100%;margin-bottom:15px;";
+    whatsNewBtn.onclick = () => {
+        ov.remove();
+        checkWhatsNew(true);
+    };
+    sa.appendChild(whatsNewBtn);
 
     let scaleHeader = document.createElement('h4');
     scaleHeader.innerText = "🖥️ UI Scale Setting";
@@ -857,5 +917,6 @@ window.addEventListener('keydown', (e) => {
     }
 });
 
-// Automatically trigger modal when script loads
+// Automatically check for updates/changelog on load, then open the main modal
+checkWhatsNew();
 showMainModal();
