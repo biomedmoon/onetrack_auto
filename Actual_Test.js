@@ -20,74 +20,68 @@
         "Added JSON Settings Export and Import backup functionality."
     ];
 
-// 1. Inject clean theme styles
-const existingStyle = document.getElementById('onetrack-theme-styles');
-if (existingStyle) existingStyle.remove();
+    // 1. Inject clean theme styles
+    const existingStyle = document.getElementById('onetrack-theme-styles');
+    if (existingStyle) existingStyle.remove();
 
-const themeStyles = document.createElement('style');
-themeStyles.id = 'onetrack-theme-styles';
-themeStyles.innerHTML = `
-    /* Light Mode Defaults */
-    #preset-notes-modal-test, .onetrack-ui-panel {
-        background-color: #ffffff;
-        color: #333333;
-    }
-    
-    /* Dark Mode: Popup container ONLY */
-    #preset-notes-modal-test[data-theme="dark"],
-    .onetrack-ui-panel[data-theme="dark"] {
-        background-color: #1e1e1e !important;
-        color: #e0e0e0 !important;
-        border: 1px solid #333333 !important;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.5) !important;
-    }
-
-    /* Dark Mode Inner Sections / Containers */
-    #preset-notes-modal-test[data-theme="dark"] fieldset,
-    #preset-notes-modal-test[data-theme="dark"] .section-box,
-    #preset-notes-modal-test[data-theme="dark"] div > div {
-        background-color: transparent !important;
-        color: #e0e0e0 !important;
-    }
-
-    /* Dark Mode Text Inputs & Selects */
-    #preset-notes-modal-test[data-theme="dark"] input:not([type="checkbox"]):not([type="radio"]),
-    #preset-notes-modal-test[data-theme="dark"] textarea,
-    #preset-notes-modal-test[data-theme="dark"] select {
-        background-color: #2a2d2e !important;
-        color: #ffffff !important;
-        border: 1px solid #44474a !important;
-    }
-`;
-document.head.appendChild(themeStyles);
-
-// 2. Define a single, unified applyTheme function
-function applyTheme(themeChoice) {
-    localStorage.setItem('onetrack_theme', themeChoice);
-    
-    const activeTheme = (themeChoice === 'auto') 
-        ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
-        : themeChoice;
-
-    const modals = document.querySelectorAll('#preset-notes-modal-test, .onetrack-ui-panel');
-    modals.forEach(modal => {
-        if (activeTheme === 'dark') {
-            modal.setAttribute('data-theme', 'dark');
-        } else {
-            modal.removeAttribute('data-theme');
+    const themeStyles = document.createElement('style');
+    themeStyles.id = 'onetrack-theme-styles';
+    themeStyles.innerHTML = `
+        /* Light Mode Defaults */
+        #preset-notes-modal-test, .onetrack-ui-panel {
+            background-color: #ffffff;
+            color: #333333;
         }
-    });
-}
+        
+        /* Dark Mode: Popup container ONLY */
+        #preset-notes-modal-test[data-theme="dark"],
+        .onetrack-ui-panel[data-theme="dark"] {
+            background-color: #1e1e1e !important;
+            color: #e0e0e0 !important;
+            border: 1px solid #333333 !important;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5) !important;
+        }
 
-// 3. Retrieve saved preference on startup and apply it immediately
-const savedTheme = localStorage.getItem('onetrack_theme') || 'auto';
-applyTheme(savedTheme);
-    
-    // Force trigger a style update for shadow DOM or injected UI components if applicable
-    document.querySelectorAll('.onetrack-ui-panel').forEach(panel => {
-        panel.setAttribute('data-theme', themeChoice);
-    });
-}
+        /* Dark Mode Inner Sections / Containers */
+        #preset-notes-modal-test[data-theme="dark"] fieldset,
+        #preset-notes-modal-test[data-theme="dark"] .section-box,
+        #preset-notes-modal-test[data-theme="dark"] div > div {
+            background-color: transparent !important;
+            color: #e0e0e0 !important;
+        }
+
+        /* Dark Mode Text Inputs & Selects */
+        #preset-notes-modal-test[data-theme="dark"] input:not([type="checkbox"]):not([type="radio"]),
+        #preset-notes-modal-test[data-theme="dark"] textarea,
+        #preset-notes-modal-test[data-theme="dark"] select {
+            background-color: #2a2d2e !important;
+            color: #ffffff !important;
+            border: 1px solid #44474a !important;
+        }
+    `;
+    document.head.appendChild(themeStyles);
+
+    // 2. Define a single, unified applyTheme function
+    function applyTheme(themeChoice) {
+        localStorage.setItem('onetrack_theme', themeChoice);
+        
+        const activeTheme = (themeChoice === 'auto') 
+            ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+            : themeChoice;
+
+        const modals = document.querySelectorAll('#preset-notes-modal-test, .onetrack-ui-panel');
+        modals.forEach(modal => {
+            if (activeTheme === 'dark') {
+                modal.setAttribute('data-theme', 'dark');
+            } else {
+                modal.removeAttribute('data-theme');
+            }
+        });
+    }
+
+    // 3. Retrieve saved preference on startup and apply it immediately
+    const savedTheme = localStorage.getItem('onetrack_theme') || 'auto';
+    applyTheme(savedTheme);
 
     function applyCompactMode(isCompact) {
         localStorage.setItem('onetrack_compact', isCompact);
@@ -96,19 +90,6 @@ applyTheme(savedTheme);
             modal.classList.toggle('onetrack-compact-mode', isCompact);
         }
     }
-    // Example of where your modal is grabbed/created in the DOM:
-    const modal = document.getElementById('preset-notes-modal-test');
-
-        if (modal) {
-    // Ensure the modal has proper positioning styles so dragging works
-        modal.style.position = 'fixed';
-    
-    // Select your header/drag handle inside the modal (create one if it doesn't exist)
-        const dragHandle = modal.querySelector('.modal-header') || modal; 
-
-    // CALL IT HERE:
-    makeDraggable(modal, dragHandle);
-}
 
     // --- 2. Persistent Preferences & State ---
     let currentTheme = localStorage.getItem('onetrack_theme') || 'auto';
@@ -172,36 +153,37 @@ applyTheme(savedTheme);
 
     // --- Draggable Helper ---
     function makeDraggable(element, handle) {
-    let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
-    
-    const dragMouseDown = (e) => {
-        e.preventDefault();
-        pos3 = e.clientX;
-        pos4 = e.clientY;
-        document.onmouseup = closeDragElement;
-        document.onmousemove = elementDrag;
-    };
-
-    const elementDrag = (e) => {
-        e.preventDefault();
-        pos1 = pos3 - e.clientX;
-        pos2 = pos4 - e.clientY;
-        pos3 = e.clientX;
-        pos4 = e.clientY;
+        let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
         
-        element.style.top = (element.offsetTop - pos2) + "px";
-        element.style.left = (element.offsetLeft - pos1) + "px";
-        element.style.position = 'fixed';
-    };
+        const dragMouseDown = (e) => {
+            e.preventDefault();
+            pos3 = e.clientX;
+            pos4 = e.clientY;
+            document.onmouseup = closeDragElement;
+            document.onmousemove = elementDrag;
+        };
 
-    const closeDragElement = () => {
-        document.onmouseup = null;
-        document.onmousemove = null;
-    };
+        const elementDrag = (e) => {
+            e.preventDefault();
+            pos1 = pos3 - e.clientX;
+            pos2 = pos4 - e.clientY;
+            pos3 = e.clientX;
+            pos4 = e.clientY;
+            
+            element.style.top = (element.offsetTop - pos2) + "px";
+            element.style.left = (element.offsetLeft - pos1) + "px";
+            element.style.position = 'fixed';
+        };
 
-    const targetHandle = handle || element;
-    targetHandle.onmousedown = dragMouseDown;
-}
+        const closeDragElement = () => {
+            document.onmouseup = null;
+            document.onmousemove = null;
+        };
+
+        const targetHandle = handle || element;
+        targetHandle.onmousedown = dragMouseDown;
+    }
+
     // --- Export / Import Handlers ---
     function exportSettings() {
         let settings = {
