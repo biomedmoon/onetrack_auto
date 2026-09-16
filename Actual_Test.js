@@ -3,7 +3,7 @@ const RELEASE_NOTES = [
     "🚀 Added Alt + P test hotkey for instant modal toggling.",
     "⚡ Integrated clean bottom-right toast notifications for successful actions.",
     "🎯 Added auto-focus to input fields and modals to speed up typing workflows.",
-    "ℹ️ Added an on-demand Release Info & Changelog button inside the config menu."
+    "ℹ️ Moved release info, changelog, and UI scale settings into a dedicated Advanced Settings menu."
 ];
 
 function checkWhatsNew(force = false) {
@@ -36,7 +36,7 @@ function checkWhatsNew(force = false) {
     btn.onclick = () => {
         localStorage.setItem('preset_notes_last_version', CURRENT_VERSION);
         ov.remove();
-        if (force) showEditModal();
+        if (force) showAdvancedSettingsModal();
     };
     box.appendChild(btn);
 
@@ -630,11 +630,7 @@ function showClientSelectModal(ap, sao) {
     document.body.appendChild(ov);
 }
 
-function showEditModal() {
-    let dt = getDeviceType(),
-        ph = [...getPhrasesForDevice(dt)],
-        map = getClientMapping();
-
+function showAdvancedSettingsModal() {
     let ex = document.getElementById('preset-notes-modal-test');
     if (ex) ex.remove();
 
@@ -643,18 +639,18 @@ function showEditModal() {
     ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;';
 
     let box = document.createElement('div');
-    box.style.cssText = 'background:#fff;padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:500px;max-height:85vh;display:flex;flex-direction:column;color:#333;';
+    box.style.cssText = 'background:#fff;padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:450px;display:flex;flex-direction:column;color:#333;';
     applyUIScale(box);
 
     let title = document.createElement('h3');
-    title.innerText = "[TEST] Edit Configuration";
-    title.style.cssText = "margin-top:0;color:#333;font-size:16px;text-align:center;";
+    title.innerText = "⚙️ Advanced Settings";
+    title.style.cssText = "margin-top:0;color:#333;font-size:16px;text-align:center;margin-bottom:15px;";
     box.appendChild(title);
 
     let sa = document.createElement('div');
-    sa.style.cssText = "flex-grow:1;overflow-y:auto;margin-bottom:15px;padding-right:5px;max-height:350px;";
+    sa.style.cssText = "flex-grow:1;overflow-y:auto;margin-bottom:15px;padding-right:5px;";
 
-    // --- WHAT'S NEW SECTION IN CONFIG ---
+    // Release Info / Changelog Button
     let whatsNewHeader = document.createElement('h4');
     whatsNewHeader.innerText = "ℹ️ Release Info & Changelog";
     whatsNewHeader.style.cssText = "margin:0 0 6px 0;font-size:13px;color:#444;";
@@ -662,20 +658,21 @@ function showEditModal() {
 
     let whatsNewBtn = document.createElement('button');
     whatsNewBtn.innerText = "🎉 View What's New / Changelog";
-    whatsNewBtn.style.cssText = "background:#eef7fe;color:#0366d6;border:1px solid #c8e1ff;padding:6px;border-radius:4px;cursor:pointer;font-weight:bold;font-size:11px;width:100%;margin-bottom:15px;";
+    whatsNewBtn.style.cssText = "background:#eef7fe;color:#0366d6;border:1px solid #c8e1ff;padding:8px;border-radius:4px;cursor:pointer;font-weight:bold;font-size:12px;width:100%;margin-bottom:15px;";
     whatsNewBtn.onclick = () => {
         ov.remove();
         checkWhatsNew(true);
     };
     sa.appendChild(whatsNewBtn);
 
+    // UI Scale Setting
     let scaleHeader = document.createElement('h4');
     scaleHeader.innerText = "🖥️ UI Scale Setting";
     scaleHeader.style.cssText = "margin:0 0 6px 0;font-size:13px;color:#444;";
     sa.appendChild(scaleHeader);
 
     let scaleContainer = document.createElement('div');
-    scaleContainer.style.cssText = "border:1px solid #ddd;padding:8px;border-radius:4px;margin-bottom:12px;background:#fdfdfd;display:flex;align-items:center;justify-content:space-between;gap:8px;";
+    scaleContainer.style.cssText = "border:1px solid #ddd;padding:10px;border-radius:4px;margin-bottom:12px;background:#fdfdfd;display:flex;align-items:center;justify-content:space-between;gap:8px;";
     
     let scaleLabel = document.createElement('span');
     updateScaleLabel();
@@ -692,7 +689,7 @@ function showEditModal() {
 
     let minusBtn = document.createElement('button');
     minusBtn.innerText = "-";
-    minusBtn.style.cssText = "padding:4px 10px;background:#e0e0e0;border:none;border-radius:3px;cursor:pointer;font-weight:bold;";
+    minusBtn.style.cssText = "padding:6px 12px;background:#e0e0e0;border:none;border-radius:3px;cursor:pointer;font-weight:bold;";
     minusBtn.onclick = () => {
         setUIScale(getUIScale() - 0.1);
         updateScaleLabel();
@@ -702,7 +699,7 @@ function showEditModal() {
 
     let resetBtn = document.createElement('button');
     resetBtn.innerText = "100%";
-    resetBtn.style.cssText = "padding:4px 8px;background:#f0f0f0;border:1px solid #ccc;border-radius:3px;cursor:pointer;font-size:11px;";
+    resetBtn.style.cssText = "padding:6px 10px;background:#f0f0f0;border:1px solid #ccc;border-radius:3px;cursor:pointer;font-size:11px;";
     resetBtn.onclick = () => {
         setUIScale(1.0);
         updateScaleLabel();
@@ -712,7 +709,7 @@ function showEditModal() {
 
     let plusBtn = document.createElement('button');
     plusBtn.innerText = "+";
-    plusBtn.style.cssText = "padding:4px 10px;background:#e0e0e0;border:none;border-radius:3px;cursor:pointer;font-weight:bold;";
+    plusBtn.style.cssText = "padding:6px 12px;background:#e0e0e0;border:none;border-radius:3px;cursor:pointer;font-weight:bold;";
     plusBtn.onclick = () => {
         setUIScale(getUIScale() + 0.1);
         updateScaleLabel();
@@ -722,6 +719,58 @@ function showEditModal() {
 
     scaleContainer.appendChild(scaleBtnGroup);
     sa.appendChild(scaleContainer);
+
+    box.appendChild(sa);
+
+    let backBtn = document.createElement('button');
+    backBtn.innerText = "← Back to Edit Notes";
+    backBtn.style.cssText = "width:100%;padding:8px;background:#780034;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;";
+    backBtn.onclick = () => {
+        ov.remove();
+        showEditModal();
+    };
+    box.appendChild(backBtn);
+
+    ov.appendChild(box);
+    document.body.appendChild(ov);
+}
+
+function showEditModal() {
+    let dt = getDeviceType(),
+        ph = [...getPhrasesForDevice(dt)],
+        map = getClientMapping();
+
+    let ex = document.getElementById('preset-notes-modal-test');
+    if (ex) ex.remove();
+
+    let ov = document.createElement('div');
+    ov.id = 'preset-notes-modal-test';
+    ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;';
+
+    let box = document.createElement('div');
+    box.style.cssText = 'background:#fff;padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:500px;max-height:85vh;display:flex;flex-direction:column;color:#333;';
+    applyUIScale(box);
+
+    let titleRow = document.createElement('div');
+    titleRow.style.cssText = "display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;";
+
+    let title = document.createElement('h3');
+    title.innerText = "[TEST] Edit Configuration";
+    title.style.cssText = "margin:0;color:#333;font-size:16px;";
+    titleRow.appendChild(title);
+
+    let settingsBtn = document.createElement('button');
+    settingsBtn.innerText = "⚙️ Settings";
+    settingsBtn.style.cssText = "background:#f0f0f0;color:#333;border:1px solid #ccc;padding:5px 10px;border-radius:4px;cursor:pointer;font-weight:bold;font-size:11px;";
+    settingsBtn.onclick = () => {
+        ov.remove();
+        showAdvancedSettingsModal();
+    };
+    titleRow.appendChild(settingsBtn);
+    box.appendChild(titleRow);
+
+    let sa = document.createElement('div');
+    sa.style.cssText = "flex-grow:1;overflow-y:auto;margin-bottom:15px;padding-right:5px;max-height:380px;";
 
     let nl = document.createElement('h4');
     nl.innerText = `Notes for Device: ${dt} (supports {DATE} & {SERIAL})`;
