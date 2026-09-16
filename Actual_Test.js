@@ -30,32 +30,34 @@ themeStyles.innerHTML = `
         color: #333333;
     }
     
-    /* Dark Mode: Make the outer modal container dark instead of white */
-    #preset-notes-modal-test[data-theme="dark"],
-    .onetrack-ui-panel[data-theme="dark"] {
-        background-color: #181a1b !important;
-        color: #e8e6e3 !important;
-        border: 1px solid #2d3133 !important;
+    /* Dark Mode: Popup container ONLY (Leaves page background completely untouched) */
+    body[data-theme="dark"] #preset-notes-modal-test,
+    .onetrack-ui-panel[data-theme="dark"],
+    #preset-notes-modal-test.dark-theme {
+        background-color: #1e1e1e !important;
+        color: #e0e0e0 !important;
+        border: 1px solid #333333 !important;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.5) !important;
     }
 
-    /* Dark Mode: Inner sections and fieldsets */
-    #preset-notes-modal-test[data-theme="dark"] fieldset,
-    #preset-notes-modal-test[data-theme="dark"] .section-box,
-    #preset-notes-modal-test[data-theme="dark"] div > div {
-        background-color: #222527 !important;
-        color: #e8e6e3 !important;
+    /* Dark Mode Inner Sections / Containers (Retaining readability) */
+    body[data-theme="dark"] #preset-notes-modal-test fieldset,
+    body[data-theme="dark"] #preset-notes-modal-test .section-box,
+    body[data-theme="dark"] #preset-notes-modal-test div > div {
+        background-color: transparent !important;
+        color: #e0e0e0 !important;
     }
 
-    /* Dark Mode: Inputs, textareas, and select elements */
-    #preset-notes-modal-test[data-theme="dark"] input,
-    #preset-notes-modal-test[data-theme="dark"] textarea,
-    #preset-notes-modal-test[data-theme="dark"] select {
-        background-color: #121415 !important;
+    /* Dark Mode Text Inputs & Selects */
+    body[data-theme="dark"] #preset-notes-modal-test input:not([type="checkbox"]):not([type="radio"]),
+    body[data-theme="dark"] #preset-notes-modal-test textarea,
+    body[data-theme="dark"] #preset-notes-modal-test select {
+        background-color: #2a2d2e !important;
         color: #ffffff !important;
-        border: 1px solid #43484c !important;
+        border: 1px solid #44474a !important;
     }
 `;
-
+document.head.appendChild(themeStyles);
 // 2. Define the applyTheme function
 function applyTheme(themeChoice) {
     localStorage.setItem('onetrack_theme', themeChoice);
@@ -65,12 +67,12 @@ function applyTheme(themeChoice) {
         ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
         : themeChoice;
 
-    if (modal) {
-        if (activeTheme === 'dark') {
-            modal.setAttribute('data-theme', 'dark');
-        } else {
-            modal.removeAttribute('data-theme');
-        }
+    if (activeTheme === 'dark') {
+        document.body.setAttribute('data-theme', 'dark');
+        if (modal) modal.classList.add('dark-theme');
+    } else {
+        document.body.removeAttribute('data-theme');
+        if (modal) modal.classList.remove('dark-theme');
     }
 }
 
