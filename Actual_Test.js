@@ -20,6 +20,26 @@
         "Added JSON Settings Export and Import backup functionality."
     ];
 
+    const themeStyles = document.createElement('style');
+  themeStyles.innerHTML = `
+    /* Light Theme Defaults */
+    #preset-notes-modal-test, .onetrack-ui-panel {
+        background-color: #ffffff;
+        color: #333333;
+    }
+    
+    /* Dark Theme Overrides */
+    [data-theme="dark"] #preset-notes-modal-test, 
+    [data-theme="dark"] .onetrack-ui-panel {
+        background-color: #1e1e1e !important;
+        color: #f0f0f0 !important;
+        border-color: #444444 !important;
+    }
+`;
+document.head.appendChild(themeStyles);
+    // Run this immediately on script start
+    const savedTheme = localStorage.getItem('onetrack_theme') || 'auto';
+    applyTheme(savedTheme);
     // --- 1. Define Helper Functions First ---
     function applyTheme(themeChoice) {
     localStorage.setItem('onetrack_theme', themeChoice);
