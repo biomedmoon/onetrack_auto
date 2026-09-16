@@ -33,13 +33,19 @@
 
     function applyCompactMode(isCompact) {
         localStorage.setItem('onetrack_compact', isCompact);
-        // ... compact mode logic ...
+        const modal = document.getElementById('preset-notes-modal-test');
+        if (modal) {
+            modal.classList.toggle('onetrack-compact-mode', isCompact);
+        }
     }
 
     // --- 2. Persistent Preferences & State ---
     let currentTheme = localStorage.getItem('onetrack_theme') || 'auto';
     let customHotkey = localStorage.getItem('onetrack_hotkey') || 'KeyP';
     let compactMode = localStorage.getItem('onetrack_compact') === 'true';
+
+    // Apply initial theme immediately
+    applyTheme(currentTheme);
 
     // --- 3. Style Injection ---
     let themeStyleTag = document.getElementById('onetrack-theme-variables');
@@ -82,6 +88,14 @@
             --bg-card: #2d2d2d !important;
             --text-color: #e0e0e0 !important;
             --border-color: #444444 !important;
+        }
+
+        .onetrack-compact-mode {
+            padding: 10px !important;
+        }
+        .onetrack-compact-mode button {
+            padding: 5px 8px !important;
+            font-size: 11px !important;
         }
     `;
 
@@ -131,6 +145,7 @@
         a.href = url;
         a.download = 'onetrack_settings_backup.json';
         a.click();
+        URL.revokeObjectURL(url);
         showToast('Settings exported successfully!');
     }
 
@@ -421,7 +436,7 @@
         ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;';
 
         let box = document.createElement('div');
-        box.className = 'onetrack-modal';
+        box.className = 'onetrack-modal' + (compactMode ? ' onetrack-compact-mode' : '');
         box.style.cssText = 'background:#fff;padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:500px;max-height:80vh;display:flex;flex-direction:column;color:#333;position:relative;';
         applyUIScale(box);
 
@@ -643,7 +658,7 @@
         ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;';
 
         let box = document.createElement('div');
-        box.className = 'onetrack-modal';
+        box.className = 'onetrack-modal' + (compactMode ? ' onetrack-compact-mode' : '');
         box.style.cssText = 'background:#fff;padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:400px;display:flex;flex-direction:column;color:#333;position:relative;';
         applyUIScale(box);
 
@@ -711,7 +726,7 @@
         ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;';
 
         let box = document.createElement('div');
-        box.className = 'onetrack-modal';
+        box.className = 'onetrack-modal' + (compactMode ? ' onetrack-compact-mode' : '');
         box.style.cssText = 'background:#fff;padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:450px;max-height:80vh;display:flex;flex-direction:column;color:#333;position:relative;';
         applyUIScale(box);
 
@@ -813,7 +828,7 @@
         ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;';
 
         let box = document.createElement('div');
-        box.className = 'onetrack-modal';
+        box.className = 'onetrack-modal' + (compactMode ? ' onetrack-compact-mode' : '');
         box.style.cssText = 'background:#fff;padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:450px;display:flex;flex-direction:column;color:#333;position:relative;';
         applyUIScale(box);
 
@@ -827,7 +842,6 @@
         let sa = document.createElement('div');
         sa.style.cssText = "flex-grow:1;overflow-y:auto;margin-bottom:15px;padding-right:5px;";
 
-        // 1. Release Info / Changelog Button
         let whatsNewHeader = document.createElement('h4');
         whatsNewHeader.innerText = "ℹ️ Release Info & Changelog";
         whatsNewHeader.style.cssText = "margin:0 0 6px 0;font-size:13px;color:#444;";
@@ -843,7 +857,6 @@
         };
         sa.appendChild(whatsNewBtn);
 
-        // 2. Theme Mode Selection Row
         let themeRow = document.createElement('div');
         themeRow.style.cssText = 'display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; font-size:13px; font-weight:bold;';
         themeRow.innerHTML = `<span>Theme Mode</span>`;
@@ -853,13 +866,13 @@
         themeSelect.className = 'onetrack-btn';
         themeSelect.style.cssText = 'padding:4px 8px; border-radius:4px;';
         themeSelect.onchange = (e) => {
-            applyTheme(e.target.value);
-            showToast(`Theme changed to ${e.target.value}`);
+            currentTheme = e.target.value;
+            applyTheme(currentTheme);
+            showToast(`Theme changed to ${currentTheme}`);
         };
         themeRow.appendChild(themeSelect);
         sa.appendChild(themeRow);
 
-        // 3. Hotkey Configuration Row
         let hotkeyRow = document.createElement('div');
         hotkeyRow.style.cssText = 'display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; font-size:13px; font-weight:bold;';
         hotkeyRow.innerHTML = `<span>Trigger Hotkey (Alt + )</span>`;
@@ -881,7 +894,6 @@
         hotkeyRow.appendChild(hotkeyInput);
         sa.appendChild(hotkeyRow);
 
-        // 4. Compact Mode Setting Row
         let compactRow = document.createElement('div');
         compactRow.style.cssText = 'display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; font-size:13px; font-weight:bold;';
         compactRow.innerHTML = `<span>Compact UI Mode</span>`;
@@ -889,13 +901,13 @@
         compactToggle.type = 'checkbox';
         compactToggle.checked = compactMode;
         compactToggle.onchange = (e) => {
-            applyCompactMode(e.target.checked);
-            showToast(`Compact Mode ${e.target.checked ? 'Enabled' : 'Disabled'}`);
+            compactMode = e.target.checked;
+            applyCompactMode(compactMode);
+            showToast(`Compact Mode ${compactMode ? 'Enabled' : 'Disabled'}`);
         };
         compactRow.appendChild(compactToggle);
         sa.appendChild(compactRow);
 
-        // 5. Export / Import Buttons Row
         let actionRow = document.createElement('div');
         actionRow.style.cssText = 'display:flex; justify-content:space-between; margin-bottom:12px; gap:8px;';
         
@@ -921,7 +933,6 @@
         actionRow.appendChild(importLabel);
         sa.appendChild(actionRow);
 
-        // 6. UI Scale Setting
         let scaleHeader = document.createElement('h4');
         scaleHeader.innerText = "🖥️ UI Scale Setting";
         scaleHeader.style.cssText = "margin:10px 0 6px 0;font-size:13px;color:#444;";
@@ -1008,7 +1019,7 @@
         ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;';
 
         let box = document.createElement('div');
-        box.className = 'onetrack-modal';
+        box.className = 'onetrack-modal' + (compactMode ? ' onetrack-compact-mode' : '');
         box.style.cssText = 'background:#fff;padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:500px;max-height:85vh;display:flex;flex-direction:column;color:#333;position:relative;';
         applyUIScale(box);
 
