@@ -682,7 +682,7 @@
         eb.style.cssText = 'width:100%;padding:8px;margin-bottom:6px;background:#780034;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;';
         eb.onclick = () => {
             ov.remove();
-            showEditModal();
+            showEditModal(currentTheme);
         };
         box.appendChild(eb);
 
@@ -831,7 +831,7 @@
             configClientBtn.style.cssText = 'width:100%;padding:6px;margin-bottom:8px;background:#780034;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;';
             configClientBtn.onclick = () => {
                 ov.remove();
-                showEditModal();
+                showEditModal(currentTheme);
             };
             box.appendChild(configClientBtn);
         }
@@ -862,7 +862,7 @@
             ecBtn.style.cssText = 'flex:1;padding:8px;background:#780034;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;';
             ecBtn.onclick = () => {
                 ov.remove();
-                showEditModal();
+                showEditModal(currentTheme);
             };
             bRow.appendChild(ecBtn);
         }
