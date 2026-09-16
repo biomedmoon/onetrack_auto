@@ -61,19 +61,21 @@ document.head.appendChild(themeStyles);
 // 2. Define the applyTheme function
 function applyTheme(themeChoice) {
     localStorage.setItem('onetrack_theme', themeChoice);
-    const modal = document.getElementById('preset-notes-modal-test');
     
     const activeTheme = (themeChoice === 'auto') 
         ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
         : themeChoice;
 
-    if (activeTheme === 'dark') {
-        document.body.setAttribute('data-theme', 'dark');
-        if (modal) modal.classList.add('dark-theme');
-    } else {
-        document.body.removeAttribute('data-theme');
-        if (modal) modal.classList.remove('dark-theme');
-    }
+    // Target all active instances of your popup panels/modals
+    const modals = document.querySelectorAll('#preset-notes-modal-test, .onetrack-ui-panel');
+    
+    modals.forEach(modal => {
+        if (activeTheme === 'dark') {
+            modal.setAttribute('data-theme', 'dark');
+        } else {
+            modal.removeAttribute('data-theme');
+        }
+    });
 }
 
 // 3. Retrieve saved preference on startup and apply it immediately
