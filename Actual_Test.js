@@ -20,49 +20,66 @@
         "Added JSON Settings Export and Import backup functionality."
     ];
 
+// 1. Inject robust dark mode styles targeting both attributes and explicit classes
 const themeStyles = document.createElement('style');
 themeStyles.innerHTML = `
     /* Light Theme Defaults */
     #preset-notes-modal-test, .onetrack-ui-panel {
-        background-color: #ffffff;
-        color: #333333;
+        background-color: #ffffff !important;
+        color: #333333 !important;
     }
     
-    /* Dark Theme: Main Modal Container becomes Dark */
-    [data-theme="dark"] #preset-notes-modal-test,
-    [data-theme="dark"] .onetrack-ui-panel {
+    /* Dark Theme: Root & Modal Background */
+    html[data-theme="dark"] #preset-notes-modal-test,
+    html[data-theme="dark"] .onetrack-ui-panel,
+    #preset-notes-modal-test[data-theme="dark"],
+    .onetrack-ui-panel[data-theme="dark"] {
         background-color: #181a1b !important;
         color: #e8e6e3 !important;
         border-color: #2d3133 !important;
     }
 
-    /* Dark Theme: Inner Cards / Sections / Containers */
-    [data-theme="dark"] #preset-notes-modal-test fieldset,
-    [data-theme="dark"] #preset-notes-modal-test .section-box,
-    [data-theme="dark"] #preset-notes-modal-test div > div {
+    /* Dark Theme: Inner Cards, Fieldsets, and Sections */
+    html[data-theme="dark"] #preset-notes-modal-test fieldset,
+    html[data-theme="dark"] #preset-notes-modal-test .section-box,
+    html[data-theme="dark"] #preset-notes-modal-test div > div {
         background-color: #222527 !important;
         color: #e8e6e3 !important;
     }
 
-    /* Dark Theme: Inputs, Textareas, and Select fields */
-    [data-theme="dark"] #preset-notes-modal-test input,
-    [data-theme="dark"] #preset-notes-modal-test textarea,
-    [data-theme="dark"] #preset-notes-modal-test select {
+    /* Dark Theme: Inputs, Selects, and Textareas */
+    html[data-theme="dark"] #preset-notes-modal-test input,
+    html[data-theme="dark"] #preset-notes-modal-test textarea,
+    html[data-theme="dark"] #preset-notes-modal-test select {
         background-color: #121415 !important;
         color: #ffffff !important;
         border: 1px solid #43484c !important;
     }
-
-    /* Dark Theme: Buttons */
-    [data-theme="dark"] #preset-notes-modal-test button {
-        background-color: #2c3237 !important;
-        color: #ffffff !important;
-        border: 1px solid #52595d !important;
-    }
 `;
-    // Run this immediately on script start
-    const savedTheme = localStorage.getItem('onetrack_theme') || 'auto';
-    applyTheme(savedTheme);
+document.head.appendChild(themeStyles);
+
+// 2. Define the applyTheme function
+function applyTheme(themeChoice) {
+    localStorage.setItem('onetrack_theme', themeChoice);
+    const root = document.documentElement;
+    const modal = document.getElementById('preset-notes-modal-test');
+    
+    const activeTheme = (themeChoice === 'auto') 
+        ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+        : themeChoice;
+
+    if (activeTheme === 'dark') {
+        root.setAttribute('data-theme', 'dark');
+        if (modal) modal.setAttribute('data-theme', 'dark');
+    } else {
+        root.removeAttribute('data-theme');
+        if (modal) modal.removeAttribute('data-theme');
+    }
+}
+
+// 3. Retrieve saved preference on startup and apply it immediately
+const savedTheme = localStorage.getItem('onetrack_theme') || 'auto';
+applyTheme(savedTheme);
     // --- 1. Define Helper Functions First ---
     function applyTheme(themeChoice) {
     localStorage.setItem('onetrack_theme', themeChoice);
