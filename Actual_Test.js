@@ -24,13 +24,13 @@
 // 1. Inject clean, non-destructive theme styles
 const themeStyles = document.createElement('style');
 themeStyles.innerHTML = `
-    /* Light Mode Defaults for the Popup */
+    /* Light Mode Defaults */
     #preset-notes-modal-test, .onetrack-ui-panel {
         background-color: #ffffff;
         color: #333333;
     }
     
-    /* Dark Mode: Apply ONLY to the popup container (Leaves the page background untouched) */
+    /* Dark Mode: Make the outer modal container dark instead of white */
     #preset-notes-modal-test[data-theme="dark"],
     .onetrack-ui-panel[data-theme="dark"] {
         background-color: #181a1b !important;
@@ -38,14 +38,15 @@ themeStyles.innerHTML = `
         border: 1px solid #2d3133 !important;
     }
 
-    /* Dark Mode Inner Elements */
+    /* Dark Mode: Inner sections and fieldsets */
     #preset-notes-modal-test[data-theme="dark"] fieldset,
     #preset-notes-modal-test[data-theme="dark"] .section-box,
     #preset-notes-modal-test[data-theme="dark"] div > div {
-        background-color: transparent !important;
+        background-color: #222527 !important;
         color: #e8e6e3 !important;
     }
 
+    /* Dark Mode: Inputs, textareas, and select elements */
     #preset-notes-modal-test[data-theme="dark"] input,
     #preset-notes-modal-test[data-theme="dark"] textarea,
     #preset-notes-modal-test[data-theme="dark"] select {
@@ -54,7 +55,6 @@ themeStyles.innerHTML = `
         border: 1px solid #43484c !important;
     }
 `;
-document.head.appendChild(themeStyles);
 
 // 2. Define the applyTheme function
 function applyTheme(themeChoice) {
