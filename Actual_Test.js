@@ -20,78 +20,70 @@
         "Added JSON Settings Export and Import backup functionality."
     ];
 
-    // --- Persistent Preferences & State ---
+    // --- 1. Define Helper Functions First ---
+    function applyTheme(themeChoice) {
+        localStorage.setItem('onetrack_theme', themeChoice);
+        const rootElement = document.documentElement;
+        if (themeChoice === 'auto') {
+            rootElement.removeAttribute('data-theme');
+        } else {
+            rootElement.setAttribute('data-theme', themeChoice);
+        }
+    }
+
+    function applyCompactMode(isCompact) {
+        localStorage.setItem('onetrack_compact', isCompact);
+        // ... compact mode logic ...
+    }
+
+    // --- 2. Persistent Preferences & State ---
     let currentTheme = localStorage.getItem('onetrack_theme') || 'auto';
     let customHotkey = localStorage.getItem('onetrack_hotkey') || 'KeyP';
     let compactMode = localStorage.getItem('onetrack_compact') === 'true';
 
-    // --- Apply Initial Dynamic Styles ---
-    applyTheme(currentTheme);
-    applyCompactMode(compactMode);
-
-    // --- Theme Manager ---
-    function applyTheme(themeChoice) {
-    currentTheme = themeChoice;
-    localStorage.setItem('onetrack_theme', themeChoice);
-    
-    const rootElement = document.documentElement;
-    if (themeChoice === 'auto') {
-        rootElement.removeAttribute('data-theme');
-    } else {
-        rootElement.setAttribute('data-theme', themeChoice);
-    }
-}
-
-// Execute on startup
-applyTheme(currentTheme);
-
-    // --- Compact Mode Manager ---
-    function applyCompactMode(isCompact) {
-        compactMode = isCompact;
-        localStorage.setItem('onetrack_compact', isCompact);
-
-        let themeStyleTag = document.getElementById('onetrack-theme-variables');
-if (!themeStyleTag) {
-    themeStyleTag = document.createElement('style');
-    themeStyleTag.id = 'onetrack-theme-variables';
-    document.head.appendChild(themeStyleTag);
-}
-
-themeStyleTag.innerHTML = `
-    :root {
-        --bg-main: #ffffff;
-        --bg-input: #ffffff;
-        --bg-card: #f9f9f9;
-        --text-color: #222222;
-        --border-color: #cccccc;
+    // --- 3. Style Injection ---
+    let themeStyleTag = document.getElementById('onetrack-theme-variables');
+    if (!themeStyleTag) {
+        themeStyleTag = document.createElement('style');
+        themeStyleTag.id = 'onetrack-theme-variables';
+        document.head.appendChild(themeStyleTag);
     }
 
-    @media (prefers-color-scheme: dark) {
+    themeStyleTag.innerHTML = `
         :root {
-            --bg-main: #181818;
-            --bg-input: #1e1e1e;
-            --bg-card: #2d2d2d;
-            --text-color: #e0e0e0;
-            --border-color: #444444;
+            --bg-main: #ffffff;
+            --bg-input: #ffffff;
+            --bg-card: #f9f9f9;
+            --text-color: #222222;
+            --border-color: #cccccc;
         }
-    }
 
-    [data-theme="light"] {
-        --bg-main: #ffffff !important;
-        --bg-input: #ffffff !important;
-        --bg-card: #f9f9f9 !important;
-        --text-color: #222222 !important;
-        --border-color: #cccccc !important;
-    }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg-main: #181818;
+                --bg-input: #1e1e1e;
+                --bg-card: #2d2d2d;
+                --text-color: #e0e0e0;
+                --border-color: #444444;
+            }
+        }
 
-    [data-theme="dark"] {
-        --bg-main: #181818 !important;
-        --bg-input: #1e1e1e !important;
-        --bg-card: #2d2d2d !important;
-        --text-color: #e0e0e0 !important;
-        --border-color: #444444 !important;
-    }
-`;
+        [data-theme="light"] {
+            --bg-main: #ffffff !important;
+            --bg-input: #ffffff !important;
+            --bg-card: #f9f9f9 !important;
+            --text-color: #222222 !important;
+            --border-color: #cccccc !important;
+        }
+
+        [data-theme="dark"] {
+            --bg-main: #181818 !important;
+            --bg-input: #1e1e1e !important;
+            --bg-card: #2d2d2d !important;
+            --text-color: #e0e0e0 !important;
+            --border-color: #444444 !important;
+        }
+    `;
 
     // --- Draggable Helper ---
     function makeDraggable(elm, handleElm) {
