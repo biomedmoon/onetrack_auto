@@ -20,9 +20,12 @@
         "Added JSON Settings Export and Import backup functionality."
     ];
 
-// 1. Inject robust dark mode styles targeting both attributes and explicit classes
-// 1. Inject clean, non-destructive theme styles
+// 1. Inject clean theme styles
+const existingStyle = document.getElementById('onetrack-theme-styles');
+if (existingStyle) existingStyle.remove();
+
 const themeStyles = document.createElement('style');
+themeStyles.id = 'onetrack-theme-styles';
 themeStyles.innerHTML = `
     /* Light Mode Defaults */
     #preset-notes-modal-test, .onetrack-ui-panel {
@@ -30,35 +33,35 @@ themeStyles.innerHTML = `
         color: #333333;
     }
     
-    /* Dark Mode: Popup container ONLY (Leaves page background completely untouched) */
-    body[data-theme="dark"] #preset-notes-modal-test,
-    .onetrack-ui-panel[data-theme="dark"],
-    #preset-notes-modal-test.dark-theme {
+    /* Dark Mode: Popup container ONLY */
+    #preset-notes-modal-test[data-theme="dark"],
+    .onetrack-ui-panel[data-theme="dark"] {
         background-color: #1e1e1e !important;
         color: #e0e0e0 !important;
         border: 1px solid #333333 !important;
         box-shadow: 0 4px 20px rgba(0,0,0,0.5) !important;
     }
 
-    /* Dark Mode Inner Sections / Containers (Retaining readability) */
-    body[data-theme="dark"] #preset-notes-modal-test fieldset,
-    body[data-theme="dark"] #preset-notes-modal-test .section-box,
-    body[data-theme="dark"] #preset-notes-modal-test div > div {
+    /* Dark Mode Inner Sections / Containers */
+    #preset-notes-modal-test[data-theme="dark"] fieldset,
+    #preset-notes-modal-test[data-theme="dark"] .section-box,
+    #preset-notes-modal-test[data-theme="dark"] div > div {
         background-color: transparent !important;
         color: #e0e0e0 !important;
     }
 
     /* Dark Mode Text Inputs & Selects */
-    body[data-theme="dark"] #preset-notes-modal-test input:not([type="checkbox"]):not([type="radio"]),
-    body[data-theme="dark"] #preset-notes-modal-test textarea,
-    body[data-theme="dark"] #preset-notes-modal-test select {
+    #preset-notes-modal-test[data-theme="dark"] input:not([type="checkbox"]):not([type="radio"]),
+    #preset-notes-modal-test[data-theme="dark"] textarea,
+    #preset-notes-modal-test[data-theme="dark"] select {
         background-color: #2a2d2e !important;
         color: #ffffff !important;
         border: 1px solid #44474a !important;
     }
 `;
 document.head.appendChild(themeStyles);
-// 2. Define the applyTheme function
+
+// 2. Define a single, unified applyTheme function
 function applyTheme(themeChoice) {
     localStorage.setItem('onetrack_theme', themeChoice);
     
@@ -66,9 +69,7 @@ function applyTheme(themeChoice) {
         ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
         : themeChoice;
 
-    // Target all active instances of your popup panels/modals
     const modals = document.querySelectorAll('#preset-notes-modal-test, .onetrack-ui-panel');
-    
     modals.forEach(modal => {
         if (activeTheme === 'dark') {
             modal.setAttribute('data-theme', 'dark');
@@ -81,16 +82,6 @@ function applyTheme(themeChoice) {
 // 3. Retrieve saved preference on startup and apply it immediately
 const savedTheme = localStorage.getItem('onetrack_theme') || 'auto';
 applyTheme(savedTheme);
-    // --- 1. Define Helper Functions First ---
-    function applyTheme(themeChoice) {
-    localStorage.setItem('onetrack_theme', themeChoice);
-    const rootElement = document.documentElement;
-    
-    if (themeChoice === 'auto') {
-        rootElement.removeAttribute('data-theme');
-    } else {
-        rootElement.setAttribute('data-theme', themeChoice);
-    }
     
     // Force trigger a style update for shadow DOM or injected UI components if applicable
     document.querySelectorAll('.onetrack-ui-panel').forEach(panel => {
