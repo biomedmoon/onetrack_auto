@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         OneTrack Automation & Helper - Actual_Test
 // @namespace    http://tampermonkey.net/
-// @version      1.3.0
+// @version      1.3.1
 // @description  Automates workflows, UI enhancements, hotkeys, and persistent settings.
 // @author       Biomed Team
 // @match        *://*/*
@@ -11,7 +11,7 @@
 (function() {
     'use strict';
 
-    const CURRENT_VERSION = '1.3.0';
+    const CURRENT_VERSION = '1.3.1';
     const RELEASE_NOTES = [
         "Added customizable Theme Toggle (Dark/Light Mode).",
         "Enabled draggable floating UI panels.",
@@ -91,15 +91,12 @@
         }
     }
 
-    // --- 2. Persistent Preferences & State ---
     let currentTheme = localStorage.getItem('onetrack_theme') || 'auto';
     let customHotkey = localStorage.getItem('onetrack_hotkey') || 'KeyP';
     let compactMode = localStorage.getItem('onetrack_compact') === 'true';
 
-    // Apply initial theme immediately
     applyTheme(currentTheme);
 
-    // --- 3. Style Injection ---
     let themeStyleTag = document.getElementById('onetrack-theme-variables');
     if (!themeStyleTag) {
         themeStyleTag = document.createElement('style');
@@ -151,7 +148,6 @@
         }
     `;
 
-    // --- Draggable Helper ---
     function makeDraggable(element, handle) {
         let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
         
@@ -184,7 +180,6 @@
         targetHandle.onmousedown = dragMouseDown;
     }
 
-    // --- Export / Import Handlers ---
     function exportSettings() {
         let settings = {
             theme: localStorage.getItem('onetrack_theme'),
@@ -222,7 +217,6 @@
         reader.readAsText(file);
     }
 
-    // --- What's New Check Function ---
     function checkWhatsNew(force = false) {
         let lastSeenVersion = localStorage.getItem('preset_notes_last_version');
         if (!force && lastSeenVersion === CURRENT_VERSION) return;
@@ -473,7 +467,7 @@
         localStorage.setItem('preset_all_history', JSON.stringify(hist));
     }
 
-    function showMainModal() {
+    function showMainModal(passedTheme) {
         let dt = getDeviceType(),
             ph = getPhrasesForDevice(dt),
             hist = getAllHistory(),
@@ -481,21 +475,27 @@
             iam = localStorage.getItem('preset_notes_append_mode') === 'true',
             hrm = localStorage.getItem('preset_hide_recent') === 'true';
 
+        let activeTheme = passedTheme || document.getElementById('preset-notes-modal-test')?.getAttribute('data-theme') || localStorage.getItem('onetrack_theme') || 'light';
+        let isDark = activeTheme === 'dark';
+
         let ex = document.getElementById('preset-notes-modal-test');
         if (ex) ex.remove();
 
         let ov = document.createElement('div');
         ov.id = 'preset-notes-modal-test';
+        ov.setAttribute('data-theme', activeTheme);
         ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;';
 
         let box = document.createElement('div');
         box.className = 'onetrack-modal' + (compactMode ? ' onetrack-compact-mode' : '');
-        box.style.cssText = 'background:#fff;padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:500px;max-height:80vh;display:flex;flex-direction:column;color:#333;position:relative;';
+        let boxBg = isDark ? '#1e1e1e' : '#fff';
+        let boxColor = isDark ? '#e0e0e0' : '#333';
+        box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:500px;max-height:80vh;display:flex;flex-direction:column;position:relative;`;
         applyUIScale(box);
 
         let h = document.createElement('h3');
         h.innerText = `[TEST] Preset Notes: ${dt}`;
-        h.style.cssText = 'margin-top:0;margin-bottom:4px;font-size:16px;color:#222;text-align:center;cursor:move;';
+        h.style.cssText = `margin-top:0;margin-bottom:4px;font-size:16px;color:${isDark ? '#ffffff' : '#222'};text-align:center;cursor:move;`;
         
         makeDraggable(box, h);
         box.appendChild(h);
@@ -560,8 +560,12 @@
         let tRow = document.createElement('div');
         tRow.style.cssText = 'display:flex;gap:6px;margin-bottom:8px;';
 
+        let rowBg = isDark ? '#2a2a2a' : '#f8f9fa';
+        let rowBorder = isDark ? '#444' : '#e9ecef';
+        let rowColor = isDark ? '#e0e0e0' : '#212529';
+
         let tr = document.createElement('label');
-        tr.style.cssText = 'display:flex;align-items:center;gap:6px;font-size:10px;cursor:pointer;user-select:none;background:#f8f9fa;padding:6px;border-radius:4px;border:1px solid #e9ecef;flex:1;';
+        tr.style.cssText = `display:flex;align-items:center;gap:6px;font-size:10px;cursor:pointer;user-select:none;background:${rowBg};padding:6px;border-radius:4px;border:1px solid ${rowBorder};flex:1;color:${rowColor};`;
         let tc = document.createElement('input');
         tc.type = 'checkbox';
         tc.checked = iam;
@@ -575,7 +579,7 @@
         tRow.appendChild(tr);
 
         let tr2 = document.createElement('label');
-        tr2.style.cssText = 'display:flex;align-items:center;gap:6px;font-size:10px;cursor:pointer;user-select:none;background:#f8f9fa;padding:6px;border-radius:4px;border:1px solid #e9ecef;flex:1;';
+        tr2.style.cssText = `display:flex;align-items:center;gap:6px;font-size:10px;cursor:pointer;user-select:none;background:${rowBg};padding:6px;border-radius:4px;border:1px solid ${rowBorder};flex:1;color:${rowColor};`;
         let tc2 = document.createElement('input');
         tc2.type = 'checkbox';
         tc2.checked = hrm;
@@ -583,7 +587,7 @@
         tc2.onchange = (e) => {
             localStorage.setItem('preset_hide_recent', e.target.checked);
             ov.remove();
-            showMainModal();
+            showMainModal(activeTheme);
         };
         let tlt2 = document.createElement('span');
         tlt2.innerText = 'Hide Clipboard History';
@@ -621,7 +625,7 @@
         db.style.cssText = 'display:block;width:100%;padding:8px 10px;margin:4px 0;background:#fff3cd;color:#856404;border:1px solid #ffeeba;border-radius:4px;cursor:pointer;font-size:12px;text-align:left;font-weight:bold;line-height:1.4;';
         db.onclick = () => {
             ov.remove();
-            showDeclineActionModal();
+            showDeclineActionModal(activeTheme);
         };
         cont.appendChild(db);
 
@@ -631,14 +635,14 @@
         ab.style.cssText = 'display:block;width:100%;padding:8px 10px;margin:4px 0;background:#d4edda;color:#155724;border:1px solid #c3e6cb;border-radius:4px;cursor:pointer;font-size:12px;text-align:left;font-weight:bold;line-height:1.4;';
         ab.onclick = () => {
             ov.remove();
-            showClientSelectModal('Repairs approved', false);
+            showClientSelectModal('Repairs approved', false, activeTheme);
         };
         cont.appendChild(ab);
 
         if (!hrm && hist.length > 0) {
             let rHead = document.createElement('div');
             rHead.innerText = '⭐ Smart Clipboard History';
-            rHead.style.cssText = 'font-size:11px;font-weight:bold;color:#666;margin:8px 0 2px 2px;';
+            rHead.style.cssText = `font-size:11px;font-weight:bold;color:${isDark ? '#aaa' : '#666'};margin:8px 0 2px 2px;`;
             cont.appendChild(rHead);
             hist.forEach(hTxt => {
                 let btn = document.createElement('button');
@@ -656,7 +660,7 @@
 
         let pHead = document.createElement('div');
         pHead.innerText = '📝 Standard Presets';
-        pHead.style.cssText = 'font-size:11px;font-weight:bold;color:#666;margin:8px 0 2px 2px;';
+        pHead.style.cssText = `font-size:11px;font-weight:bold;color:${isDark ? '#aaa' : '#666'};margin:8px 0 2px 2px;`;
         cont.appendChild(pHead);
 
         ph.forEach(txt => {
@@ -665,7 +669,7 @@
                 btn = document.createElement('button');
             btn.innerText = dtTxt;
             btn.className = 'onetrack-btn';
-            btn.style.cssText = 'display:block;width:100%;padding:8px 10px;margin:4px 0;background:#f8f9fa;color:#212529;border:1px solid #ced4da;border-radius:4px;cursor:pointer;font-size:12px;text-align:left;line-height:1.4;';
+            btn.style.cssText = `display:block;width:100%;padding:8px 10px;margin:4px 0;background:${isDark ? '#2a2a2a' : '#f8f9fa'};color:${isDark ? '#fff' : '#212529'};border:1px solid ${isDark ? '#444' : '#ced4da'};border-radius:4px;cursor:pointer;font-size:12px;text-align:left;line-height:1.4;`;
             btn.onclick = () => {
                 ov.remove();
                 addHistoryItem(cln);
@@ -682,14 +686,14 @@
         eb.style.cssText = 'width:100%;padding:8px;margin-bottom:6px;background:#780034;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;';
         eb.onclick = () => {
             ov.remove();
-            showEditModal(currentTheme);
+            showEditModal(activeTheme);
         };
         box.appendChild(eb);
 
         let cb = document.createElement('button');
         cb.innerText = 'Cancel';
         cb.className = 'onetrack-btn';
-        cb.style.cssText = 'width:100%;padding:8px;background:#e0e0e0;color:#333;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;';
+        cb.style.cssText = isDark ? 'width:100%;padding:8px;background:#444;color:#e0e0e0;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;' : 'width:100%;padding:8px;background:#e0e0e0;color:#333;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;';
         cb.onclick = () => ov.remove();
         box.appendChild(cb);
 
@@ -702,22 +706,28 @@
         }, 50);
     }
 
-    function showDeclineActionModal() {
+    function showDeclineActionModal(passedTheme) {
+        let activeTheme = passedTheme || document.getElementById('preset-notes-modal-test')?.getAttribute('data-theme') || 'light';
+        let isDark = activeTheme === 'dark';
+
         let ex = document.getElementById('preset-notes-modal-test');
         if (ex) ex.remove();
 
         let ov = document.createElement('div');
         ov.id = 'preset-notes-modal-test';
+        ov.setAttribute('data-theme', activeTheme);
         ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;';
 
         let box = document.createElement('div');
         box.className = 'onetrack-modal' + (compactMode ? ' onetrack-compact-mode' : '');
-        box.style.cssText = 'background:#fff;padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:400px;display:flex;flex-direction:column;color:#333;position:relative;';
+        let boxBg = isDark ? '#1e1e1e' : '#fff';
+        let boxColor = isDark ? '#e0e0e0' : '#333';
+        box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:400px;display:flex;flex-direction:column;position:relative;`;
         applyUIScale(box);
 
         let h = document.createElement('h3');
         h.innerText = 'Select Decline Action';
-        h.style.cssText = 'margin-top:0;margin-bottom:12px;font-size:16px;color:#222;text-align:center;cursor:move;';
+        h.style.cssText = `margin-top:0;margin-bottom:12px;font-size:16px;color:${isDark ? '#fff' : '#222'};text-align:center;cursor:move;`;
         
         makeDraggable(box, h);
         box.appendChild(h);
@@ -734,10 +744,10 @@
             let btn = document.createElement('button');
             btn.innerText = item.label;
             btn.className = 'onetrack-btn';
-            btn.style.cssText = 'display:block;width:100%;padding:10px;margin:6px 0;background:#f8f9fa;color:#212529;border:1px solid #ced4da;border-radius:4px;cursor:pointer;font-size:12px;text-align:left;font-weight:bold;line-height:1.4;';
+            btn.style.cssText = `display:block;width:100%;padding:10px;margin:6px 0;background:${isDark ? '#2a2a2a' : '#f8f9fa'};color:${isDark ? '#fff' : '#212529'};border:1px solid ${isDark ? '#444' : '#ced4da'};border-radius:4px;cursor:pointer;font-size:12px;text-align:left;font-weight:bold;line-height:1.4;`;
             btn.onclick = () => {
                 ov.remove();
-                showClientSelectModal(item.actionText, false);
+                showClientSelectModal(item.actionText, false, activeTheme);
             };
             box.appendChild(btn);
         });
@@ -745,15 +755,17 @@
         let bBtn = document.createElement('button');
         bBtn.innerText = '← Back to Main Menu';
         bBtn.className = 'onetrack-btn';
-        bBtn.style.cssText = 'width:100%;padding:8px;margin-top:10px;background:#e0e0e0;color:#333;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;';
-        bBtn.onclick = () => showMainModal();
+        bBtn.style.cssText = isDark ? 'width:100%;padding:8px;margin-top:10px;background:#444;color:#e0e0e0;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;' : 'width:100%;padding:8px;margin-top:10px;background:#e0e0e0;color:#333;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;';
+        bBtn.onclick = () => showMainModal(activeTheme);
         box.appendChild(bBtn);
 
         ov.appendChild(box);
         document.body.appendChild(ov);
     }
 
-    function showClientSelectModal(ap, sao) {
+    function showClientSelectModal(ap, sao, passedTheme) {
+        let activeTheme = passedTheme || document.getElementById('preset-notes-modal-test')?.getAttribute('data-theme') || 'light';
+        let isDark = activeTheme === 'dark';
         let map = getClientMapping(),
             cc = getCurrentCompany(),
             clients = [],
@@ -776,16 +788,19 @@
 
         let ov = document.createElement('div');
         ov.id = 'preset-notes-modal-test';
+        ov.setAttribute('data-theme', activeTheme);
         ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;';
 
         let box = document.createElement('div');
         box.className = 'onetrack-modal' + (compactMode ? ' onetrack-compact-mode' : '');
-        box.style.cssText = 'background:#fff;padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:450px;max-height:80vh;display:flex;flex-direction:column;color:#333;position:relative;';
+        let boxBg = isDark ? '#1e1e1e' : '#fff';
+        let boxColor = isDark ? '#e0e0e0' : '#333';
+        box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:450px;max-height:80vh;display:flex;flex-direction:column;position:relative;`;
         applyUIScale(box);
 
         let h = document.createElement('h3');
         h.innerText = `Select Client (${sao ? 'All Clients' : cc})`;
-        h.style.cssText = 'margin-top:0;margin-bottom:6px;font-size:16px;color:#222;text-align:center;cursor:move;';
+        h.style.cssText = `margin-top:0;margin-bottom:6px;font-size:16px;color:${isDark ? '#fff' : '#222'};text-align:center;cursor:move;`;
         
         makeDraggable(box, h);
         box.appendChild(h);
@@ -798,7 +813,7 @@
                 btn = document.createElement('button');
             btn.innerText = client;
             btn.className = 'onetrack-btn';
-            btn.style.cssText = 'display:block;width:100%;padding:8px 10px;margin:4px 0;background:#f8f9fa;color:#212529;border:1px solid #ced4da;border-radius:4px;cursor:pointer;font-size:12px;text-align:left;line-height:1.4;';
+            btn.style.cssText = `display:block;width:100%;padding:8px 10px;margin:4px 0;background:${isDark ? '#2a2a2a' : '#f8f9fa'};color:${isDark ? '#fff' : '#212529'};border:1px solid ${isDark ? '#444' : '#ced4da'};border-radius:4px;cursor:pointer;font-size:12px;text-align:left;line-height:1.4;`;
             btn.onclick = () => {
                 ov.remove();
                 processTextSelection(ft);
@@ -810,7 +825,7 @@
         let acBtn = document.createElement('button');
         acBtn.innerText = '+ Type New Client Name...';
         acBtn.className = 'onetrack-btn';
-        acBtn.style.cssText = 'width:100%;padding:6px;margin-bottom:8px;background:#e9ecef;color:#333;border:1px dashed #adb5bd;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;';
+        acBtn.style.cssText = isDark ? 'width:100%;padding:6px;margin-bottom:8px;background:#333;color:#ccc;border:1px dashed #555;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;' : 'width:100%;padding:6px;margin-bottom:8px;background:#e9ecef;color:#333;border:1px dashed #adb5bd;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;';
         acBtn.onclick = () => {
             let nc = prompt("Enter new client name:", "");
             if (nc && nc.trim()) {
@@ -831,7 +846,7 @@
             configClientBtn.style.cssText = 'width:100%;padding:6px;margin-bottom:8px;background:#780034;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;';
             configClientBtn.onclick = () => {
                 ov.remove();
-                showEditModal(currentTheme);
+                showEditModal(activeTheme);
             };
             box.appendChild(configClientBtn);
         }
@@ -840,8 +855,8 @@
             let sab = document.createElement('button');
             sab.innerText = '🌐 View All Clients Instead';
             sab.className = 'onetrack-btn';
-            sab.style.cssText = 'width:100%;padding:8px;margin-bottom:8px;background:#f0f0f0;color:#333;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;';
-            sab.onclick = () => showClientSelectModal(ap, true);
+            sab.style.cssText = isDark ? 'width:100%;padding:8px;margin-bottom:8px;background:#333;color:#e0e0e0;border:1px solid #555;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;' : 'width:100%;padding:8px;margin-bottom:8px;background:#f0f0f0;color:#333;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;';
+            sab.onclick = () => showClientSelectModal(ap, true, activeTheme);
             box.appendChild(sab);
         }
 
@@ -851,8 +866,8 @@
         let bBtn = document.createElement('button');
         bBtn.innerText = '← Back';
         bBtn.className = 'onetrack-btn';
-        bBtn.style.cssText = 'flex:1;padding:8px;background:#e0e0e0;color:#333;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;';
-        bBtn.onclick = () => ap.includes('declined') ? showDeclineActionModal() : showMainModal();
+        bBtn.style.cssText = isDark ? 'flex:1;padding:8px;background:#444;color:#e0e0e0;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;' : 'flex:1;padding:8px;background:#e0e0e0;color:#333;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;';
+        bBtn.onclick = () => ap.includes('declined') ? showDeclineActionModal(activeTheme) : showMainModal(activeTheme);
         bRow.appendChild(bBtn);
 
         if (!sao) {
@@ -862,7 +877,7 @@
             ecBtn.style.cssText = 'flex:1;padding:8px;background:#780034;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;';
             ecBtn.onclick = () => {
                 ov.remove();
-                showEditModal(currentTheme);
+                showEditModal(activeTheme);
             };
             bRow.appendChild(ecBtn);
         }
@@ -873,21 +888,27 @@
     }
 
     function showAdvancedSettingsModal() {
+        let activeTheme = document.getElementById('preset-notes-modal-test')?.getAttribute('data-theme') || localStorage.getItem('onetrack_theme') || 'light';
+        let isDark = activeTheme === 'dark';
+
         let ex = document.getElementById('preset-notes-modal-test');
         if (ex) ex.remove();
 
         let ov = document.createElement('div');
         ov.id = 'preset-notes-modal-test';
+        ov.setAttribute('data-theme', activeTheme);
         ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;';
 
         let box = document.createElement('div');
         box.className = 'onetrack-modal' + (compactMode ? ' onetrack-compact-mode' : '');
-        box.style.cssText = 'background:#fff;padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:450px;display:flex;flex-direction:column;color:#333;position:relative;';
+        let boxBg = isDark ? '#1e1e1e' : '#fff';
+        let boxColor = isDark ? '#e0e0e0' : '#333';
+        box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:450px;display:flex;flex-direction:column;position:relative;`;
         applyUIScale(box);
 
         let title = document.createElement('h3');
         title.innerText = "⚙️ Advanced Settings";
-        title.style.cssText = "margin-top:0;color:#333;font-size:16px;text-align:center;margin-bottom:15px;cursor:move;";
+        title.style.cssText = `margin-top:0;color:${isDark ? '#fff' : '#333'};font-size:16px;text-align:center;margin-bottom:15px;cursor:move;`;
         
         makeDraggable(box, title);
         box.appendChild(title);
@@ -897,7 +918,7 @@
 
         let whatsNewHeader = document.createElement('h4');
         whatsNewHeader.innerText = "ℹ️ Release Info & Changelog";
-        whatsNewHeader.style.cssText = "margin:0 0 6px 0;font-size:13px;color:#444;";
+        whatsNewHeader.style.cssText = `margin:0 0 6px 0;font-size:13px;color:${isDark ? '#ccc' : '#444'};`;
         sa.appendChild(whatsNewHeader);
 
         let whatsNewBtn = document.createElement('button');
@@ -915,12 +936,13 @@
         themeRow.innerHTML = `<span>Theme Mode</span>`;
         let themeSelect = document.createElement('select');
         themeSelect.innerHTML = '<option value="light">Light</option><option value="dark">Dark</option>';
-        themeSelect.value = currentTheme;
+        themeSelect.value = currentTheme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : currentTheme;
         themeSelect.className = 'onetrack-btn';
-        themeSelect.style.cssText = 'padding:4px 8px; border-radius:4px;';
+        themeSelect.style.cssText = isDark ? 'padding:4px 8px; border-radius:4px; background:#2a2d2e; color:#fff; border:1px solid #444;' : 'padding:4px 8px; border-radius:4px;';
         themeSelect.onchange = (e) => {
             currentTheme = e.target.value;
             applyTheme(currentTheme);
+            ov.setAttribute('data-theme', currentTheme);
             showToast(`Theme changed to ${currentTheme}`);
         };
         themeRow.appendChild(themeSelect);
@@ -933,7 +955,7 @@
         hotkeyInput.type = 'text';
         hotkeyInput.maxLength = 1;
         hotkeyInput.value = customHotkey.replace('Key', '');
-        hotkeyInput.style.cssText = 'width:40px; text-align:center; padding:4px; font-weight:bold; border-radius:4px; border:1px solid #ccc;';
+        hotkeyInput.style.cssText = isDark ? 'width:40px; text-align:center; padding:4px; font-weight:bold; border-radius:4px; border:1px solid #555; background:#2a2d2e; color:#fff;' : 'width:40px; text-align:center; padding:4px; font-weight:bold; border-radius:4px; border:1px solid #ccc;';
         hotkeyInput.onkeydown = (e) => {
             e.preventDefault();
             if (e.key.length === 1) {
@@ -988,15 +1010,15 @@
 
         let scaleHeader = document.createElement('h4');
         scaleHeader.innerText = "🖥️ UI Scale Setting";
-        scaleHeader.style.cssText = "margin:10px 0 6px 0;font-size:13px;color:#444;";
+        scaleHeader.style.cssText = `margin:10px 0 6px 0;font-size:13px;color:${isDark ? '#ccc' : '#444'};`;
         sa.appendChild(scaleHeader);
 
         let scaleContainer = document.createElement('div');
-        scaleContainer.style.cssText = "border:1px solid #ddd;padding:10px;border-radius:4px;margin-bottom:12px;background:#fdfdfd;display:flex;align-items:center;justify-content:space-between;gap:8px;";
+        scaleContainer.style.cssText = `border:1px solid ${isDark ? '#444' : '#ddd'};padding:10px;border-radius:4px;margin-bottom:12px;background:${isDark ? '#252525' : '#fdfdfd'};display:flex;align-items:center;justify-content:space-between;gap:8px;`;
         
         let scaleLabel = document.createElement('span');
         updateScaleLabel();
-        scaleLabel.style.cssText = "font-size:12px;font-weight:bold;color:#333;";
+        scaleLabel.style.cssText = `font-size:12px;font-weight:bold;color:${isDark ? '#e0e0e0' : '#333'};`;
         scaleContainer.appendChild(scaleLabel);
 
         function updateScaleLabel() {
@@ -1010,7 +1032,7 @@
         let minusBtn = document.createElement('button');
         minusBtn.innerText = "-";
         minusBtn.className = 'onetrack-btn';
-        minusBtn.style.cssText = "padding:6px 12px;background:#e0e0e0;border:none;border-radius:3px;cursor:pointer;font-weight:bold;";
+        minusBtn.style.cssText = isDark ? "padding:6px 12px;background:#444;color:#fff;border:none;border-radius:3px;cursor:pointer;font-weight:bold;" : "padding:6px 12px;background:#e0e0e0;border:none;border-radius:3px;cursor:pointer;font-weight:bold;";
         minusBtn.onclick = () => {
             setUIScale(getUIScale() - 0.1);
             updateScaleLabel();
@@ -1021,7 +1043,7 @@
         let resetBtn = document.createElement('button');
         resetBtn.innerText = "100%";
         resetBtn.className = 'onetrack-btn';
-        resetBtn.style.cssText = "padding:6px 10px;background:#f0f0f0;border:1px solid #ccc;border-radius:3px;cursor:pointer;font-size:11px;";
+        resetBtn.style.cssText = isDark ? "padding:6px 10px;background:#333;color:#ccc;border:1px solid #555;border-radius:3px;cursor:pointer;font-size:11px;" : "padding:6px 10px;background:#f0f0f0;border:1px solid #ccc;border-radius:3px;cursor:pointer;font-size:11px;";
         resetBtn.onclick = () => {
             setUIScale(1.0);
             updateScaleLabel();
@@ -1032,7 +1054,7 @@
         let plusBtn = document.createElement('button');
         plusBtn.innerText = "+";
         plusBtn.className = 'onetrack-btn';
-        plusBtn.style.cssText = "padding:6px 12px;background:#e0e0e0;border:none;border-radius:3px;cursor:pointer;font-weight:bold;";
+        plusBtn.style.cssText = isDark ? "padding:6px 12px;background:#444;color:#fff;border:none;border-radius:3px;cursor:pointer;font-weight:bold;" : "padding:6px 12px;background:#e0e0e0;border:none;border-radius:3px;cursor:pointer;font-weight:bold;";
         plusBtn.onclick = () => {
             setUIScale(getUIScale() + 0.1);
             updateScaleLabel();
@@ -1050,14 +1072,8 @@
         backBtn.className = 'onetrack-btn';
         backBtn.style.cssText = "width:100%;padding:8px;background:#780034;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;";
         backBtn.onclick = () => {
-            // 1. Capture the current theme before removing the overlay
-            const currentTheme = document.getElementById('preset-notes-modal-test')?.getAttribute('data-theme') || 
-                                 (localStorage.getItem('onetrack_theme') || 'light');
-            
             ov.remove();
-            
-            // 2. Pass the theme into showEditModal
-            showEditModal(currentTheme);
+            showEditModal(activeTheme);
         };
         box.appendChild(backBtn);
 
@@ -1066,263 +1082,257 @@
     }
 
     function showEditModal(passedTheme) {
-    let dt = getDeviceType(),
-        ph = [...getPhrasesForDevice(dt)],
-        map = getClientMapping();
+        let dt = getDeviceType(),
+            ph = [...getPhrasesForDevice(dt)],
+            map = getClientMapping();
 
-    // Determine the active theme: passed argument -> existing modal attribute -> localStorage -> default 'light'
-    let currentTheme = passedTheme || 
-                       document.getElementById('preset-notes-modal-test')?.getAttribute('data-theme') || 
-                       localStorage.getItem('onetrack_theme') || 'light';
+        let activeTheme = passedTheme || document.getElementById('preset-notes-modal-test')?.getAttribute('data-theme') || localStorage.getItem('onetrack_theme') || 'light';
+        let isDark = activeTheme === 'dark';
 
-    let isDark = currentTheme === 'dark';
+        let ex = document.getElementById('preset-notes-modal-test');
+        if (ex) ex.remove();
 
-    let ex = document.getElementById('preset-notes-modal-test');
-    if (ex) ex.remove();
+        let ov = document.createElement('div');
+        ov.id = 'preset-notes-modal-test';
+        ov.setAttribute('data-theme', activeTheme);
+        ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;';
 
-    let ov = document.createElement('div');
-    ov.id = 'preset-notes-modal-test';
-    ov.setAttribute('data-theme', currentTheme);
-    ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;';
+        let box = document.createElement('div');
+        box.className = 'onetrack-modal' + (compactMode ? ' onetrack-compact-mode' : '');
+        
+        let boxBg = isDark ? '#1e1e1e' : '#fff';
+        let boxColor = isDark ? '#e0e0e0' : '#333';
+        box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:500px;max-height:85vh;display:flex;flex-direction:column;position:relative;`;
+        applyUIScale(box);
 
-    let box = document.createElement('div');
-    box.className = 'onetrack-modal' + (compactMode ? ' onetrack-compact-mode' : '');
-    
-    // Dynamic styling for dark vs light background and text
-    let boxBg = isDark ? '#1e1e1e' : '#fff';
-    let boxColor = isDark ? '#e0e0e0' : '#333';
-    box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:500px;max-height:85vh;display:flex;flex-direction:column;position:relative;`;
-    applyUIScale(box);
+        let titleRow = document.createElement('div');
+        titleRow.style.cssText = "display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;cursor:move;";
 
-    let titleRow = document.createElement('div');
-    titleRow.style.cssText = "display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;cursor:move;";
+        let title = document.createElement('h3');
+        title.innerText = "[TEST] Edit Configuration";
+        title.style.cssText = `margin:0;color:${isDark ? '#ffffff' : '#333'};font-size:16px;`;
+        titleRow.appendChild(title);
 
-    let title = document.createElement('h3');
-    title.innerText = "[TEST] Edit Configuration";
-    title.style.cssText = `margin:0;color:${isDark ? '#ffffff' : '#333'};font-size:16px;`;
-    titleRow.appendChild(title);
+        let settingsBtn = document.createElement('button');
+        settingsBtn.innerText = "⚙️ Settings";
+        settingsBtn.className = 'onetrack-btn';
+        settingsBtn.style.cssText = isDark ? 
+            "background:#2d2d2d;color:#e0e0e0;border:1px solid #444;padding:5px 10px;border-radius:4px;cursor:pointer;font-weight:bold;font-size:11px;" :
+            "background:#f0f0f0;color:#333;border:1px solid #ccc;padding:5px 10px;border-radius:4px;cursor:pointer;font-weight:bold;font-size:11px;";
+        settingsBtn.onclick = () => {
+            ov.remove();
+            showAdvancedSettingsModal();
+        };
+        titleRow.appendChild(settingsBtn);
+        
+        makeDraggable(box, titleRow);
+        box.appendChild(titleRow);
 
-    let settingsBtn = document.createElement('button');
-    settingsBtn.innerText = "⚙️ Settings";
-    settingsBtn.className = 'onetrack-btn';
-    settingsBtn.style.cssText = isDark ? 
-        "background:#2d2d2d;color:#e0e0e0;border:1px solid #444;padding:5px 10px;border-radius:4px;cursor:pointer;font-weight:bold;font-size:11px;" :
-        "background:#f0f0f0;color:#333;border:1px solid #ccc;padding:5px 10px;border-radius:4px;cursor:pointer;font-weight:bold;font-size:11px;";
-    settingsBtn.onclick = () => {
-        ov.remove();
-        showAdvancedSettingsModal();
-    };
-    titleRow.appendChild(settingsBtn);
-    
-    makeDraggable(box, titleRow);
-    box.appendChild(titleRow);
+        let sa = document.createElement('div');
+        sa.style.cssText = "flex-grow:1;overflow-y:auto;margin-bottom:15px;padding-right:5px;max-height:380px;";
 
-    let sa = document.createElement('div');
-    sa.style.cssText = "flex-grow:1;overflow-y:auto;margin-bottom:15px;padding-right:5px;max-height:380px;";
+        let nl = document.createElement('h4');
+        nl.innerText = `Notes for Device: ${dt} (supports {DATE} & {SERIAL})`;
+        nl.style.cssText = `margin:0 0 6px 0;font-size:13px;color:${isDark ? '#cccccc' : '#444'};`;
+        sa.appendChild(nl);
 
-    let nl = document.createElement('h4');
-    nl.innerText = `Notes for Device: ${dt} (supports {DATE} & {SERIAL})`;
-    nl.style.cssText = `margin:0 0 6px 0;font-size:13px;color:${isDark ? '#cccccc' : '#444'};`;
-    sa.appendChild(nl);
+        let nc = document.createElement('div');
+        let ncBg = isDark ? '#2a2a2a' : '#fdfdfd';
+        let ncBorder = isDark ? '#444' : '#ddd';
+        let inputBg = isDark ? '#333' : '#fff';
+        let inputColor = isDark ? '#fff' : '#000';
+        let inputBorder = isDark ? '#555' : '#ccc';
+        nc.style.cssText = `border:1px solid ${ncBorder};padding:8px;border-radius:4px;margin-bottom:12px;background:${ncBg};`;
 
-    let nc = document.createElement('div');
-    let ncBg = isDark ? '#2a2a2a' : '#fdfdfd';
-    let ncBorder = isDark ? '#444' : '#ddd';
-    nc.style.cssText = `border:1px solid ${ncBorder};padding:8px;border-radius:4px;margin-bottom:12px;background:${ncBg};`;
-
-    function rnl() {
-        nc.innerHTML = '';
-        if (ph.length === 0) {
-            let em = document.createElement('div');
-            em.innerText = "No notes configured yet.";
-            em.style.cssText = `font-size:11px;color:${isDark ? '#888' : '#888'};font-style:italic;padding:4px;`;
-            nc.appendChild(em);
-            return;
-        }
-        ph.forEach((nt, i) => {
-            let r = document.createElement('div');
-            r.style.cssText = "display:flex;gap:6px;margin-bottom:6px;align-items:center;";
-            let inp = document.createElement('input');
-            inp.type = 'text';
-            inp.value = nt;
-            let inputBg = isDark ? '#333' : '#fff';
-            let inputColor = isDark ? '#fff' : '#000';
-            let inputBorder = isDark ? '#555' : '#ccc';
-            inp.style.cssText = `flex-grow:1;padding:5px;border:1px solid ${inputBorder};border-radius:3px;font-size:11px;background:${inputBg};color:${inputColor};`;
-            inp.onchange = (e) => ph[i] = e.target.value.trim();
-            r.appendChild(inp);
-
-            let db = document.createElement('button');
-            db.innerText = "X";
-            db.className = 'onetrack-btn';
-            db.style.cssText = "background:#d9534f;color:#fff;border:none;padding:5px 8px;border-radius:3px;cursor:pointer;font-size:11px;font-weight:bold;";
-            db.onclick = () => {
-                ph.splice(i, 1);
-                rnl();
-            };
-            r.appendChild(db);
-            nc.appendChild(r);
-        });
-    }
-    rnl();
-    sa.appendChild(nc);
-
-    let anb = document.createElement('button');
-    anb.innerText = "+ Add Note";
-    anb.className = 'onetrack-btn';
-    anb.style.cssText = isDark ? 
-        "background:#2d2d2d;color:#e0e0e0;border:1px solid #444;padding:5px;border-radius:4px;cursor:pointer;margin-bottom:15px;font-weight:bold;font-size:11px;width:100%;" :
-        "background:#f0f0f0;color:#333;border:1px solid #ccc;padding:5px;border-radius:4px;cursor:pointer;margin-bottom:15px;font-weight:bold;font-size:11px;width:100%;";
-    anb.onclick = () => {
-        ph.push("");
-        rnl();
-    };
-    sa.appendChild(anb);
-
-    let cl = document.createElement('h4');
-    cl.innerText = "Companies & Clients Mapping";
-    cl.style.cssText = `margin:0 0 6px 0;font-size:13px;color:${isDark ? '#cccccc' : '#444'};`;
-    sa.appendChild(cl);
-
-    let ccBox = document.createElement('div');
-    ccBox.style.cssText = `border:1px solid ${ncBorder};padding:8px;border-radius:4px;background:${ncBg};margin-bottom:8px;`;
-
-    function rcm() {
-        ccBox.innerHTML = '';
-        Object.keys(map).sort((a, b) => a === 'Other' ? 1 : b === 'Other' ? -1 : a.localeCompare(b)).forEach(comp => {
-            let cb = document.createElement('div');
-            cb.style.cssText = `margin-bottom:10px;border-bottom:1px dashed ${isDark ? '#444' : '#eee'};padding-bottom:8px;`;
-
-            let cHeader = document.createElement('div');
-            cHeader.style.cssText = "display:flex;gap:6px;margin-bottom:4px;align-items:center;";
-
-            let cInp = document.createElement('input');
-            cInp.type = 'text';
-            cInp.value = comp;
-            cInp.style.cssText = `flex-grow:1;font-weight:bold;font-size:11px;color:${isDark ? '#ff99bb' : '#780034'};padding:4px;border:1px solid ${inputBorder};border-radius:3px;background:${inputBg};`;
-            cInp.onchange = (e) => {
-                let newComp = e.target.value.trim();
-                if (newComp && newComp !== comp) {
-                    map[newComp] = map[comp];
-                    delete map[comp];
-                    rcm();
-                }
-            };
-            cHeader.appendChild(cInp);
-
-            let delCompBtn = document.createElement('button');
-            delCompBtn.innerText = "🗑️ Company";
-            delCompBtn.className = 'onetrack-btn';
-            delCompBtn.style.cssText = "background:#d9534f;color:#fff;border:none;padding:3px 6px;border-radius:3px;cursor:pointer;font-size:10px;font-weight:bold;";
-            delCompBtn.onclick = () => {
-                if (confirm(`Delete entire company "${comp}"?`)) {
-                    delete map[comp];
-                    rcm();
-                }
-            };
-            cHeader.appendChild(delCompBtn);
-            cb.appendChild(cHeader);
-
-            if (!Array.isArray(map[comp])) map[comp] = [];
-            map[comp].forEach((cn, ci) => {
+        function rnl() {
+            nc.innerHTML = '';
+            if (ph.length === 0) {
+                let em = document.createElement('div');
+                em.innerText = "No notes configured yet.";
+                em.style.cssText = `font-size:11px;color:${isDark ? '#888' : '#888'};font-style:italic;padding:4px;`;
+                nc.appendChild(em);
+                return;
+            }
+            ph.forEach((nt, i) => {
                 let r = document.createElement('div');
-                r.style.cssText = "display:flex;gap:6px;margin-bottom:4px;align-items:center;padding-left:12px;";
+                r.style.cssText = "display:flex;gap:6px;margin-bottom:6px;align-items:center;";
+                let inp = document.createElement('input');
+                inp.type = 'text';
+                inp.value = nt;
+                inp.style.cssText = `flex-grow:1;padding:5px;border:1px solid ${inputBorder};border-radius:3px;font-size:11px;background:${inputBg};color:${inputColor};`;
+                inp.onchange = (e) => ph[i] = e.target.value.trim();
+                r.appendChild(inp);
 
-                let ci2 = document.createElement('input');
-                ci2.type = 'text';
-                ci2.value = cn;
-                ci2.style.cssText = `flex-grow:1;padding:4px;border:1px solid ${inputBorder};border-radius:3px;font-size:11px;background:${inputBg};color:${inputColor};`;
-                ci2.onchange = (e) => map[comp][ci] = e.target.value.trim();
-                r.appendChild(ci2);
+                let db = document.createElement('button');
+                db.innerText = "X";
+                db.className = 'onetrack-btn';
+                db.style.cssText = "background:#d9534f;color:#fff;border:none;padding:5px 8px;border-radius:3px;cursor:pointer;font-size:11px;font-weight:bold;";
+                db.onclick = () => {
+                    ph.splice(i, 1);
+                    rnl();
+                };
+                r.appendChild(db);
+                nc.appendChild(r);
+            });
+        }
+        rnl();
+        sa.appendChild(nc);
 
-                let cd = document.createElement('button');
-                cd.innerText = "X";
-                cd.className = 'onetrack-btn';
-                cd.style.cssText = "background:#6c757d;color:#fff;border:none;padding:3px 6px;border-radius:3px;cursor:pointer;font-size:10px;font-weight:bold;";
-                cd.onclick = () => {
-                    map[comp].splice(ci, 1);
+        let anb = document.createElement('button');
+        anb.innerText = "+ Add Note";
+        anb.className = 'onetrack-btn';
+        anb.style.cssText = isDark ? 
+            "background:#2d2d2d;color:#e0e0e0;border:1px solid #444;padding:5px;border-radius:4px;cursor:pointer;margin-bottom:15px;font-weight:bold;font-size:11px;width:100%;" :
+            "background:#f0f0f0;color:#333;border:1px solid #ccc;padding:5px;border-radius:4px;cursor:pointer;margin-bottom:15px;font-weight:bold;font-size:11px;width:100%;";
+        anb.onclick = () => {
+            ph.push("");
+            rnl();
+        };
+        sa.appendChild(anb);
+
+        let cl = document.createElement('h4');
+        cl.innerText = "Companies & Clients Mapping";
+        cl.style.cssText = `margin:0 0 6px 0;font-size:13px;color:${isDark ? '#cccccc' : '#444'};`;
+        sa.appendChild(cl);
+
+        let ccBox = document.createElement('div');
+        ccBox.style.cssText = `border:1px solid ${ncBorder};padding:8px;border-radius:4px;background:${ncBg};margin-bottom:8px;`;
+
+        function rcm() {
+            ccBox.innerHTML = '';
+            Object.keys(map).sort((a, b) => a === 'Other' ? 1 : b === 'Other' ? -1 : a.localeCompare(b)).forEach(comp => {
+                let cb = document.createElement('div');
+                cb.style.cssText = `margin-bottom:10px;border-bottom:1px dashed ${isDark ? '#444' : '#eee'};padding-bottom:8px;`;
+
+                let cHeader = document.createElement('div');
+                cHeader.style.cssText = "display:flex;gap:6px;margin-bottom:4px;align-items:center;";
+
+                let cInp = document.createElement('input');
+                cInp.type = 'text';
+                cInp.value = comp;
+                cInp.style.cssText = `flex-grow:1;font-weight:bold;font-size:11px;color:${isDark ? '#ff99bb' : '#780034'};padding:4px;border:1px solid ${inputBorder};border-radius:3px;background:${inputBg};`;
+                cInp.onchange = (e) => {
+                    let newComp = e.target.value.trim();
+                    if (newComp && newComp !== comp) {
+                        map[newComp] = map[comp];
+                        delete map[comp];
+                        rcm();
+                    }
+                };
+                cHeader.appendChild(cInp);
+
+                let delCompBtn = document.createElement('button');
+                delCompBtn.innerText = "🗑️ Company";
+                delCompBtn.className = 'onetrack-btn';
+                delCompBtn.style.cssText = "background:#d9534f;color:#fff;border:none;padding:3px 6px;border-radius:3px;cursor:pointer;font-size:10px;font-weight:bold;";
+                delCompBtn.onclick = () => {
+                    if (confirm(`Delete entire company "${comp}"?`)) {
+                        delete map[comp];
+                        rcm();
+                    }
+                };
+                cHeader.appendChild(delCompBtn);
+                cb.appendChild(cHeader);
+
+                if (!Array.isArray(map[comp])) map[comp] = [];
+                map[comp].forEach((cn, ci) => {
+                    let r = document.createElement('div');
+                    r.style.cssText = "display:flex;gap:6px;margin-bottom:4px;align-items:center;padding-left:12px;";
+
+                    let ci2 = document.createElement('input');
+                    ci2.type = 'text';
+                    ci2.value = cn;
+                    ci2.style.cssText = `flex-grow:1;padding:4px;border:1px solid ${inputBorder};border-radius:3px;font-size:11px;background:${inputBg};color:${inputColor};`;
+                    ci2.onchange = (e) => map[comp][ci] = e.target.value.trim();
+                    r.appendChild(ci2);
+
+                    let cd = document.createElement('button');
+                    cd.innerText = "X";
+                    cd.className = 'onetrack-btn';
+                    cd.style.cssText = "background:#6c757d;color:#fff;border:none;padding:3px 6px;border-radius:3px;cursor:pointer;font-size:10px;font-weight:bold;";
+                    cd.onclick = () => {
+                        map[comp].splice(ci, 1);
+                        rcm();
+                    };
+                    r.appendChild(cd);
+                    cb.appendChild(r);
+                });
+
+                let acb = document.createElement('button');
+                acb.innerText = `+ Add Client to ${comp}`;
+                acb.className = 'onetrack-btn';
+                acb.style.cssText = isDark ? 
+                    "background:#333;color:#e0e0e0;border:1px solid #555;padding:3px;border-radius:3px;cursor:pointer;font-size:10px;width:calc(100% - 12px);margin-left:12px;margin-top:2px;" :
+                    "background:#f9f9f9;color:#333;border:1px solid #ccc;padding:3px;border-radius:3px;cursor:pointer;font-size:10px;width:calc(100% - 12px);margin-left:12px;margin-top:2px;";
+                acb.onclick = () => {
+                    map[comp].push("New Client");
                     rcm();
                 };
-                r.appendChild(cd);
-                cb.appendChild(r);
+                cb.appendChild(acb);
+                ccBox.appendChild(cb);
             });
+        }
+        rcm();
+        sa.appendChild(ccBox);
 
-            let acb = document.createElement('button');
-            acb.innerText = `+ Add Client to ${comp}`;
-            acb.className = 'onetrack-btn';
-            acb.style.cssText = isDark ? 
-                "background:#333;color:#e0e0e0;border:1px solid #555;padding:3px;border-radius:3px;cursor:pointer;font-size:10px;width:calc(100% - 12px);margin-left:12px;margin-top:2px;" :
-                "background:#f9f9f9;color:#333;border:1px solid #ccc;padding:3px;border-radius:3px;cursor:pointer;font-size:10px;width:calc(100% - 12px);margin-left:12px;margin-top:2px;";
-            acb.onclick = () => {
-                map[comp].push("New Client");
+        let addCompBtn = document.createElement('button');
+        addCompBtn.innerText = "+ Add Company";
+        addCompBtn.className = 'onetrack-btn';
+        addCompBtn.style.cssText = isDark ? 
+            "background:#284d28;color:#a3e4d7;border:1px solid #3c763d;padding:6px;border-radius:4px;cursor:pointer;font-weight:bold;font-size:11px;width:100%;margin-bottom:8px;" :
+            "background:#e2f0cb;color:#2b542c;border:1px solid #b5d89c;padding:6px;border-radius:4px;cursor:pointer;font-weight:bold;font-size:11px;width:100%;margin-bottom:8px;";
+        addCompBtn.onclick = () => {
+            let nc = prompt("Enter new company name:", "");
+            if (nc && nc.trim()) {
+                let cleanNc = nc.trim();
+                if (!map[cleanNc]) map[cleanNc] = [];
                 rcm();
-            };
-            cb.appendChild(acb);
-            ccBox.appendChild(cb);
-        });
+            }
+        };
+        sa.appendChild(addCompBtn);
+
+        box.appendChild(sa);
+
+        let btnRow = document.createElement('div');
+        btnRow.style.cssText = "display:flex;gap:8px;";
+
+        let sv = document.createElement('button');
+        sv.innerText = "Save & Apply";
+        sv.className = 'onetrack-btn';
+        sv.style.cssText = "flex:1;padding:8px;background:#28a745;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;";
+        sv.onclick = () => {
+            let mObj = {};
+            let s = localStorage.getItem('device_preset_notes');
+            if (s) {
+                try {
+                    mObj = JSON.parse(s);
+                } catch (e) {}
+            }
+            mObj[dt] = ph.map(x => x.trim()).filter(x => x);
+            localStorage.setItem('device_preset_notes', JSON.stringify(mObj));
+            localStorage.setItem('my_preset_client_mapping', JSON.stringify(map));
+            ov.remove();
+            showMainModal(activeTheme);
+        };
+        btnRow.appendChild(sv);
+
+        let clBtn = document.createElement('button');
+        clBtn.innerText = "Cancel";
+        clBtn.className = 'onetrack-btn';
+        clBtn.style.cssText = isDark ? 
+            "flex:1;padding:8px;background:#444;color:#e0e0e0;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;" :
+            "flex:1;padding:8px;background:#e0e0e0;color:#333;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;";
+        clBtn.onclick = () => {
+            ov.remove();
+            showMainModal(activeTheme);
+        };
+        btnRow.appendChild(clBtn);
+
+        box.appendChild(btnRow);
+        ov.appendChild(box);
+        document.body.appendChild(ov);
     }
-    rcm();
-    sa.appendChild(ccBox);
 
-    let addCompBtn = document.createElement('button');
-    addCompBtn.innerText = "+ Add Company";
-    addCompBtn.className = 'onetrack-btn';
-    addCompBtn.style.cssText = isDark ? 
-        "background:#284d28;color:#a3e4d7;border:1px solid #3c763d;padding:6px;border-radius:4px;cursor:pointer;font-weight:bold;font-size:11px;width:100%;margin-bottom:8px;" :
-        "background:#e2f0cb;color:#2b542c;border:1px solid #b5d89c;padding:6px;border-radius:4px;cursor:pointer;font-weight:bold;font-size:11px;width:100%;margin-bottom:8px;";
-    addCompBtn.onclick = () => {
-        let nc = prompt("Enter new company name:", "");
-        if (nc && nc.trim()) {
-            let cleanNc = nc.trim();
-            if (!map[cleanNc]) map[cleanNc] = [];
-            rcm();
-        }
-    };
-    sa.appendChild(addCompBtn);
-
-    box.appendChild(sa);
-
-    let btnRow = document.createElement('div');
-    btnRow.style.cssText = "display:flex;gap:8px;";
-
-    let sv = document.createElement('button');
-    sv.innerText = "Save & Apply";
-    sv.className = 'onetrack-btn';
-    sv.style.cssText = "flex:1;padding:8px;background:#28a745;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;";
-    sv.onclick = () => {
-        let mObj = {};
-        let s = localStorage.getItem('device_preset_notes');
-        if (s) {
-            try {
-                mObj = JSON.parse(s);
-            } catch (e) {}
-        }
-        mObj[dt] = ph.map(x => x.trim()).filter(x => x);
-        localStorage.setItem('device_preset_notes', JSON.stringify(mObj));
-        localStorage.setItem('my_preset_client_mapping', JSON.stringify(map));
-        ov.remove();
-        showMainModal(currentTheme); // Pass theme back when saving/returning
-    };
-    btnRow.appendChild(sv);
-
-    let clBtn = document.createElement('button');
-    clBtn.innerText = "Cancel";
-    clBtn.className = 'onetrack-btn';
-    clBtn.style.cssText = isDark ? 
-        "flex:1;padding:8px;background:#444;color:#e0e0e0;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;" :
-        "flex:1;padding:8px;background:#e0e0e0;color:#333;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;";
-    clBtn.onclick = () => {
-        ov.remove();
-        showMainModal(currentTheme); // Pass theme back when canceling/returning
-    };
-    btnRow.appendChild(clBtn);
-
-    box.appendChild(btnRow);
-    ov.appendChild(box);
-    document.body.appendChild(ov);
-}
-
-    // --- Global Hotkey Listener ---
     window.addEventListener('keydown', (e) => {
         if (e.altKey && e.code === customHotkey) {
             e.preventDefault();
@@ -1335,7 +1345,6 @@
         }
     });
 
-    // Automatically check for updates/changelog on load, then open the main modal
     checkWhatsNew();
     showMainModal();
 
