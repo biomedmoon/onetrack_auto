@@ -206,15 +206,6 @@
         if (!modalCard) return;
 
         overlay.classList.remove('docked-left', 'docked-right');
-        document.body.classList.remove('onetrack-docked-left', 'onetrack-docked-right');
-
-        // Reset inline styling overrides on card
-        modalCard.style.top = '';
-        modalCard.style.left = '';
-        modalCard.style.right = '';
-        modalCard.style.height = '';
-        modalCard.style.width = '';
-        modalCard.style.borderRadius = '';
 
         if (state === 'docked-right') {
             overlay.classList.add('docked-right');
@@ -239,13 +230,27 @@
         setPanelDockState(savedDockState, false);
      }
 
-    // Hook this into your modal open/render sequence, or use a lightweight observer:
+    // Function to verify and re-apply saved dock state on menu navigation
+    function initOrRestoreDockState() {
+        const overlay = document.getElementById('preset-notes-modal-test');
+        if (!overlay) return;
+    
+        const savedState = localStorage.getItem('onetrack_panel_dock_state');
+        // If a saved state exists and the modal doesn't have it yet, apply it instantly
+        if (savedState && savedState !== 'default') {
+            if (!overlay.classList.contains(savedState)) {
+                setPanelDockState(savedState, false);
+            }
+        }
+    }
+
+    // Hook this into your modal open/render sequence via observer:
     const dockObserver = new MutationObserver((mutations) => {
         if (document.getElementById('preset-notes-modal-test')) {
             initOrRestoreDockState();
         }
     });
-    dockObserver.observe(document.body, { childList: true, subtree: true });
+dockObserver.observe(document.body, { childList: true, subtree: true });
     function makeDraggable(element, handle) {
         let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
         
