@@ -209,7 +209,7 @@
             element.style.transform = 'none';
         };
 
-        const closeDragElement = () => {
+       // const closeDragElement = () => {
             document.onmouseup = null;
             document.onmousemove = null;
         };
