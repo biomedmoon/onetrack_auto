@@ -33,27 +33,40 @@
             color: #333333;
         }
 
-        /* Dark Mode: Keep background light/natural instead of black */
-        #preset-notes-modal-test[data-theme="dark"],
-        .onetrack-ui-panel[data-theme="dark"] {
-            background-color: #f8f9fa !important; /* Keeps it close to the light mode background */
-            color: #212529 !important;
-            border: 1px solid #cccccc !important;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.15) !important;
+        /* 1. Keep backdrop semi-transparent so the page behind it is visible */
+        #preset-notes-modal-test[data-theme="dark"] {
+            background: rgba(0, 0, 0, 0.5) !important;
         }
 
-        /* Dark Mode Inner Sections / Containers */
-        #preset-notes-modal-test[data-theme="dark"] fieldset,
-        #preset-notes-modal-test[data-theme="dark"] .section-box,
-        #preset-notes-modal-test[data-theme="dark"] div > div {
-            background-color: transparent !important;
-            color: #212529 !important;
+        /* 2. Style the actual modal card container nicely in dark mode */
+        #preset-notes-modal-test[data-theme="dark"] .onetrack-modal,
+        #preset-notes-modal-test[data-theme="dark"] > div:not([style*="position:fixed"]) {
+            background-color: #1e1e1e !important;
+            color: #e0e0e0 !important;
+            border: 1px solid #333333 !important;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5) !important;
         }
 
-        /* Ensure Company and Warranty Banners Keep Their Inline Colors */
+        /* 3. Fix contrast for labels and text inside Advanced Settings and modals */
+        #preset-notes-modal-test[data-theme="dark"] label,
+        #preset-notes-modal-test[data-theme="dark"] span,
+        #preset-notes-modal-test[data-theme="dark"] div {
+            color: #e0e0e0;
+        }
+
+        /* 4. Force Company and Warranty Banners to keep their vibrant inline background colors */
         #preset-notes-modal-test[data-theme="dark"] div[style*="background:"] {
-            color: #ffffff !important; /* Keeps text bright white against the colored badges */
-            text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+            color: #ffffff !important;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+        }
+
+        /* Dark Mode Text Inputs & Selects */
+        #preset-notes-modal-test[data-theme="dark"] input:not([type="checkbox"]):not([type="radio"]),
+        #preset-notes-modal-test[data-theme="dark"] textarea,
+        #preset-notes-modal-test[data-theme="dark"] select {
+            background: #2a2a2a !important;
+            color: #ffffff !important;
+            border: 1px solid #555555 !important;
         }
     `;
     document.head.appendChild(themeStyles);
