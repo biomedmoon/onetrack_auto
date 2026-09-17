@@ -68,6 +68,48 @@
             color: #ffffff !important;
             border: 1px solid #555555 !important;
         }
+        .onetrack-ui-panel {
+            position: fixed;
+            z-index: 999999;
+            /* ... your existing floating styles ... */
+        }
+        
+        /* Docked Right Mode */
+        .onetrack-ui-panel.docked-right {
+            top: 0 !important;
+            right: 0 !important;
+            left: auto !important;
+            height: 100vh !important;
+            width: 380px !important;
+            max-width: 100vw;
+            border-radius: 0 !important;
+            box-shadow: -4px 0 15px rgba(0,0,0,0.15);
+            resize: none !important;
+        }
+        
+        /* Docked Left Mode */
+        .onetrack-ui-panel.docked-left {
+            top: 0 !important;
+            left: 0 !important;
+            right: auto !important;
+            height: 100vh !important;
+            width: 380px !important;
+            max-width: 100vw;
+            border-radius: 0 !important;
+            box-shadow: 4px 0 15px rgba(0,0,0,0.15);
+            resize: none !important;
+        }
+        
+        /* Optional: Shift OneTrack's body/main container when docked so nothing gets hidden */
+        body.onetrack-docked-right {
+            margin-right: 380px !important;
+            transition: margin 0.2s ease;
+        }
+        
+        body.onetrack-docked-left {
+            margin-left: 380px !important;
+            transition: margin 0.2s ease;
+        }
     `;
     document.head.appendChild(themeStyles);
    // 2. Define a single, unified applyTheme function
@@ -157,7 +199,44 @@
             font-size: 11px !important;
         }
     `;
-
+    let currentDockState = 'floating'; // 'floating', 'docked-left', 'docked-right'
+    
+    function setPanelDockState(state) {
+        const panel = document.getElementById('onetrack-ui-panel');
+        if (!panel) return;
+    
+        // Clean up existing states
+        panel.classList.remove('docked-left', 'docked-right');
+        document.body.classList.remove('onetrack-docked-left', 'onetrack-docked-right');
+    
+        currentDockState = state;
+    
+        if (state === 'docked-right') {
+            panel.classList.add('docked-right');
+            document.body.classList.add('onetrack-docked-right');
+            // Disable dragging when docked
+            disableDragging(panel);
+        } else if (state === 'docked-left') {
+            panel.classList.add('docked-left');
+            document.body.classList.add('onetrack-docked-left');
+            disableDragging(panel);
+        } else {
+            // Floating mode - restore default absolute positioning & enable dragging
+            enableDragging(panel);
+            // Reset to last known floating coordinates if needed
+        }
+    
+        // Save to your local settings manager
+        saveUserSetting('dockState', state);
+    }
+    
+    // Retrieve saved preference on startup and apply it immediately
+    const savedTheme = localStorage.getItem('onetrack_theme') || 'auto';
+    applyTheme(savedTheme);
+    
+    // Optional: If you saved the dock state, restore it on initial load too!
+    const savedDockState = localStorage.getItem('onetrack_dock_state') || 'floating';
+    // setPanelDockState(savedDockState); // Call this once your panel DOM element is generated
     function makeDraggable(element, handle) {
         let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
         
@@ -485,6 +564,13 @@
             iam = localStorage.getItem('preset_notes_append_mode') === 'true',
             hrm = localStorage.getItem('preset_hide_recent') === 'true';
 
+        let dockControlsHtml = `
+            <div class="onetrack-dock-controls" style="display: flex; gap: 4px; margin-left: auto;">
+                <button id="ot-dock-left" title="Dock Left" style="cursor:pointer; background:none; border:none; color:inherit;">◀</button>
+                <button id="ot-float" title="Float Panel" style="cursor:pointer; background:none; border:none; color:inherit;">🗗</button>
+                <button id="ot-dock-right" title="Dock Right" style="cursor:pointer; background:none; border:none; color:inherit;">▶</button>
+            </div>
+        `;
         let activeTheme = passedTheme || document.getElementById('preset-notes-modal-test')?.getAttribute('data-theme') || localStorage.getItem('onetrack_theme') || 'light';
         let isDark = activeTheme === 'dark';
 
@@ -502,6 +588,11 @@
         let boxColor = isDark ? '#e0e0e0' : '#333';
         box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:500px;max-height:80vh;display:flex;flex-direction:column;position:relative;`;
         applyUIScale(box);
+        let header = document.createElement('div');
+        header.className = 'onetrack-panel-header';
+        header.style.cssText = 'display: flex; align-items: center; justify-content: space-between; ...'; // add your header styles
+        header.innerHTML = `<span>OneTrack Automation</span>${dockControlsHtml}`;
+        box.appendChild(header);
 
         let h = document.createElement('h3');
         h.innerText = `[TEST] Preset Notes: ${dt}`;
@@ -710,6 +801,11 @@
         ov.appendChild(box);
         document.body.appendChild(ov);
 
+        document.getElementById('ot-dock-left')?.addEventListener('click', () => setPanelDockState('docked-left'));
+        document.getElementById('ot-float')?.addEventListener('click', () => setPanelDockState('floating'));
+        document.getElementById('ot-dock-right')?.addEventListener('click', () => setPanelDockState('docked-right'));
+        // ----------------------------------
+    
         setTimeout(() => {
             let firstInput = box.querySelector('input, button');
             if (firstInput) firstInput.focus();
