@@ -231,8 +231,8 @@
     }
     
     // Retrieve saved preference on startup and apply it immediately
-    const savedTheme = localStorage.getItem('onetrack_theme') || 'auto';
-    applyTheme(savedTheme);
+    // const savedTheme = localStorage.getItem('onetrack_theme') || 'auto';
+    //  applyTheme(savedTheme);
     
     // Optional: If you saved the dock state, restore it on initial load too!
     const savedDockState = localStorage.getItem('onetrack_dock_state') || 'floating';
