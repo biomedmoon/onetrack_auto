@@ -141,7 +141,12 @@
             modal.classList.toggle('onetrack-compact-mode', isCompact);
         }
     }
-
+    function applySavedDockStateIfNeeded() {
+        const savedDockState = localStorage.getItem('onetrack_panel_dock_state');
+        if (savedDockState && savedDockState !== 'default') {
+            setPanelDockState(savedDockState, false);
+        }
+    }
     let currentTheme = localStorage.getItem('onetrack_theme') || 'auto';
     let customHotkey = localStorage.getItem('onetrack_hotkey') || 'KeyP';
     let compactMode = localStorage.getItem('onetrack_compact') === 'true';
@@ -365,6 +370,7 @@ dockObserver.observe(document.body, { childList: true, subtree: true });
 
         ov.appendChild(box);
         document.body.appendChild(ov);
+        applySavedDockStateIfNeeded();
     }
 
     const DEFAULT_CLIENT_MAPPING = {
@@ -825,6 +831,12 @@ dockObserver.observe(document.body, { childList: true, subtree: true });
 
         ov.appendChild(box);
         document.body.appendChild(ov);
+        applySavedDockStateIfNeeded();
+        // Instantly preserve dock state across menu re-renderings
+        const activeDockState = localStorage.getItem('onetrack_panel_dock_state');
+        if (activeDockState && activeDockState !== 'default') {
+            setPanelDockState(activeDockState, false);
+        }
 
         // Bind Docking actions
         document.getElementById('ot-dock-left')?.addEventListener('click', () => setPanelDockState('docked-left'));
@@ -898,6 +910,7 @@ dockObserver.observe(document.body, { childList: true, subtree: true });
 
         ov.appendChild(box);
         document.body.appendChild(ov);
+        applySavedDockStateIfNeeded();
     }
 
     function showClientSelectModal(ap, sao, passedTheme) {
@@ -1022,6 +1035,7 @@ dockObserver.observe(document.body, { childList: true, subtree: true });
 
         ov.appendChild(box);
         document.body.appendChild(ov);
+        applySavedDockStateIfNeeded();
     }
 
     function showAdvancedSettingsModal() {
@@ -1231,6 +1245,7 @@ dockObserver.observe(document.body, { childList: true, subtree: true });
 
         ov.appendChild(box);
         document.body.appendChild(ov);
+        applySavedDockStateIfNeeded();
     }
 
     function showEditModal(passedTheme) {
@@ -1483,6 +1498,7 @@ dockObserver.observe(document.body, { childList: true, subtree: true });
         box.appendChild(btnRow);
         ov.appendChild(box);
         document.body.appendChild(ov);
+        applySavedDockStateIfNeeded();
     }
 
     window.addEventListener('keydown', (e) => {
