@@ -37,8 +37,17 @@
         #preset-notes-modal-test[data-theme="dark"] {
             background: rgba(0, 0, 0, 0.5) !important;
         }
+        /* 1. Backdrop allows clicking through to the page underneath */
+        #preset-notes-modal-test {
+            pointer-events: none !important;
+        }
 
-        /* 2. Style the actual modal card container nicely in dark mode */
+        /* 2. The actual modal box remains fully clickable */
+        #preset-notes-modal-test > .onetrack-modal {
+            pointer-events: auto !important;
+        }
+
+        /* 3. Style the actual modal card container nicely in dark mode */
         #preset-notes-modal-test[data-theme="dark"] .onetrack-modal,
         #preset-notes-modal-test[data-theme="dark"] > div:not([style*="position:fixed"]) {
             background-color: #1e1e1e !important;
@@ -47,7 +56,7 @@
             box-shadow: 0 4px 20px rgba(0,0,0,0.5) !important;
         }
 
-        /* 3. Fix contrast for labels and text inside Advanced Settings and modals */
+        /* 4. Fix contrast for labels and text inside Advanced Settings and modals */
         #preset-notes-modal-test[data-theme="dark"] label,
         #preset-notes-modal-test[data-theme="dark"] span,
         #preset-notes-modal-test[data-theme="dark"] div {
@@ -101,16 +110,6 @@
             transform: none !important;
         } 
         
-        /* Body shifting rules so content isn't hidden behind the panel */
-        body.onetrack-docked-right {
-            margin-right: 380px !important;
-            transition: margin 0.2s ease;
-        }
-
-        body.onetrack-docked-left {
-            margin-left: 380px !important;
-            transition: margin 0.2s ease;
-        }
     `;
     document.head.appendChild(themeStyles);
 
