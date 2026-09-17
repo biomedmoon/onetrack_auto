@@ -707,7 +707,7 @@
         cont.style.cssText = 'overflow-y:auto;flex:1;padding-right:5px;margin-bottom:12px;';
 
         let tds = new Date().toLocaleDateString('en-US', {month:'2-digit', day:'2-digit', year:'numeric'});
-        let serialNum = getSerialNumber();
+        //let serialNum = getSerialNumber();
 
         if (/enteralite\s*infinity/i.test(dt)) {
             let infBtn = document.createElement('button');
