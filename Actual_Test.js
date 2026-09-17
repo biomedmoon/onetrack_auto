@@ -79,9 +79,6 @@
             top: 0 !important;
             right: 0 !important;
             left: auto !important;
-            height: 100vh !important;
-            width: 380px !important;
-            max-width: 100vw;
             border-radius: 0 !important;
             box-shadow: -4px 0 15px rgba(0,0,0,0.15);
             resize: none !important;
@@ -93,9 +90,6 @@
             top: 0 !important;
             left: 0 !important;
             right: auto !important;
-            height: 100vh !important;
-            width: 380px !important;
-            max-width: 100vw;
             border-radius: 0 !important;
             box-shadow: 4px 0 15px rgba(0,0,0,0.15);
             resize: none !important;
@@ -200,15 +194,15 @@
         }
     `;
 
-    function setPanelDockState(state) {
+    function setPanelDockState(state, saveToStorage = true) {
         const overlay = document.getElementById('preset-notes-modal-test');
         if (!overlay) return;
         const modalCard = overlay.querySelector('.onetrack-modal');
         if (!modalCard) return;
-    
+
         overlay.classList.remove('docked-left', 'docked-right');
         document.body.classList.remove('onetrack-docked-left', 'onetrack-docked-right');
-        
+
         // Reset inline styling overrides on card
         modalCard.style.top = '';
         modalCard.style.left = '';
@@ -216,7 +210,7 @@
         modalCard.style.height = '';
         modalCard.style.width = '';
         modalCard.style.borderRadius = '';
-    
+
         if (state === 'docked-right') {
             overlay.classList.add('docked-right');
             document.body.classList.add('onetrack-docked-right');
@@ -227,10 +221,28 @@
             modalCard.style.width = '500px';
             modalCard.style.borderRadius = '8px';
         }
-        
-        localStorage.setItem('onetrack_dock_state', state);
+
+        // Save choice to localStorage so it survives navigation
+        if (saveToStorage) {
+            localStorage.setItem('onetrack_panel_dock_state', state || 'default');
+        }
     }
 
+    // Automatically restore the saved state whenever the modal appears or re-navigates
+    function initOrRestoreDockState() {
+        const savedState = localStorage.getItem('onetrack_panel_dock_state') || 'default';
+        if (document.getElementById('preset-notes-modal-test')) {
+            setPanelDockState(savedState, false); // false prevents infinite storage loops
+        }
+    }
+
+    // Hook this into your modal open/render sequence, or use a lightweight observer:
+    const dockObserver = new MutationObserver((mutations) => {
+        if (document.getElementById('preset-notes-modal-test')) {
+            initOrRestoreDockState();
+        }
+    });
+    dockObserver.observe(document.body, { childList: true, subtree: true });
     function makeDraggable(element, handle) {
         let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
         
