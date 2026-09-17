@@ -32,7 +32,7 @@
             background-color: #ffffff;
             color: #333333;
         }
-        
+
         /* Dark Mode: Popup container ONLY */
         #preset-notes-modal-test[data-theme="dark"],
         .onetrack-ui-panel[data-theme="dark"] {
@@ -53,14 +53,9 @@
         /* Dark Mode Text Inputs & Selects */
         #preset-notes-modal-test[data-theme="dark"] input:not([type="checkbox"]):not([type="radio"]),
         #preset-notes-modal-test[data-theme="dark"] textarea,
-        #preset-notes-modal-test[data-theme="dark"] {
+        #preset-notes-modal-test[data-theme="dark"] select {
             background: rgba(0, 0, 0, 0.8) !important;
-        }
-        /* PROTECT STATUS BARS & COLOR ACCENTS IN DARK MODE */
-        #preset-notes-modal-test[data-theme="dark"] [style*="background-color"],
-        #preset-notes-modal-test[data-theme="dark"] [style*="background:"] {
-            /* Ensures inline background colors (like green/yellow warranty and company bars) aren't overridden */
-            color: #222222 !important; /* Keeps text dark and readable against bright status backgrounds */
+            color: #e0e0e0 !important;
         }
     `;
     document.head.appendChild(themeStyles);
@@ -952,14 +947,18 @@
                 ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
                 : currentTheme;
 
-            // Instantly update ALL open modals/panels on screen
-            document.querySelectorAll('#preset-notes-modal-test, .onetrack-ui-panel, div[id*="preset-notes"]').forEach(el => {
-                if (resolvedTheme === 'dark') {
-                    el.setAttribute('data-theme', 'dark');
-                } else {
-                    el.removeAttribute('data-theme');
+            // Instantly redraw the main modal if it's currently open so it picks up the correct background & text colors right away
+            const activeModal = document.getElementById('preset-notes-modal-test');
+            if (activeModal) {
+                // Check if we are currently looking at the settings modal or the main preset notes modal, and refresh accordingly
+                if (typeof showAdvancedSettingsModal === 'function' && activeModal.innerText.includes('Advanced Settings')) {
+                    activeModal.remove();
+                    showAdvancedSettingsModal();
+                } else if (typeof showMainModal === 'function') {
+                    activeModal.remove();
+                    showMainModal(resolvedTheme);
                 }
-            });
+            }
 
             showToast(`Theme changed to ${currentTheme}`);
         };
