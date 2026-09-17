@@ -71,11 +71,11 @@
         .onetrack-ui-panel {
             position: fixed;
             z-index: 999999;
-            /* ... your existing floating styles ... */
         }
         
         /* Docked Right Mode */
-        .onetrack-ui-panel.docked-right {
+        .onetrack-ui-panel.docked-right,
+        #preset-notes-modal-test.docked-right > .onetrack-modal {
             top: 0 !important;
             right: 0 !important;
             left: auto !important;
@@ -88,7 +88,8 @@
         }
         
         /* Docked Left Mode */
-        .onetrack-ui-panel.docked-left {
+        .onetrack-ui-panel.docked-left,
+        #preset-notes-modal-test.docked-left > .onetrack-modal {
             top: 0 !important;
             left: 0 !important;
             right: auto !important;
@@ -100,7 +101,7 @@
             resize: none !important;
         }
         
-        /* Optional: Shift OneTrack's body/main container when docked so nothing gets hidden */
+        /* Shift OneTrack's body/main container when docked so nothing gets hidden */
         body.onetrack-docked-right {
             margin-right: 380px !important;
             transition: margin 0.2s ease;
@@ -112,7 +113,8 @@
         }
     `;
     document.head.appendChild(themeStyles);
-   // 2. Define a single, unified applyTheme function
+
+    // 2. Define a single, unified applyTheme function
     function applyTheme(themeChoice) {
         localStorage.setItem('onetrack_theme', themeChoice);
         
@@ -120,7 +122,6 @@
             ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
             : themeChoice;
 
-        // Target both the overlay background, modal containers, and ui panels
         const modals = document.querySelectorAll('#preset-notes-modal-test, .onetrack-ui-panel');
         modals.forEach(modal => {
             if (activeTheme === 'dark') {
@@ -131,7 +132,6 @@
         });
     }
 
-    // 3. Retrieve saved preference on startup and apply it immediately
     const savedTheme = localStorage.getItem('onetrack_theme') || 'auto';
     applyTheme(savedTheme);
 
@@ -199,57 +199,47 @@
             font-size: 11px !important;
         }
     `;
-    let currentDockState = 'floating'; // 'floating', 'docked-left', 'docked-right'
-    
+
     function setPanelDockState(state) {
-        const modal = document.getElementById('preset-notes-modal-test');
-        if (!modal) return;
+        const overlay = document.getElementById('preset-notes-modal-test');
+        if (!overlay) return;
+        const modalCard = overlay.querySelector('.onetrack-modal');
+        if (!modalCard) return;
     
-        // Clean up existing states
-        modal.classList.remove('docked-left', 'docked-right', 'onetrack-docked-left', 'onetrack-docked-right');
+        overlay.classList.remove('docked-left', 'docked-right');
         document.body.classList.remove('onetrack-docked-left', 'onetrack-docked-right');
-    
-        currentDockState = state;
+        
+        // Reset inline styling overrides on card
+        modalCard.style.top = '';
+        modalCard.style.left = '';
+        modalCard.style.right = '';
+        modalCard.style.height = '';
+        modalCard.style.width = '';
+        modalCard.style.borderRadius = '';
     
         if (state === 'docked-right') {
-            modal.style.top = '0';
-            modal.style.right = '0';
-            modal.style.left = 'auto';
-            modal.style.height = '100vh';
-            modal.style.width = '380px';
-            modal.style.borderRadius = '0';
+            overlay.classList.add('docked-right');
             document.body.classList.add('onetrack-docked-right');
         } else if (state === 'docked-left') {
-            modal.style.top = '0';
-            modal.style.left = '0';
-            modal.style.right = 'auto';
-            modal.style.height = '100vh';
-            modal.style.width = '380px';
-            modal.style.borderRadius = '0';
+            overlay.classList.add('docked-left');
             document.body.classList.add('onetrack-docked-left');
         } else {
-            // Floating mode reset
-            modal.style.top = '';
-            modal.style.left = '';
-            modal.style.right = '';
-            modal.style.height = '';
-            modal.style.width = '500px';
-            modal.style.borderRadius = '8px';
+            modalCard.style.width = '500px';
+            modalCard.style.borderRadius = '8px';
         }
         
         localStorage.setItem('onetrack_dock_state', state);
-    
-        // Save to your local settings manager
-        saveUserSetting('dockState', state);
     }
-    
-    // Optional: If you saved the dock state, restore it on initial load too!
-    const savedDockState = localStorage.getItem('onetrack_dock_state') || 'floating';
-    // setPanelDockState(savedDockState); // Call this once your panel DOM element is generated
+
     function makeDraggable(element, handle) {
         let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
         
         const dragMouseDown = (e) => {
+            // Prevent dragging if docked
+            if (document.getElementById('preset-notes-modal-test')?.classList.contains('docked-left') ||
+                document.getElementById('preset-notes-modal-test')?.classList.contains('docked-right')) {
+                return;
+            }
             e.preventDefault();
             pos3 = e.clientX;
             pos4 = e.clientY;
@@ -283,6 +273,7 @@
             theme: localStorage.getItem('onetrack_theme'),
             hotkey: localStorage.getItem('onetrack_hotkey'),
             compact: localStorage.getItem('onetrack_compact'),
+            dockState: localStorage.getItem('onetrack_dock_state'),
             version: CURRENT_VERSION
         };
         let blob = new Blob([JSON.stringify(settings, null, 2)], { type: 'application/json' });
@@ -305,6 +296,7 @@
                 if (settings.theme) localStorage.setItem('onetrack_theme', settings.theme);
                 if (settings.hotkey) localStorage.setItem('onetrack_hotkey', settings.hotkey);
                 if (settings.compact !== undefined) localStorage.setItem('onetrack_compact', settings.compact);
+                if (settings.dockState) localStorage.setItem('onetrack_dock_state', settings.dockState);
                 
                 showToast('Settings imported successfully! Reloading...');
                 setTimeout(() => location.reload(), 1000);
@@ -566,57 +558,57 @@
     }
 
     function showMainModal(passedTheme) {
-            let dt = getDeviceType(),
-                ph = getPhrasesForDevice(dt),
-                hist = getAllHistory(),
-                cc = getCurrentCompany(),
-                iam = localStorage.getItem('preset_notes_append_mode') === 'true',
-                hrm = localStorage.getItem('preset_hide_recent') === 'true',
-                serialNum = getSerialNumber();
-    
-            let activeTheme = passedTheme || document.getElementById('preset-notes-modal-test')?.getAttribute('data-theme') || localStorage.getItem('onetrack_theme') || 'light';
-            let isDark = activeTheme === 'dark';
-    
-            let ex = document.getElementById('preset-notes-modal-test');
-            if (ex) ex.remove();
-    
-            let ov = document.createElement('div');
-            ov.id = 'preset-notes-modal-test';
-            ov.setAttribute('data-theme', activeTheme);
-            ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;';
-    
-            let box = document.createElement('div');
-            box.className = 'onetrack-modal' + (compactMode ? ' onetrack-compact-mode' : '');
-            let boxBg = isDark ? '#1e1e1e' : '#fff';
-            let boxColor = isDark ? '#e0e0e0' : '#333';
-            box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:500px;max-height:80vh;display:flex;flex-direction:column;position:relative;`;
-            applyUIScale(box);
-    
-            // Header container combining drag handle title and functional dock controls
-            let header = document.createElement('div');
-            header.style.cssText = 'display: flex; align-items: center; justify-content: space-between; margin-top: 0; margin-bottom: 8px; cursor: move;';
+        let dt = getDeviceType(),
+            ph = getPhrasesForDevice(dt),
+            hist = getAllHistory(),
+            cc = getCurrentCompany(),
+            iam = localStorage.getItem('preset_notes_append_mode') === 'true',
+            hrm = localStorage.getItem('preset_hide_recent') === 'true',
+            serialNum = getSerialNumber();
 
-            let h = document.createElement('h3');
-            h.innerText = `${dt} — S/N: ${serialNum}`;
-            h.style.cssText = `margin: 0; font-size: 14px; color: ${isDark ? '#ffffff' : '#222'};`;
-            header.appendChild(h);
-    
-            let dockControlsHtml = `
-                <div class="onetrack-dock-controls" style="display: flex; gap: 6px;">
-                    <button id="ot-dock-left" title="Dock Left" style="cursor:pointer; background:none; border:none; color:inherit; font-weight:bold;">◀</button>
-                    <button id="ot-float" title="Float Panel" style="cursor:pointer; background:none; border:none; color:inherit; font-weight:bold;">🗗</button>
-                    <button id="ot-dock-right" title="Dock Right" style="cursor:pointer; background:none; border:none; color:inherit; font-weight:bold;">▶</button>
-                </div>
-            `;
-            let dockContainer = document.createElement('div');
-            dockContainer.innerHTML = dockControlsHtml;
-            header.appendChild(dockContainer.firstElementChild);
-    
-            makeDraggable(box, header);
-            box.appendChild(header);
-    
-            let hsRow = document.createElement('div');
-            hsRow.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px;';
+        let activeTheme = passedTheme || document.getElementById('preset-notes-modal-test')?.getAttribute('data-theme') || localStorage.getItem('onetrack_theme') || 'light';
+        let isDark = activeTheme === 'dark';
+
+        let ex = document.getElementById('preset-notes-modal-test');
+        if (ex) ex.remove();
+
+        let ov = document.createElement('div');
+        ov.id = 'preset-notes-modal-test';
+        ov.setAttribute('data-theme', activeTheme);
+        ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;';
+
+        let box = document.createElement('div');
+        box.className = 'onetrack-modal' + (compactMode ? ' onetrack-compact-mode' : '');
+        let boxBg = isDark ? '#1e1e1e' : '#fff';
+        let boxColor = isDark ? '#e0e0e0' : '#333';
+        box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:500px;max-height:80vh;display:flex;flex-direction:column;position:relative;`;
+        applyUIScale(box);
+
+        // Header container combining drag handle title and functional dock controls
+        let header = document.createElement('div');
+        header.style.cssText = 'display: flex; align-items: center; justify-content: space-between; margin-top: 0; margin-bottom: 8px; cursor: move;';
+
+        let h = document.createElement('h3');
+        h.innerText = `${dt} — S/N: ${serialNum}`;
+        h.style.cssText = `margin: 0; font-size: 14px; color: ${isDark ? '#ffffff' : '#222'};`;
+        header.appendChild(h);
+
+        let dockControlsHtml = `
+            <div class="onetrack-dock-controls" style="display: flex; gap: 6px;">
+                <button id="ot-dock-left" title="Dock Left" style="cursor:pointer; background:none; border:none; color:inherit; font-weight:bold;">◀</button>
+                <button id="ot-float" title="Float Panel" style="cursor:pointer; background:none; border:none; color:inherit; font-weight:bold;">🗗</button>
+                <button id="ot-dock-right" title="Dock Right" style="cursor:pointer; background:none; border:none; color:inherit; font-weight:bold;">▶</button>
+            </div>
+        `;
+        let dockContainer = document.createElement('div');
+        dockContainer.innerHTML = dockControlsHtml;
+        header.appendChild(dockContainer.firstElementChild);
+
+        makeDraggable(box, header);
+        box.appendChild(header);
+
+        let hsRow = document.createElement('div');
+        hsRow.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px;';
 
         let companyColors = {
             "CORAM": "#2e7d32",
@@ -716,7 +708,6 @@
         cont.style.cssText = 'overflow-y:auto;flex:1;padding-right:5px;margin-bottom:12px;';
 
         let tds = new Date().toLocaleDateString('en-US', {month:'2-digit', day:'2-digit', year:'numeric'});
-        //let serialNum = getSerialNumber();
 
         if (/enteralite\s*infinity/i.test(dt)) {
             let infBtn = document.createElement('button');
@@ -815,10 +806,16 @@
         ov.appendChild(box);
         document.body.appendChild(ov);
 
+        // Bind Docking actions
         document.getElementById('ot-dock-left')?.addEventListener('click', () => setPanelDockState('docked-left'));
         document.getElementById('ot-float')?.addEventListener('click', () => setPanelDockState('floating'));
         document.getElementById('ot-dock-right')?.addEventListener('click', () => setPanelDockState('docked-right'));
-        // ----------------------------------
+
+        // Restore saved dock state on modal creation
+        const savedDockState = localStorage.getItem('onetrack_dock_state') || 'floating';
+        if (savedDockState !== 'floating') {
+            setPanelDockState(savedDockState);
+        }
     
         setTimeout(() => {
             let firstInput = box.querySelector('input, button');
@@ -1016,7 +1013,7 @@
 
         let ov = document.createElement('div');
         ov.id = 'preset-notes-modal-test';
-        ov.setAttribute('data-theme', activeTheme); // Add this line here!
+        ov.setAttribute('data-theme', activeTheme);
         ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;';
 
         let box = document.createElement('div');
@@ -1067,10 +1064,8 @@
                 ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
                 : currentTheme;
 
-            // Instantly redraw the main modal if it's currently open so it picks up the correct background & text colors right away
             const activeModal = document.getElementById('preset-notes-modal-test');
             if (activeModal) {
-                // Check if we are currently looking at the settings modal or the main preset notes modal, and refresh accordingly
                 if (typeof showAdvancedSettingsModal === 'function' && activeModal.innerText.includes('Advanced Settings')) {
                     activeModal.remove();
                     showAdvancedSettingsModal();
