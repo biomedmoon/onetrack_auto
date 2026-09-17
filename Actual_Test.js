@@ -57,6 +57,11 @@
             background: rgba(0, 0, 0, 0.8) !important;
             color: #e0e0e0 !important;
         }
+        /* Restore Company and Warranty Status Banner Colors in Dark Mode */
+        #preset-notes-modal-test[data-theme="dark"] div[style*="background:"] {
+            color: #ffffff !important;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+        }
     `;
     document.head.appendChild(themeStyles);
 
