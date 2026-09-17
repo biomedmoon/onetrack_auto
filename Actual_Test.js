@@ -557,52 +557,57 @@
     }
 
     function showMainModal(passedTheme) {
-        let dt = getDeviceType(),
-            ph = getPhrasesForDevice(dt),
-            hist = getAllHistory(),
-            cc = getCurrentCompany(),
-            iam = localStorage.getItem('preset_notes_append_mode') === 'true',
-            hrm = localStorage.getItem('preset_hide_recent') === 'true';
-
-        let dockControlsHtml = `
-            <div class="onetrack-dock-controls" style="display: flex; gap: 4px; margin-left: auto;">
-                <button id="ot-dock-left" title="Dock Left" style="cursor:pointer; background:none; border:none; color:inherit;">◀</button>
-                <button id="ot-float" title="Float Panel" style="cursor:pointer; background:none; border:none; color:inherit;">🗗</button>
-                <button id="ot-dock-right" title="Dock Right" style="cursor:pointer; background:none; border:none; color:inherit;">▶</button>
-            </div>
-        `;
-        let activeTheme = passedTheme || document.getElementById('preset-notes-modal-test')?.getAttribute('data-theme') || localStorage.getItem('onetrack_theme') || 'light';
-        let isDark = activeTheme === 'dark';
-
-        let ex = document.getElementById('preset-notes-modal-test');
-        if (ex) ex.remove();
-
-        let ov = document.createElement('div');
-        ov.id = 'preset-notes-modal-test';
-        ov.setAttribute('data-theme', activeTheme);
-        ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;';
-
-        let box = document.createElement('div');
-        box.className = 'onetrack-modal' + (compactMode ? ' onetrack-compact-mode' : '');
-        let boxBg = isDark ? '#1e1e1e' : '#fff';
-        let boxColor = isDark ? '#e0e0e0' : '#333';
-        box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:500px;max-height:80vh;display:flex;flex-direction:column;position:relative;`;
-        applyUIScale(box);
-        let header = document.createElement('div');
-        header.className = 'onetrack-panel-header';
-        header.style.cssText = 'display: flex; align-items: center; justify-content: space-between; ...'; // add your header styles
-        header.innerHTML = `<span>OneTrack Automation</span>${dockControlsHtml}`;
-        box.appendChild(header);
-
-        let h = document.createElement('h3');
-        h.innerText = `[TEST] Preset Notes: ${dt}`;
-        h.style.cssText = `margin-top:0;margin-bottom:4px;font-size:16px;color:${isDark ? '#ffffff' : '#222'};text-align:center;cursor:move;`;
-        
-        makeDraggable(box, h);
-        box.appendChild(h);
-
-        let hsRow = document.createElement('div');
-        hsRow.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px;';
+            let dt = getDeviceType(),
+                ph = getPhrasesForDevice(dt),
+                hist = getAllHistory(),
+                cc = getCurrentCompany(),
+                iam = localStorage.getItem('preset_notes_append_mode') === 'true',
+                hrm = localStorage.getItem('preset_hide_recent') === 'true',
+                serialNum = getSerialNumber();
+    
+            let activeTheme = passedTheme || document.getElementById('preset-notes-modal-test')?.getAttribute('data-theme') || localStorage.getItem('onetrack_theme') || 'light';
+            let isDark = activeTheme === 'dark';
+    
+            let ex = document.getElementById('preset-notes-modal-test');
+            if (ex) ex.remove();
+    
+            let ov = document.createElement('div');
+            ov.id = 'preset-notes-modal-test';
+            ov.setAttribute('data-theme', activeTheme);
+            ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;';
+    
+            let box = document.createElement('div');
+            box.className = 'onetrack-modal' + (compactMode ? ' onetrack-compact-mode' : '');
+            let boxBg = isDark ? '#1e1e1e' : '#fff';
+            let boxColor = isDark ? '#e0e0e0' : '#333';
+            box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:500px;max-height:80vh;display:flex;flex-direction:column;position:relative;`;
+            applyUIScale(box);
+    
+            // Header container combining drag handle title and functional dock controls
+            let header = document.createElement('div');
+            header.style.cssText = 'display: flex; align-items: center; justify-content: space-between; margin-top: 0; margin-bottom: 8px; cursor: move;';
+    
+            let h = document.createElement('h3');
+            h.innerText = `${serialNum}`;
+            h.style.cssText = `margin: 0; font-size: 16px; color: ${isDark ? '#ffffff' : '#222'};`;
+            header.appendChild(h);
+    
+            let dockControlsHtml = `
+                <div class="onetrack-dock-controls" style="display: flex; gap: 6px;">
+                    <button id="ot-dock-left" title="Dock Left" style="cursor:pointer; background:none; border:none; color:inherit; font-weight:bold;">◀</button>
+                    <button id="ot-float" title="Float Panel" style="cursor:pointer; background:none; border:none; color:inherit; font-weight:bold;">🗗</button>
+                    <button id="ot-dock-right" title="Dock Right" style="cursor:pointer; background:none; border:none; color:inherit; font-weight:bold;">▶</button>
+                </div>
+            `;
+            let dockContainer = document.createElement('div');
+            dockContainer.innerHTML = dockControlsHtml;
+            header.appendChild(dockContainer.firstElementChild);
+    
+            makeDraggable(box, header);
+            box.appendChild(header);
+    
+            let hsRow = document.createElement('div');
+            hsRow.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px;';
 
         let companyColors = {
             "CORAM": "#2e7d32",
