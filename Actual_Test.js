@@ -940,17 +940,26 @@
         themeSelect.style.cssText = isDark ? 'padding:4px 8px; border-radius:4px; background:#2a2d2e; color:#fff; border:1px solid #444;' : 'padding:4px 8px; border-radius:4px;';
         themeSelect.onchange = (e) => {
             currentTheme = e.target.value;
-            applyTheme(currentTheme); // Saves preference & updates other panels
+            applyTheme(currentTheme); // Saves preference
             
-            // INSTANTLY update the currently open modal overlay:
+            const resolvedTheme = (currentTheme === 'auto') 
+                ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+                : currentTheme;
+
+            // 1. Update the active modal overlay immediately
             const activeModal = document.getElementById('preset-notes-modal-test');
             if (activeModal) {
-                const resolvedTheme = (currentTheme === 'auto') 
-                    ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
-                    : currentTheme;
-                
                 activeModal.setAttribute('data-theme', resolvedTheme);
             }
+
+            // 2. Immediately update all other open UI panels or inner elements
+            document.querySelectorAll('.onetrack-ui-panel, #preset-notes-modal-test div').forEach(el => {
+                if (resolvedTheme === 'dark') {
+                    el.setAttribute('data-theme', 'dark');
+                } else {
+                    el.removeAttribute('data-theme');
+                }
+            });
 
             showToast(`Theme changed to ${currentTheme}`);
         };
