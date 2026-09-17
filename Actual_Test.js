@@ -33,13 +33,13 @@
             color: #333333;
         }
 
-        /* Dark Mode: Popup container ONLY */
+        /* Dark Mode: Keep background light/natural instead of black */
         #preset-notes-modal-test[data-theme="dark"],
         .onetrack-ui-panel[data-theme="dark"] {
-            background-color: #1e1e1e !important;
-            color: #e0e0e0 !important;
-            border: 1px solid #333333 !important;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.5) !important;
+            background-color: #f8f9fa !important; /* Keeps it close to the light mode background */
+            color: #212529 !important;
+            border: 1px solid #cccccc !important;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15) !important;
         }
 
         /* Dark Mode Inner Sections / Containers */
@@ -47,24 +47,16 @@
         #preset-notes-modal-test[data-theme="dark"] .section-box,
         #preset-notes-modal-test[data-theme="dark"] div > div {
             background-color: transparent !important;
-            color: #e0e0e0 !important;
+            color: #212529 !important;
         }
 
-        /* Dark Mode Text Inputs & Selects */
-        #preset-notes-modal-test[data-theme="dark"] input:not([type="checkbox"]):not([type="radio"]),
-        #preset-notes-modal-test[data-theme="dark"] textarea,
-        #preset-notes-modal-test[data-theme="dark"] select {
-            background: rgba(0, 0, 0, 0.8) !important;
-            color: #e0e0e0 !important;
-        }
-        /* Restore Company and Warranty Status Banner Colors in Dark Mode */
+        /* Ensure Company and Warranty Banners Keep Their Inline Colors */
         #preset-notes-modal-test[data-theme="dark"] div[style*="background:"] {
-            color: #ffffff !important;
-            text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+            color: #ffffff !important; /* Keeps text bright white against the colored badges */
+            text-shadow: 0 1px 2px rgba(0,0,0,0.3);
         }
     `;
     document.head.appendChild(themeStyles);
-
    // 2. Define a single, unified applyTheme function
     function applyTheme(themeChoice) {
         localStorage.setItem('onetrack_theme', themeChoice);
