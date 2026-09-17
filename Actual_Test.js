@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         OneTrack Automation & Helper - Actual_Test
 // @namespace    http://tampermonkey.net/
-// @version      1.3.1
+// @version      1.3.2
 // @description  Automates workflows, UI enhancements, hotkeys, and persistent settings.
 // @author       Biomed Team
 // @match        *://*/*
@@ -11,7 +11,7 @@
 (function() {
     'use strict';
 
-    const CURRENT_VERSION = '1.3.1';
+    const CURRENT_VERSION = '1.3.2';
     const RELEASE_NOTES = [
         "Added customizable Theme Toggle (Dark/Light Mode).",
         "Enabled draggable floating UI panels.",
@@ -33,17 +33,15 @@
             color: #333333;
         }
 
-        /* 1. Keep backdrop semi-transparent so the page behind it is visible */
-        #preset-notes-modal-test[data-theme="dark"] {
-            background: rgba(0, 0, 0, 0.5) !important;
-        }
-        /* 1. Backdrop allows clicking through to the page underneath */
+        /* 1. Keep backdrop semi-transparent and allow clicking through */
         #preset-notes-modal-test {
+            background: rgba(0, 0, 0, 0.5) !important;
             pointer-events: none !important;
         }
 
-        /* 2. The actual modal box remains fully clickable */
-        #preset-notes-modal-test > .onetrack-modal {
+        /* 2. The actual modal box and panels remain fully clickable */
+        #preset-notes-modal-test > .onetrack-modal,
+        .onetrack-ui-panel {
             pointer-events: auto !important;
         }
 
@@ -90,7 +88,7 @@
             left: auto !important;
             bottom: 0 !important;
             height: 100vh !important;
-            width: 380px !important; /* Matches your body margin-right! */
+            width: 380px !important;
             max-width: 100vw !important;
             border-radius: 0 !important;
             transform: none !important;
@@ -104,12 +102,11 @@
             right: auto !important;
             bottom: 0 !important;
             height: 100vh !important;
-            width: 380px !important; /* Matches your body margin-left! */
+            width: 380px !important;
             max-width: 100vw !important;
             border-radius: 0 !important;
             transform: none !important;
         } 
-        
     `;
     document.head.appendChild(themeStyles);
 
@@ -141,12 +138,14 @@
             modal.classList.toggle('onetrack-compact-mode', isCompact);
         }
     }
+
     function applySavedDockStateIfNeeded() {
         const savedDockState = localStorage.getItem('onetrack_panel_dock_state');
         if (savedDockState && savedDockState !== 'default') {
             setPanelDockState(savedDockState, false);
         }
     }
+
     let currentTheme = localStorage.getItem('onetrack_theme') || 'auto';
     let customHotkey = localStorage.getItem('onetrack_hotkey') || 'KeyP';
     let compactMode = localStorage.getItem('onetrack_compact') === 'true';
@@ -223,25 +222,21 @@
             modalCard.style.borderRadius = '8px';
         }
 
-        // Save choice to localStorage so it survives navigation
         if (saveToStorage) {
             localStorage.setItem('onetrack_panel_dock_state', state || 'default');
         }
     }
 
-    // Place this call right after your modal HTML is injected/created in the DOM
     const savedDockState = localStorage.getItem('onetrack_panel_dock_state');
     if (savedDockState && savedDockState !== 'default') {
         setPanelDockState(savedDockState, false);
-     }
+    }
 
-    // Function to verify and re-apply saved dock state on menu navigation
     function initOrRestoreDockState() {
         const overlay = document.getElementById('preset-notes-modal-test');
         if (!overlay) return;
     
         const savedState = localStorage.getItem('onetrack_panel_dock_state');
-        // If a saved state exists and the modal doesn't have it yet, apply it instantly
         if (savedState && savedState !== 'default') {
             if (!overlay.classList.contains(savedState)) {
                 setPanelDockState(savedState, false);
@@ -249,18 +244,17 @@
         }
     }
 
-    // Hook this into your modal open/render sequence via observer:
-    const dockObserver = new MutationObserver((mutations) => {
+    const dockObserver = new MutationObserver(() => {
         if (document.getElementById('preset-notes-modal-test')) {
             initOrRestoreDockState();
         }
     });
-dockObserver.observe(document.body, { childList: true, subtree: true });
+    dockObserver.observe(document.body, { childList: true, subtree: true });
+
     function makeDraggable(element, handle) {
         let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
         
         const dragMouseDown = (e) => {
-            // Prevent dragging if docked
             if (document.getElementById('preset-notes-modal-test')?.classList.contains('docked-left') ||
                 document.getElementById('preset-notes-modal-test')?.classList.contains('docked-right')) {
                 return;
@@ -337,11 +331,11 @@ dockObserver.observe(document.body, { childList: true, subtree: true });
         if (!force && lastSeenVersion === CURRENT_VERSION) return;
 
         let ov = document.createElement('div');
-        ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;';
+        ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;pointer-events:none;';
 
         let box = document.createElement('div');
         box.className = 'onetrack-modal';
-        box.style.cssText = 'background:#fff;padding:24px;border-radius:8px;box-shadow:0 6px 16px rgba(0,0,0,0.2);width:420px;max-width:90vw;display:flex;flex-direction:column;color:#333;';
+        box.style.cssText = 'background:#fff;padding:24px;border-radius:8px;box-shadow:0 6px 16px rgba(0,0,0,0.2);width:420px;max-width:90vw;display:flex;flex-direction:column;color:#333;pointer-events:auto;';
 
         let title = document.createElement('h3');
         title.innerText = `🎉 What's New in Preset Notes (v${CURRENT_VERSION})`;
@@ -601,16 +595,15 @@ dockObserver.observe(document.body, { childList: true, subtree: true });
         let ov = document.createElement('div');
         ov.id = 'preset-notes-modal-test';
         ov.setAttribute('data-theme', activeTheme);
-        ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;';
+        ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;pointer-events:none;';
 
         let box = document.createElement('div');
         box.className = 'onetrack-modal' + (compactMode ? ' onetrack-compact-mode' : '');
         let boxBg = isDark ? '#1e1e1e' : '#fff';
         let boxColor = isDark ? '#e0e0e0' : '#333';
-        box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:500px;max-height:80vh;display:flex;flex-direction:column;position:relative;`;
+        box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:500px;max-height:80vh;display:flex;flex-direction:column;position:relative;pointer-events:auto;`;
         applyUIScale(box);
 
-        // Header container combining drag handle title and functional dock controls
         let header = document.createElement('div');
         header.style.cssText = 'display: flex; align-items: center; justify-content: space-between; margin-top: 0; margin-bottom: 8px; cursor: move;';
 
@@ -832,21 +825,19 @@ dockObserver.observe(document.body, { childList: true, subtree: true });
         ov.appendChild(box);
         document.body.appendChild(ov);
         applySavedDockStateIfNeeded();
-        // Instantly preserve dock state across menu re-renderings
+
         const activeDockState = localStorage.getItem('onetrack_panel_dock_state');
         if (activeDockState && activeDockState !== 'default') {
             setPanelDockState(activeDockState, false);
         }
 
-        // Bind Docking actions
         document.getElementById('ot-dock-left')?.addEventListener('click', () => setPanelDockState('docked-left'));
         document.getElementById('ot-float')?.addEventListener('click', () => setPanelDockState('floating'));
         document.getElementById('ot-dock-right')?.addEventListener('click', () => setPanelDockState('docked-right'));
 
-        // Restore saved dock state on modal creation
-        const savedDockState = localStorage.getItem('onetrack_dock_state') || 'floating';
-        if (savedDockState !== 'floating') {
-            setPanelDockState(savedDockState);
+        const savedDockStateSetting = localStorage.getItem('onetrack_dock_state') || 'floating';
+        if (savedDockStateSetting !== 'floating') {
+            setPanelDockState(savedDockStateSetting);
         }
     
         setTimeout(() => {
@@ -865,13 +856,13 @@ dockObserver.observe(document.body, { childList: true, subtree: true });
         let ov = document.createElement('div');
         ov.id = 'preset-notes-modal-test';
         ov.setAttribute('data-theme', activeTheme);
-        ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;';
+        ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;pointer-events:none;';
 
         let box = document.createElement('div');
         box.className = 'onetrack-modal' + (compactMode ? ' onetrack-compact-mode' : '');
         let boxBg = isDark ? '#1e1e1e' : '#fff';
         let boxColor = isDark ? '#e0e0e0' : '#333';
-        box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:400px;display:flex;flex-direction:column;position:relative;`;
+        box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:400px;display:flex;flex-direction:column;position:relative;pointer-events:auto;`;
         applyUIScale(box);
 
         let h = document.createElement('h3');
@@ -939,13 +930,13 @@ dockObserver.observe(document.body, { childList: true, subtree: true });
         let ov = document.createElement('div');
         ov.id = 'preset-notes-modal-test';
         ov.setAttribute('data-theme', activeTheme);
-        ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;';
+        ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;pointer-events:none;';
 
         let box = document.createElement('div');
         box.className = 'onetrack-modal' + (compactMode ? ' onetrack-compact-mode' : '');
         let boxBg = isDark ? '#1e1e1e' : '#fff';
         let boxColor = isDark ? '#e0e0e0' : '#333';
-        box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:450px;max-height:80vh;display:flex;flex-direction:column;position:relative;`;
+        box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:450px;max-height:80vh;display:flex;flex-direction:column;position:relative;pointer-events:auto;`;
         applyUIScale(box);
 
         let h = document.createElement('h3');
@@ -1048,13 +1039,13 @@ dockObserver.observe(document.body, { childList: true, subtree: true });
         let ov = document.createElement('div');
         ov.id = 'preset-notes-modal-test';
         ov.setAttribute('data-theme', activeTheme);
-        ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;';
+        ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;pointer-events:none;';
 
         let box = document.createElement('div');
         box.className = 'onetrack-modal' + (compactMode ? ' onetrack-compact-mode' : '');
         let boxBg = isDark ? '#1e1e1e' : '#fff';
         let boxColor = isDark ? '#e0e0e0' : '#333';
-        box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:450px;display:flex;flex-direction:column;position:relative;`;
+        box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:450px;display:flex;flex-direction:column;position:relative;pointer-events:auto;`;
         applyUIScale(box);
 
         let title = document.createElement('h3');
@@ -1262,14 +1253,14 @@ dockObserver.observe(document.body, { childList: true, subtree: true });
         let ov = document.createElement('div');
         ov.id = 'preset-notes-modal-test';
         ov.setAttribute('data-theme', activeTheme);
-        ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;';
+        ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;pointer-events:none;';
 
         let box = document.createElement('div');
         box.className = 'onetrack-modal' + (compactMode ? ' onetrack-compact-mode' : '');
         
         let boxBg = isDark ? '#1e1e1e' : '#fff';
         let boxColor = isDark ? '#e0e0e0' : '#333';
-        box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:500px;max-height:85vh;display:flex;flex-direction:column;position:relative;`;
+        box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:500px;max-height:85vh;display:flex;flex-direction:column;position:relative;pointer-events:auto;`;
         applyUIScale(box);
 
         let titleRow = document.createElement('div');
