@@ -188,6 +188,7 @@
             document.onmouseup = closeDragElement;
             document.onmousemove = elementDrag;
         };
+
         const closeDragElement = () => {
             document.onmouseup = null;
             document.onmousemove = null;
@@ -196,6 +197,7 @@
             GM_setValue('modal_pos_x', element.style.left);
             GM_setValue('modal_pos_y', element.style.top);
         };
+
         const elementDrag = (e) => {
             e.preventDefault();
             pos1 = pos3 - e.clientX;
@@ -209,15 +211,9 @@
             element.style.transform = 'none';
         };
 
-       // const closeDragElement = () => {
-            document.onmouseup = null;
-            document.onmousemove = null;
-        };
-
         const targetHandle = handle || element;
         targetHandle.onmousedown = dragMouseDown;
     }
-
     function exportSettings() {
         let settings = {
             theme: localStorage.getItem('onetrack_theme'),
