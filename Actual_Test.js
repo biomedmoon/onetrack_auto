@@ -79,9 +79,12 @@
             top: 0 !important;
             right: 0 !important;
             left: auto !important;
+            bottom: 0 !important;
+            height: 100vh !important;
+            width: 380px !important; /* Matches your body margin-right! */
+            max-width: 100vw !important;
             border-radius: 0 !important;
-            box-shadow: -4px 0 15px rgba(0,0,0,0.15);
-            resize: none !important;
+            transform: none !important;
         }
         
         /* Docked Left Mode */
@@ -90,17 +93,20 @@
             top: 0 !important;
             left: 0 !important;
             right: auto !important;
+            bottom: 0 !important;
+            height: 100vh !important;
+            width: 380px !important; /* Matches your body margin-left! */
+            max-width: 100vw !important;
             border-radius: 0 !important;
-            box-shadow: 4px 0 15px rgba(0,0,0,0.15);
-            resize: none !important;
-        }
+            transform: none !important;
+        } 
         
-        /* Shift OneTrack's body/main container when docked so nothing gets hidden */
+        /* Body shifting rules so content isn't hidden behind the panel */
         body.onetrack-docked-right {
             margin-right: 380px !important;
             transition: margin 0.2s ease;
         }
-        
+
         body.onetrack-docked-left {
             margin-left: 380px !important;
             transition: margin 0.2s ease;
