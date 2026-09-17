@@ -940,8 +940,18 @@
         themeSelect.style.cssText = isDark ? 'padding:4px 8px; border-radius:4px; background:#2a2d2e; color:#fff; border:1px solid #444;' : 'padding:4px 8px; border-radius:4px;';
         themeSelect.onchange = (e) => {
             currentTheme = e.target.value;
-            applyTheme(currentTheme);
-            ov.setAttribute('data-theme', currentTheme);
+            applyTheme(currentTheme); // Saves preference & updates other panels
+            
+            // INSTANTLY update the currently open modal overlay:
+            const activeModal = document.getElementById('preset-notes-modal-test');
+            if (activeModal) {
+                const resolvedTheme = (currentTheme === 'auto') 
+                    ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+                    : currentTheme;
+                
+                activeModal.setAttribute('data-theme', resolvedTheme);
+            }
+
             showToast(`Theme changed to ${currentTheme}`);
         };
         themeRow.appendChild(themeSelect);
