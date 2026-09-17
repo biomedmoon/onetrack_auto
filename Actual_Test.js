@@ -56,6 +56,12 @@
         #preset-notes-modal-test[data-theme="dark"] {
             background: rgba(0, 0, 0, 0.8) !important;
         }
+        /* PROTECT STATUS BARS & COLOR ACCENTS IN DARK MODE */
+        #preset-notes-modal-test[data-theme="dark"] [style*="background-color"],
+        #preset-notes-modal-test[data-theme="dark"] [style*="background:"] {
+            /* Ensures inline background colors (like green/yellow warranty and company bars) aren't overridden */
+            color: #222222 !important; /* Keeps text dark and readable against bright status backgrounds */
+        }
     `;
     document.head.appendChild(themeStyles);
 
@@ -940,20 +946,14 @@
         themeSelect.style.cssText = isDark ? 'padding:4px 8px; border-radius:4px; background:#2a2d2e; color:#fff; border:1px solid #444;' : 'padding:4px 8px; border-radius:4px;';
         themeSelect.onchange = (e) => {
             currentTheme = e.target.value;
-            applyTheme(currentTheme); // Saves preference
+            applyTheme(currentTheme);
             
             const resolvedTheme = (currentTheme === 'auto') 
                 ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
                 : currentTheme;
 
-            // 1. Update the active modal overlay immediately
-            const activeModal = document.getElementById('preset-notes-modal-test');
-            if (activeModal) {
-                activeModal.setAttribute('data-theme', resolvedTheme);
-            }
-
-            // 2. Immediately update all other open UI panels or inner elements
-            document.querySelectorAll('.onetrack-ui-panel, #preset-notes-modal-test div').forEach(el => {
+            // Instantly update ALL open modals/panels on screen
+            document.querySelectorAll('#preset-notes-modal-test, .onetrack-ui-panel, div[id*="preset-notes"]').forEach(el => {
                 if (resolvedTheme === 'dark') {
                     el.setAttribute('data-theme', 'dark');
                 } else {
