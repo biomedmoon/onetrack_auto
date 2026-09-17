@@ -237,8 +237,7 @@
     const savedDockState = localStorage.getItem('onetrack_panel_dock_state');
     if (savedDockState && savedDockState !== 'default') {
         setPanelDockState(savedDockState, false);
-        }
-    }
+     }
 
     // Hook this into your modal open/render sequence, or use a lightweight observer:
     const dockObserver = new MutationObserver((mutations) => {
