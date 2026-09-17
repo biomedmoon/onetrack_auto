@@ -234,11 +234,10 @@
         }
     }
 
-    // Automatically restore the saved state whenever the modal appears or re-navigates
-    function initOrRestoreDockState() {
-        const savedState = localStorage.getItem('onetrack_panel_dock_state') || 'default';
-        if (document.getElementById('preset-notes-modal-test')) {
-            setPanelDockState(savedState, false); // false prevents infinite storage loops
+    // Place this call right after your modal HTML is injected/created in the DOM
+    const savedDockState = localStorage.getItem('onetrack_panel_dock_state');
+    if (savedDockState && savedDockState !== 'default') {
+        setPanelDockState(savedDockState, false);
         }
     }
 
