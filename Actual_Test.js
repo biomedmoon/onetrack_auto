@@ -202,29 +202,43 @@
     let currentDockState = 'floating'; // 'floating', 'docked-left', 'docked-right'
     
     function setPanelDockState(state) {
-        const panel = document.getElementById('onetrack-ui-panel');
-        if (!panel) return;
+        const modal = document.getElementById('preset-notes-modal-test');
+        if (!modal) return;
     
         // Clean up existing states
-        panel.classList.remove('docked-left', 'docked-right');
+        modal.classList.remove('docked-left', 'docked-right', 'onetrack-docked-left', 'onetrack-docked-right');
         document.body.classList.remove('onetrack-docked-left', 'onetrack-docked-right');
     
         currentDockState = state;
     
         if (state === 'docked-right') {
-            panel.classList.add('docked-right');
+            modal.style.top = '0';
+            modal.style.right = '0';
+            modal.style.left = 'auto';
+            modal.style.height = '100vh';
+            modal.style.width = '380px';
+            modal.style.borderRadius = '0';
             document.body.classList.add('onetrack-docked-right');
-            // Disable dragging when docked
-            disableDragging(panel);
         } else if (state === 'docked-left') {
-            panel.classList.add('docked-left');
+            modal.style.top = '0';
+            modal.style.left = '0';
+            modal.style.right = 'auto';
+            modal.style.height = '100vh';
+            modal.style.width = '380px';
+            modal.style.borderRadius = '0';
             document.body.classList.add('onetrack-docked-left');
-            disableDragging(panel);
         } else {
-            // Floating mode - restore default absolute positioning & enable dragging
-            enableDragging(panel);
-            // Reset to last known floating coordinates if needed
+            // Floating mode reset
+            modal.style.top = '';
+            modal.style.left = '';
+            modal.style.right = '';
+            modal.style.height = '';
+            modal.style.width = '500px';
+            modal.style.borderRadius = '8px';
         }
+        
+        localStorage.setItem('onetrack_dock_state', state);
+    }
     
         // Save to your local settings manager
         saveUserSetting('dockState', state);
@@ -586,10 +600,10 @@
             // Header container combining drag handle title and functional dock controls
             let header = document.createElement('div');
             header.style.cssText = 'display: flex; align-items: center; justify-content: space-between; margin-top: 0; margin-bottom: 8px; cursor: move;';
-    
+
             let h = document.createElement('h3');
-            h.innerText = `${serialNum}`;
-            h.style.cssText = `margin: 0; font-size: 16px; color: ${isDark ? '#ffffff' : '#222'};`;
+            h.innerText = `${dt} — S/N: ${serialNum}`;
+            h.style.cssText = `margin: 0; font-size: 14px; color: ${isDark ? '#ffffff' : '#222'};`;
             header.appendChild(h);
     
             let dockControlsHtml = `
