@@ -53,15 +53,13 @@
         /* Dark Mode Text Inputs & Selects */
         #preset-notes-modal-test[data-theme="dark"] input:not([type="checkbox"]):not([type="radio"]),
         #preset-notes-modal-test[data-theme="dark"] textarea,
-        #preset-notes-modal-test[data-theme="dark"] select {
-            background-color: #2a2d2e !important;
-            color: #ffffff !important;
-            border: 1px solid #44474a !important;
+        #preset-notes-modal-test[data-theme="dark"] {
+            background: rgba(0, 0, 0, 0.8) !important;
         }
     `;
     document.head.appendChild(themeStyles);
 
-    // 2. Define a single, unified applyTheme function
+   // 2. Define a single, unified applyTheme function
     function applyTheme(themeChoice) {
         localStorage.setItem('onetrack_theme', themeChoice);
         
@@ -69,6 +67,7 @@
             ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
             : themeChoice;
 
+        // Target both the overlay background, modal containers, and ui panels
         const modals = document.querySelectorAll('#preset-notes-modal-test, .onetrack-ui-panel');
         modals.forEach(modal => {
             if (activeTheme === 'dark') {
@@ -896,7 +895,7 @@
 
         let ov = document.createElement('div');
         ov.id = 'preset-notes-modal-test';
-        ov.setAttribute('data-theme', activeTheme);
+        ov.setAttribute('data-theme', activeTheme); // Add this line here!
         ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;';
 
         let box = document.createElement('div');
