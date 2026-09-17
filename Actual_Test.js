@@ -5,7 +5,8 @@
 // @description  Automates workflows, UI enhancements, hotkeys, and persistent settings.
 // @author       Biomed Team
 // @match        *://*/*
-// @grant        none
+// @grant        GM_getValue
+// @grant        GM_setValue
 // ==/UserScript==
 
 (function() {
