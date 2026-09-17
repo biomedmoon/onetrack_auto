@@ -188,7 +188,14 @@
             document.onmouseup = closeDragElement;
             document.onmousemove = elementDrag;
         };
-
+        const closeDragElement = () => {
+            document.onmouseup = null;
+            document.onmousemove = null;
+            
+            // Save current coordinates upon release
+            GM_setValue('modal_pos_x', element.style.left);
+            GM_setValue('modal_pos_y', element.style.top);
+        };
         const elementDrag = (e) => {
             e.preventDefault();
             pos1 = pos3 - e.clientX;
@@ -532,6 +539,15 @@
         let boxColor = isDark ? '#e0e0e0' : '#333';
         box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:500px;max-height:80vh;display:flex;flex-direction:column;position:relative;pointer-events:auto;`;
         applyUIScale(box);
+        let savedX = GM_getValue('modal_pos_x', null);
+        let savedY = GM_getValue('modal_pos_y', null);
+
+        if (savedX !== null && savedY !== null) {
+            box.style.left = savedX;
+            box.style.top = savedY;
+            box.style.position = 'fixed';
+            box.style.transform = 'none'; // Overrides centering transform
+        }
 
         let header = document.createElement('div');
         header.style.cssText = 'display: flex; align-items: center; justify-content: space-between; margin-top: 0; margin-bottom: 8px; cursor: move;';
