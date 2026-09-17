@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         OneTrack Automation & Helper - Actual_Test
 // @namespace    http://tampermonkey.net/
-// @version      1.3.2
+// @version      1.3.3
 // @description  Automates workflows, UI enhancements, hotkeys, and persistent settings.
 // @author       Biomed Team
 // @match        *://*/*
@@ -11,16 +11,19 @@
 (function() {
     'use strict';
 
-    const CURRENT_VERSION = '1.3.2';
+    const CURRENT_VERSION = '1.3.3';
     const RELEASE_NOTES = [
         "Added customizable Theme Toggle (Dark/Light Mode).",
         "Enabled draggable floating UI panels.",
         "Added user-configurable hotkeys via settings menu.",
         "Introduced UI Compact Mode preferences.",
-        "Added JSON Settings Export and Import backup functionality."
+        "Added JSON Settings Export and Import backup functionality.",
+        "Removed header snap dock buttons while keeping window draggable.",
+        "Eliminated page dimming background overlay for seamless workflow interaction.",
+        "Added 'Keep Open' toggle in Advanced Settings to keep modal active after applying notes."
     ];
 
-    // 1. Inject clean theme styles
+    // 1. Inject clean theme styles (Backdrop made fully transparent / non-dimming)
     const existingStyle = document.getElementById('onetrack-theme-styles');
     if (existingStyle) existingStyle.remove();
 
@@ -29,14 +32,20 @@
     themeStyles.innerHTML = `
         /* Light Mode Defaults */
         #preset-notes-modal-test, .onetrack-ui-panel {
-            background-color: #ffffff;
+            background-color: transparent;
             color: #333333;
         }
 
-        /* 1. Keep backdrop semi-transparent and allow clicking through */
+        /* 1. Make backdrop completely transparent / non-dimming and allow clicking through */
         #preset-notes-modal-test {
-            background: rgba(0, 0, 0, 0.5) !important;
+            background: transparent !important;
             pointer-events: none !important;
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            z-index: 999999 !important;
         }
 
         /* 2. The actual modal box and panels remain fully clickable */
@@ -61,7 +70,7 @@
             color: #e0e0e0;
         }
 
-        /* 4. Force Company and Warranty Banners to keep their vibrant inline background colors */
+        /* 5. Force Company and Warranty Banners to keep their vibrant inline background colors */
         #preset-notes-modal-test[data-theme="dark"] div[style*="background:"] {
             color: #ffffff !important;
             text-shadow: 0 1px 2px rgba(0,0,0,0.4);
@@ -79,34 +88,6 @@
             position: fixed;
             z-index: 999999;
         }
-        
-        /* Docked Right Mode */
-        .onetrack-ui-panel.docked-right,
-        #preset-notes-modal-test.docked-right > .onetrack-modal {
-            top: 0 !important;
-            right: 0 !important;
-            left: auto !important;
-            bottom: 0 !important;
-            height: 100vh !important;
-            width: 380px !important;
-            max-width: 100vw !important;
-            border-radius: 0 !important;
-            transform: none !important;
-        }
-        
-        /* Docked Left Mode */
-        .onetrack-ui-panel.docked-left,
-        #preset-notes-modal-test.docked-left > .onetrack-modal {
-            top: 0 !important;
-            left: 0 !important;
-            right: auto !important;
-            bottom: 0 !important;
-            height: 100vh !important;
-            width: 380px !important;
-            max-width: 100vw !important;
-            border-radius: 0 !important;
-            transform: none !important;
-        } 
     `;
     document.head.appendChild(themeStyles);
 
@@ -139,16 +120,10 @@
         }
     }
 
-    function applySavedDockStateIfNeeded() {
-        const savedDockState = localStorage.getItem('onetrack_panel_dock_state');
-        if (savedDockState && savedDockState !== 'default') {
-            setPanelDockState(savedDockState, false);
-        }
-    }
-
     let currentTheme = localStorage.getItem('onetrack_theme') || 'auto';
     let customHotkey = localStorage.getItem('onetrack_hotkey') || 'KeyP';
     let compactMode = localStorage.getItem('onetrack_compact') === 'true';
+    let keepOpenMode = localStorage.getItem('onetrack_keep_open') === 'true';
 
     applyTheme(currentTheme);
 
@@ -203,62 +178,10 @@
         }
     `;
 
-    function setPanelDockState(state, saveToStorage = true) {
-        const overlay = document.getElementById('preset-notes-modal-test');
-        if (!overlay) return;
-        const modalCard = overlay.querySelector('.onetrack-modal');
-        if (!modalCard) return;
-
-        overlay.classList.remove('docked-left', 'docked-right');
-
-        if (state === 'docked-right') {
-            overlay.classList.add('docked-right');
-            document.body.classList.add('onetrack-docked-right');
-        } else if (state === 'docked-left') {
-            overlay.classList.add('docked-left');
-            document.body.classList.add('onetrack-docked-left');
-        } else {
-            modalCard.style.width = '500px';
-            modalCard.style.borderRadius = '8px';
-        }
-
-        if (saveToStorage) {
-            localStorage.setItem('onetrack_panel_dock_state', state || 'default');
-        }
-    }
-
-    const savedDockState = localStorage.getItem('onetrack_panel_dock_state');
-    if (savedDockState && savedDockState !== 'default') {
-        setPanelDockState(savedDockState, false);
-    }
-
-    function initOrRestoreDockState() {
-        const overlay = document.getElementById('preset-notes-modal-test');
-        if (!overlay) return;
-    
-        const savedState = localStorage.getItem('onetrack_panel_dock_state');
-        if (savedState && savedState !== 'default') {
-            if (!overlay.classList.contains(savedState)) {
-                setPanelDockState(savedState, false);
-            }
-        }
-    }
-
-    const dockObserver = new MutationObserver(() => {
-        if (document.getElementById('preset-notes-modal-test')) {
-            initOrRestoreDockState();
-        }
-    });
-    dockObserver.observe(document.body, { childList: true, subtree: true });
-
     function makeDraggable(element, handle) {
         let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
         
         const dragMouseDown = (e) => {
-            if (document.getElementById('preset-notes-modal-test')?.classList.contains('docked-left') ||
-                document.getElementById('preset-notes-modal-test')?.classList.contains('docked-right')) {
-                return;
-            }
             e.preventDefault();
             pos3 = e.clientX;
             pos4 = e.clientY;
@@ -276,6 +199,7 @@
             element.style.top = (element.offsetTop - pos2) + "px";
             element.style.left = (element.offsetLeft - pos1) + "px";
             element.style.position = 'fixed';
+            element.style.transform = 'none';
         };
 
         const closeDragElement = () => {
@@ -292,7 +216,7 @@
             theme: localStorage.getItem('onetrack_theme'),
             hotkey: localStorage.getItem('onetrack_hotkey'),
             compact: localStorage.getItem('onetrack_compact'),
-            dockState: localStorage.getItem('onetrack_dock_state'),
+            keepOpen: localStorage.getItem('onetrack_keep_open'),
             version: CURRENT_VERSION
         };
         let blob = new Blob([JSON.stringify(settings, null, 2)], { type: 'application/json' });
@@ -315,7 +239,7 @@
                 if (settings.theme) localStorage.setItem('onetrack_theme', settings.theme);
                 if (settings.hotkey) localStorage.setItem('onetrack_hotkey', settings.hotkey);
                 if (settings.compact !== undefined) localStorage.setItem('onetrack_compact', settings.compact);
-                if (settings.dockState) localStorage.setItem('onetrack_dock_state', settings.dockState);
+                if (settings.keepOpen !== undefined) localStorage.setItem('onetrack_keep_open', settings.keepOpen);
                 
                 showToast('Settings imported successfully! Reloading...');
                 setTimeout(() => location.reload(), 1000);
@@ -331,7 +255,7 @@
         if (!force && lastSeenVersion === CURRENT_VERSION) return;
 
         let ov = document.createElement('div');
-        ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;pointer-events:none;';
+        ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:transparent;z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;pointer-events:none;';
 
         let box = document.createElement('div');
         box.className = 'onetrack-modal';
@@ -364,7 +288,6 @@
 
         ov.appendChild(box);
         document.body.appendChild(ov);
-        applySavedDockStateIfNeeded();
     }
 
     const DEFAULT_CLIENT_MAPPING = {
@@ -445,7 +368,7 @@
         let toast = document.createElement('div');
         toast.id = 'preset-toast-test';
         toast.innerText = message;
-        toast.style.cssText = 'position:fixed; bottom:20px; right:20px; background:#28a745; color:#fff; padding:10px 16px; border-radius:6px; z-index:999999; font-size:12px; font-weight:bold; box-shadow:0 4px 10px rgba(0,0,0,0.2); transition:opacity 0.3s ease;';
+        toast.style.cssText = 'position:fixed; bottom:20px; right:20px; background:#28a745; color:#fff; padding:10px 16px; border-radius:6px; z-index:999999; font-size:12px; font-weight:bold; box-shadow:0 4px 10px rgba(0,0,0,0.2); transition:opacity 0.3s ease; pointer-events:none;';
         
         document.body.appendChild(toast);
 
@@ -493,6 +416,12 @@
             }).catch(err => {
                 console.error("Could not copy text: ", err);
             });
+        }
+
+        // Handle keep open preference
+        if (!keepOpenMode) {
+            let modal = document.getElementById('preset-notes-modal-test');
+            if (modal) modal.remove();
         }
     }
 
@@ -595,7 +524,7 @@
         let ov = document.createElement('div');
         ov.id = 'preset-notes-modal-test';
         ov.setAttribute('data-theme', activeTheme);
-        ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;pointer-events:none;';
+        ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:transparent;z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;pointer-events:none;';
 
         let box = document.createElement('div');
         box.className = 'onetrack-modal' + (compactMode ? ' onetrack-compact-mode' : '');
@@ -611,17 +540,6 @@
         h.innerText = `${dt} — S/N: ${serialNum}`;
         h.style.cssText = `margin: 0; font-size: 14px; color: ${isDark ? '#ffffff' : '#222'};`;
         header.appendChild(h);
-
-        let dockControlsHtml = `
-            <div class="onetrack-dock-controls" style="display: flex; gap: 6px;">
-                <button id="ot-dock-left" title="Dock Left" style="cursor:pointer; background:none; border:none; color:inherit; font-weight:bold;">◀</button>
-                <button id="ot-float" title="Float Panel" style="cursor:pointer; background:none; border:none; color:inherit; font-weight:bold;">🗗</button>
-                <button id="ot-dock-right" title="Dock Right" style="cursor:pointer; background:none; border:none; color:inherit; font-weight:bold;">▶</button>
-            </div>
-        `;
-        let dockContainer = document.createElement('div');
-        dockContainer.innerHTML = dockControlsHtml;
-        header.appendChild(dockContainer.firstElementChild);
 
         makeDraggable(box, header);
         box.appendChild(header);
@@ -736,7 +654,6 @@
             infBtn.onclick = () => {
                 let findings = calculateInfinityFlatRateFindings();
                 if (findings) {
-                    ov.remove();
                     addHistoryItem(findings);
                     processTextSelection(findings);
                 }
@@ -775,7 +692,6 @@
                 btn.className = 'onetrack-btn';
                 btn.style.cssText = 'display:block;width:100%;padding:8px 10px;margin:4px 0;background:#eef7fe;color:#0366d6;border:1px solid #c8e1ff;border-radius:4px;cursor:pointer;font-size:12px;text-align:left;line-height:1.4;';
                 btn.onclick = () => {
-                    ov.remove();
                     addHistoryItem(hTxt);
                     processTextSelection(hTxt);
                 };
@@ -796,7 +712,6 @@
             btn.className = 'onetrack-btn';
             btn.style.cssText = `display:block;width:100%;padding:8px 10px;margin:4px 0;background:${isDark ? '#2a2a2a' : '#f8f9fa'};color:${isDark ? '#fff' : '#212529'};border:1px solid ${isDark ? '#444' : '#ced4da'};border-radius:4px;cursor:pointer;font-size:12px;text-align:left;line-height:1.4;`;
             btn.onclick = () => {
-                ov.remove();
                 addHistoryItem(cln);
                 processTextSelection(cln);
             };
@@ -824,21 +739,6 @@
 
         ov.appendChild(box);
         document.body.appendChild(ov);
-        applySavedDockStateIfNeeded();
-
-        const activeDockState = localStorage.getItem('onetrack_panel_dock_state');
-        if (activeDockState && activeDockState !== 'default') {
-            setPanelDockState(activeDockState, false);
-        }
-
-        document.getElementById('ot-dock-left')?.addEventListener('click', () => setPanelDockState('docked-left'));
-        document.getElementById('ot-float')?.addEventListener('click', () => setPanelDockState('floating'));
-        document.getElementById('ot-dock-right')?.addEventListener('click', () => setPanelDockState('docked-right'));
-
-        const savedDockStateSetting = localStorage.getItem('onetrack_dock_state') || 'floating';
-        if (savedDockStateSetting !== 'floating') {
-            setPanelDockState(savedDockStateSetting);
-        }
     
         setTimeout(() => {
             let firstInput = box.querySelector('input, button');
@@ -856,7 +756,7 @@
         let ov = document.createElement('div');
         ov.id = 'preset-notes-modal-test';
         ov.setAttribute('data-theme', activeTheme);
-        ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;pointer-events:none;';
+        ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:transparent;z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;pointer-events:none;';
 
         let box = document.createElement('div');
         box.className = 'onetrack-modal' + (compactMode ? ' onetrack-compact-mode' : '');
@@ -901,7 +801,6 @@
 
         ov.appendChild(box);
         document.body.appendChild(ov);
-        applySavedDockStateIfNeeded();
     }
 
     function showClientSelectModal(ap, sao, passedTheme) {
@@ -930,7 +829,7 @@
         let ov = document.createElement('div');
         ov.id = 'preset-notes-modal-test';
         ov.setAttribute('data-theme', activeTheme);
-        ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;pointer-events:none;';
+        ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:transparent;z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;pointer-events:none;';
 
         let box = document.createElement('div');
         box.className = 'onetrack-modal' + (compactMode ? ' onetrack-compact-mode' : '');
@@ -956,7 +855,6 @@
             btn.className = 'onetrack-btn';
             btn.style.cssText = `display:block;width:100%;padding:8px 10px;margin:4px 0;background:${isDark ? '#2a2a2a' : '#f8f9fa'};color:${isDark ? '#fff' : '#212529'};border:1px solid ${isDark ? '#444' : '#ced4da'};border-radius:4px;cursor:pointer;font-size:12px;text-align:left;line-height:1.4;`;
             btn.onclick = () => {
-                ov.remove();
                 processTextSelection(ft);
             };
             cont.appendChild(btn);
@@ -974,7 +872,6 @@
                 if (!map[cc]) map[cc] = [];
                 if (!map[cc].includes(cleanNc)) map[cc].push(cleanNc);
                 localStorage.setItem('my_preset_client_mapping', JSON.stringify(map));
-                ov.remove();
                 processTextSelection(`${ap} by ${cleanNc}.`);
             }
         };
@@ -1026,7 +923,6 @@
 
         ov.appendChild(box);
         document.body.appendChild(ov);
-        applySavedDockStateIfNeeded();
     }
 
     function showAdvancedSettingsModal() {
@@ -1039,7 +935,7 @@
         let ov = document.createElement('div');
         ov.id = 'preset-notes-modal-test';
         ov.setAttribute('data-theme', activeTheme);
-        ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;pointer-events:none;';
+        ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:transparent;z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;pointer-events:none;';
 
         let box = document.createElement('div');
         box.className = 'onetrack-modal' + (compactMode ? ' onetrack-compact-mode' : '');
@@ -1091,10 +987,10 @@
 
             const activeModal = document.getElementById('preset-notes-modal-test');
             if (activeModal) {
-                if (typeof showAdvancedSettingsModal === 'function' && activeModal.innerText.includes('Advanced Settings')) {
+                if (activeModal.innerText.includes('Advanced Settings')) {
                     activeModal.remove();
                     showAdvancedSettingsModal();
-                } else if (typeof showMainModal === 'function') {
+                } else {
                     activeModal.remove();
                     showMainModal(resolvedTheme);
                 }
@@ -1139,6 +1035,21 @@
         };
         compactRow.appendChild(compactToggle);
         sa.appendChild(compactRow);
+
+        // Keep Open Mode Toggle
+        let keepOpenRow = document.createElement('div');
+        keepOpenRow.style.cssText = 'display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; font-size:13px; font-weight:bold;';
+        keepOpenRow.innerHTML = `<span>Keep Open After Applying Note</span>`;
+        let keepOpenToggle = document.createElement('input');
+        keepOpenToggle.type = 'checkbox';
+        keepOpenToggle.checked = keepOpenMode;
+        keepOpenToggle.onchange = (e) => {
+            keepOpenMode = e.target.checked;
+            localStorage.setItem('onetrack_keep_open', keepOpenMode);
+            showToast(`Keep Open Mode ${keepOpenMode ? 'Enabled' : 'Disabled'}`);
+        };
+        keepOpenRow.appendChild(keepOpenToggle);
+        sa.appendChild(keepOpenRow);
 
         let actionRow = document.createElement('div');
         actionRow.style.cssText = 'display:flex; justify-content:space-between; margin-bottom:12px; gap:8px;';
@@ -1236,7 +1147,6 @@
 
         ov.appendChild(box);
         document.body.appendChild(ov);
-        applySavedDockStateIfNeeded();
     }
 
     function showEditModal(passedTheme) {
@@ -1253,7 +1163,7 @@
         let ov = document.createElement('div');
         ov.id = 'preset-notes-modal-test';
         ov.setAttribute('data-theme', activeTheme);
-        ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;pointer-events:none;';
+        ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:transparent;z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;pointer-events:none;';
 
         let box = document.createElement('div');
         box.className = 'onetrack-modal' + (compactMode ? ' onetrack-compact-mode' : '');
@@ -1489,7 +1399,6 @@
         box.appendChild(btnRow);
         ov.appendChild(box);
         document.body.appendChild(ov);
-        applySavedDockStateIfNeeded();
     }
 
     window.addEventListener('keydown', (e) => {
