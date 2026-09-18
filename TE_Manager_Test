@@ -422,32 +422,32 @@
         scaleLabel.style.fontSize = "13px";
         
         let scaleInput = document.createElement('input');
-        scaleInput.type = 'text'; // Changed to text to completely block native number input overflow
+        scaleInput.type = 'text';
         scaleInput.value = getUIScale();
         scaleInput.style.cssText = `width:70px;padding:4px;background:${inputBgCol};color:${textCol};border:1px solid ${inputBorderCol};border-radius:4px;text-align:center;`;
         
-        let enforceScaleBounds = () => {
-            // Strip anything that isn't a number or decimal point
+        let getSanitizedScale = () => {
             let cleanVal = scaleInput.value.replace(/[^0-9.]/g, '');
             let val = parseFloat(cleanVal);
-            
+            if (isNaN(val)) return 1.0;
+            return Math.min(Math.max(val, 0.5), 2.0);
+        };
+
+        scaleInput.oninput = () => {
+            let cleanVal = scaleInput.value.replace(/[^0-9.]/g, '');
+            let val = parseFloat(cleanVal);
             if (!isNaN(val)) {
-                if (val > 2.0) val = 2.0;
-                if (val < 0.5) val = 0.5;
-                scaleInput.value = val;
-                localStorage.setItem(STORAGE_SCALE_KEY, val);
+                let clamped = Math.min(Math.max(val, 0.5), 2.0);
+                localStorage.setItem(STORAGE_SCALE_KEY, clamped);
                 applyUIScale(card);
             }
         };
 
-        scaleInput.onchange = enforceScaleBounds;
         scaleInput.onblur = () => {
-            let val = parseFloat(scaleInput.value);
-            if (isNaN(val)) {
-                scaleInput.value = getUIScale();
-            } else {
-                enforceScaleBounds();
-            }
+            let finalVal = getSanitizedScale();
+            scaleInput.value = finalVal;
+            localStorage.setItem(STORAGE_SCALE_KEY, finalVal);
+            applyUIScale(card);
         };
 
         scaleRow.appendChild(scaleLabel);
@@ -482,12 +482,12 @@
         setSave.style.cssText = "padding:5px 10px;background:#780034;color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:bold;";
         setSave.onclick = () => {
             localStorage.setItem(STORAGE_THEME_KEY, themeSelect.value);
-            let newScale = parseFloat(scaleInput.value);
-            if (!isNaN(newScale)) {
-                newScale = Math.min(Math.max(newScale, 0.5), 2.0);
-                localStorage.setItem(STORAGE_SCALE_KEY, newScale);
-                applyUIScale(card);
-            }
+            
+            let finalScale = getSanitizedScale();
+            scaleInput.value = finalScale;
+            localStorage.setItem(STORAGE_SCALE_KEY, finalScale);
+            applyUIScale(card);
+            
             setOverlay.remove();
         };
 
