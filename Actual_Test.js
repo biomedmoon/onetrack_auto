@@ -11,7 +11,18 @@
 
 (function() {
     'use strict';
-
+    // --- SELF-SUSTAINING GM STORAGE FALLBACK ---
+    if (typeof GM_getValue === 'undefined') {
+        window.GM_getValue = (key, def) => {
+            let val = localStorage.getItem(key);
+            return val !== null ? val : def;
+        };
+    }
+    if (typeof GM_setValue === 'undefined') {
+        window.GM_setValue = (key, val) => {
+            localStorage.setItem(key, val);
+        };
+    }
     const CURRENT_VERSION = '1.3.3';
     const RELEASE_NOTES = [
         "Added customizable Theme Toggle (Dark/Light Mode).",
@@ -410,11 +421,11 @@
         let activeEl = document.activeElement;
         let targetInput = null;
 
-        // 1. Check if user is actively focused on a valid text input or textarea
+        // 1. Target the currently focused text field or textarea
         if (activeEl && (activeEl.tagName === 'TEXTAREA' || (activeEl.tagName === 'INPUT' && activeEl.type === 'text'))) {
             targetInput = activeEl;
         } else {
-            // 2. Otherwise search for OneTrack report/finding textareas automatically
+            // 2. Search for OneTrack report/finding textareas
             let textareas = document.querySelectorAll('textarea');
             for (let ta of textareas) {
                 let label = (ta.getAttribute('aria-label') || ta.name || ta.id || ta.placeholder || '').toLowerCase();
@@ -423,12 +434,13 @@
                     break;
                 }
             }
-            // 3. Fallback to the first available textarea or text input on page
+            // 3. Fallback to the first available text field on the page
             if (!targetInput) {
                 targetInput = document.querySelector('textarea, input[type="text"]');
             }
         }
 
+        // Apply value if a field was found
         if (targetInput) {
             targetInput.focus();
             let existing = targetInput.value || '';
@@ -439,27 +451,27 @@
             }
             targetInput.dispatchEvent(new Event('input', { bubbles: true }));
             targetInput.dispatchEvent(new Event('change', { bubbles: true }));
-            
-            showToast("✓ Notes applied successfully!");
-        } else {
-            // Fallback to clipboard if no input field found
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(text).then(() => {
-                    showToast("✓ Copied to clipboard!");
-                }).catch(() => {
-                    fallbackCopyTextToClipboard(text);
-                });
-            } else {
-                fallbackCopyTextToClipboard(text);
-            }
+            targetInput.dispatchEvent(new Event('blur', { bubbles: true }));
         }
+
+        // Foolproof clipboard copy using a temporary textarea
+        let tempInput = document.createElement('textarea');
+        tempInput.value = text;
+        document.body.appendChild(tempInput);
+        tempInput.select();
+        try {
+            document.execCommand('copy');
+            showToast(targetInput ? "✓ Applied & copied to clipboard!" : "✓ Copied to clipboard!");
+        } catch (err) {
+            showToast("⚠️ Could not copy text.");
+        }
+        tempInput.remove();
 
         if (typeof keepOpenMode !== 'undefined' && !keepOpenMode) {
             let modal = document.getElementById('preset-notes-modal-test');
             if (modal) modal.remove();
         }
     }
-
     function fallbackCopyTextToClipboard(text) {
         let tempInput = document.createElement('textarea');
         tempInput.value = text;
@@ -602,8 +614,7 @@
         let boxColor = isDark ? '#e0e0e0' : '#333';
         box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:500px;max-height:80vh;display:flex;flex-direction:column;position:relative;pointer-events:auto;`;
         applyUIScale(box);
-        let savedX = GM_getValue('modal_pos_x', null);
-        let savedY = GM_getValue('modal_pos_y', null);
+        applySavedPosition(box);
 
         if (savedX !== null && savedY !== null) {
             box.style.left = savedX;
@@ -919,6 +930,7 @@
         let boxColor = isDark ? '#e0e0e0' : '#333';
         box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:450px;max-height:80vh;display:flex;flex-direction:column;position:relative;pointer-events:auto;`;
         applyUIScale(box);
+        applySavedPosition(box);
 
         let h = document.createElement('h3');
         h.innerText = `Select Client (${sao ? 'All Clients' : cc})`;
@@ -1025,6 +1037,7 @@
         let boxColor = isDark ? '#e0e0e0' : '#333';
         box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:450px;display:flex;flex-direction:column;position:relative;pointer-events:auto;`;
         applyUIScale(box);
+        applySavedPosition(box);
 
         let title = document.createElement('h3');
         title.innerText = "⚙️ Advanced Settings";
@@ -1254,6 +1267,7 @@
         let boxColor = isDark ? '#e0e0e0' : '#333';
         box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:500px;max-height:85vh;display:flex;flex-direction:column;position:relative;pointer-events:auto;`;
         applyUIScale(box);
+        applySavedPosition(box);
 
         let titleRow = document.createElement('div');
         titleRow.style.cssText = "display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;cursor:move;";
