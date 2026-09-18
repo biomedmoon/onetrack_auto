@@ -1,26 +1,41 @@
 // ==UserScript==
-// @name         OneTrack Automation & Helper - Actual_Findings
+// @name         OneTrack Automation & Helper - Actual_Test
 // @namespace    http://tampermonkey.net/
-// @version      1.3.1
+// @version      1.3.3
 // @description  Automates workflows, UI enhancements, hotkeys, and persistent settings.
 // @author       jekosol
 // @match        *://*/*
-// @grant        none
+// @grant        GM_getValue
+// @grant        GM_setValue
 // ==/UserScript==
 
 (function() {
     'use strict';
-
-    const CURRENT_VERSION = '1.3.1';
+    // --- SELF-SUSTAINING GM STORAGE FALLBACK ---
+    if (typeof GM_getValue === 'undefined') {
+        window.GM_getValue = (key, def) => {
+            let val = localStorage.getItem(key);
+            return val !== null ? val : def;
+        };
+    }
+    if (typeof GM_setValue === 'undefined') {
+        window.GM_setValue = (key, val) => {
+            localStorage.setItem(key, val);
+        };
+    }
+    const CURRENT_VERSION = '1.3.3';
     const RELEASE_NOTES = [
         "Added customizable Theme Toggle (Dark/Light Mode).",
         "Enabled draggable floating UI panels.",
         "Added user-configurable hotkeys via settings menu.",
         "Introduced UI Compact Mode preferences.",
-        "Added JSON Settings Export and Import backup functionality."
+        "Added JSON Settings Export and Import backup functionality.",
+        "Removed header snap dock buttons while keeping window draggable.",
+        "Eliminated page dimming background overlay for seamless workflow interaction.",
+        "Added 'Keep Open' toggle in Advanced Settings to keep modal active after applying notes."
     ];
 
-    // 1. Inject clean theme styles
+    // 1. Inject clean theme styles (Backdrop made fully transparent / non-dimming)
     const existingStyle = document.getElementById('onetrack-theme-styles');
     if (existingStyle) existingStyle.remove();
 
@@ -29,16 +44,29 @@
     themeStyles.innerHTML = `
         /* Light Mode Defaults */
         #preset-notes-modal-test, .onetrack-ui-panel {
-            background-color: #ffffff;
+            background-color: transparent;
             color: #333333;
         }
 
-        /* 1. Keep backdrop semi-transparent so the page behind it is visible */
-        #preset-notes-modal-test[data-theme="dark"] {
-            background: rgba(0, 0, 0, 0.5) !important;
+        /* 1. Make backdrop completely transparent / non-dimming and allow clicking through */
+        #preset-notes-modal-test {
+            background: transparent !important;
+            pointer-events: none !important;
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            z-index: 999999 !important;
         }
 
-        /* 2. Style the actual modal card container nicely in dark mode */
+        /* 2. The actual modal box and panels remain fully clickable */
+        #preset-notes-modal-test > .onetrack-modal,
+        .onetrack-ui-panel {
+            pointer-events: auto !important;
+        }
+
+        /* 3. Style the actual modal card container nicely in dark mode */
         #preset-notes-modal-test[data-theme="dark"] .onetrack-modal,
         #preset-notes-modal-test[data-theme="dark"] > div:not([style*="position:fixed"]) {
             background-color: #1e1e1e !important;
@@ -47,14 +75,14 @@
             box-shadow: 0 4px 20px rgba(0,0,0,0.5) !important;
         }
 
-        /* 3. Fix contrast for labels and text inside Advanced Settings and modals */
+        /* 4. Fix contrast for labels and text inside Advanced Settings and modals */
         #preset-notes-modal-test[data-theme="dark"] label,
         #preset-notes-modal-test[data-theme="dark"] span,
         #preset-notes-modal-test[data-theme="dark"] div {
             color: #e0e0e0;
         }
 
-        /* 4. Force Company and Warranty Banners to keep their vibrant inline background colors */
+        /* 5. Force Company and Warranty Banners to keep their vibrant inline background colors */
         #preset-notes-modal-test[data-theme="dark"] div[style*="background:"] {
             color: #ffffff !important;
             text-shadow: 0 1px 2px rgba(0,0,0,0.4);
@@ -68,9 +96,14 @@
             color: #ffffff !important;
             border: 1px solid #555555 !important;
         }
+        .onetrack-ui-panel {
+            position: fixed;
+            z-index: 999999;
+        }
     `;
     document.head.appendChild(themeStyles);
-   // 2. Define a single, unified applyTheme function
+
+    // 2. Define a single, unified applyTheme function
     function applyTheme(themeChoice) {
         localStorage.setItem('onetrack_theme', themeChoice);
         
@@ -78,7 +111,6 @@
             ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
             : themeChoice;
 
-        // Target both the overlay background, modal containers, and ui panels
         const modals = document.querySelectorAll('#preset-notes-modal-test, .onetrack-ui-panel');
         modals.forEach(modal => {
             if (activeTheme === 'dark') {
@@ -89,7 +121,6 @@
         });
     }
 
-    // 3. Retrieve saved preference on startup and apply it immediately
     const savedTheme = localStorage.getItem('onetrack_theme') || 'auto';
     applyTheme(savedTheme);
 
@@ -104,6 +135,7 @@
     let currentTheme = localStorage.getItem('onetrack_theme') || 'auto';
     let customHotkey = localStorage.getItem('onetrack_hotkey') || 'KeyQ';
     let compactMode = localStorage.getItem('onetrack_compact') === 'true';
+    let keepOpenMode = localStorage.getItem('onetrack_keep_open') === 'true';
 
     applyTheme(currentTheme);
 
@@ -169,6 +201,15 @@
             document.onmousemove = elementDrag;
         };
 
+        const closeDragElement = () => {
+            document.onmouseup = null;
+            document.onmousemove = null;
+            
+            // Save current coordinates upon release
+            GM_setValue('modal_pos_x', element.style.left);
+            GM_setValue('modal_pos_y', element.style.top);
+        };
+
         const elementDrag = (e) => {
             e.preventDefault();
             pos1 = pos3 - e.clientX;
@@ -179,22 +220,18 @@
             element.style.top = (element.offsetTop - pos2) + "px";
             element.style.left = (element.offsetLeft - pos1) + "px";
             element.style.position = 'fixed';
-        };
-
-        const closeDragElement = () => {
-            document.onmouseup = null;
-            document.onmousemove = null;
+            element.style.transform = 'none';
         };
 
         const targetHandle = handle || element;
         targetHandle.onmousedown = dragMouseDown;
     }
-
     function exportSettings() {
         let settings = {
             theme: localStorage.getItem('onetrack_theme'),
             hotkey: localStorage.getItem('onetrack_hotkey'),
             compact: localStorage.getItem('onetrack_compact'),
+            keepOpen: localStorage.getItem('onetrack_keep_open'),
             version: CURRENT_VERSION
         };
         let blob = new Blob([JSON.stringify(settings, null, 2)], { type: 'application/json' });
@@ -217,6 +254,7 @@
                 if (settings.theme) localStorage.setItem('onetrack_theme', settings.theme);
                 if (settings.hotkey) localStorage.setItem('onetrack_hotkey', settings.hotkey);
                 if (settings.compact !== undefined) localStorage.setItem('onetrack_compact', settings.compact);
+                if (settings.keepOpen !== undefined) localStorage.setItem('onetrack_keep_open', settings.keepOpen);
                 
                 showToast('Settings imported successfully! Reloading...');
                 setTimeout(() => location.reload(), 1000);
@@ -232,11 +270,11 @@
         if (!force && lastSeenVersion === CURRENT_VERSION) return;
 
         let ov = document.createElement('div');
-        ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;';
+        ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:transparent;z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;pointer-events:none;';
 
         let box = document.createElement('div');
         box.className = 'onetrack-modal';
-        box.style.cssText = 'background:#fff;padding:24px;border-radius:8px;box-shadow:0 6px 16px rgba(0,0,0,0.2);width:420px;max-width:90vw;display:flex;flex-direction:column;color:#333;';
+        box.style.cssText = 'background:#fff;padding:24px;border-radius:8px;box-shadow:0 6px 16px rgba(0,0,0,0.2);width:420px;max-width:90vw;display:flex;flex-direction:column;color:#333;pointer-events:auto;';
 
         let title = document.createElement('h3');
         title.innerText = `🎉 What's New in Preset Notes (v${CURRENT_VERSION})`;
@@ -318,9 +356,32 @@
     }
 
     function getSerialNumber() {
-        let t = document.body ? document.body.innerText : '',
-            m = t.match(/Serial\s*#?\s*([^\r\n\s]+)/i);
-        return m && m[1] ? m[1].trim() : "N/A";
+        try {
+            let walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
+            let node;
+            while (node = walker.nextNode()) {
+                if (node.nodeValue && node.nodeValue.trim() === "Serial Number") {
+                    let parent = node.parentElement;
+                    if (parent) {
+                        let nextSib = parent.nextElementSibling;
+                        if (nextSib && nextSib.innerText.trim()) return nextSib.innerText.trim();
+                        else if (parent.parentElement) {
+                            let cells = parent.parentElement.children;
+                            for (let i = 0; i < cells.length; i++) {
+                                if (cells[i] === parent && cells[i+1] && cells[i+1].innerText.trim()) {
+                                    return cells[i+1].innerText.trim();
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            let t = document.body ? document.body.innerText : '';
+            let m = t.match(/Serial\s*Number\D*([^\r\n\s]+)/i);
+            return m && m[1] ? m[1].trim() : "N/A";
+        } catch (e) {
+            return "N/A";
+        }
     }
 
     function getCurrentCompany() {
@@ -345,7 +406,7 @@
         let toast = document.createElement('div');
         toast.id = 'preset-toast-test';
         toast.innerText = message;
-        toast.style.cssText = 'position:fixed; bottom:20px; right:20px; background:#28a745; color:#fff; padding:10px 16px; border-radius:6px; z-index:999999; font-size:12px; font-weight:bold; box-shadow:0 4px 10px rgba(0,0,0,0.2); transition:opacity 0.3s ease;';
+        toast.style.cssText = 'position:fixed; bottom:20px; right:20px; background:#28a745; color:#fff; padding:10px 16px; border-radius:6px; z-index:999999; font-size:12px; font-weight:bold; box-shadow:0 4px 10px rgba(0,0,0,0.2); transition:opacity 0.3s ease; pointer-events:none;';
         
         document.body.appendChild(toast);
 
@@ -357,26 +418,29 @@
 
     function processTextSelection(text) {
         let appendMode = localStorage.getItem('preset_notes_append_mode') === 'true';
-        let targetFields = document.querySelectorAll('textarea, input[type="text"]');
-        let activeEl = document.activeElement;
-
         let targetInput = null;
-        if (activeEl && (activeEl.tagName === 'TEXTAREA' || (activeEl.tagName === 'INPUT' && activeEl.type === 'text'))) {
-            targetInput = activeEl;
-        } else {
-            for (let el of targetFields) {
-                let label = el.getAttribute('aria-label') || el.name || el.id || '';
-                if (/finding|note|comment|description/i.test(label) || targetFields.length === 1) {
-                    targetInput = el;
-                    break;
-                }
-            }
-            if (!targetInput && targetFields.length > 0) {
-                targetInput = targetFields[targetFields.length - 1];
+    
+        // 1. Look explicitly for an input/textarea inside an active modal dialog or popup first
+        let modalDialogs = document.querySelectorAll('.ant-modal, [role="dialog"], div[style*="z-index"]');
+        for (let dialog of modalDialogs) {
+            let ta = dialog.querySelector('textarea, input[type="text"]');
+            if (ta && ta.offsetParent !== null) { // ensure it's visible
+                targetInput = ta;
+                break;
             }
         }
-
+    
+        // 2. Fallback to whatever field currently has active focus
+        if (!targetInput) {
+            let activeEl = document.activeElement;
+            if (activeEl && (activeEl.tagName === 'TEXTAREA' || activeEl.tagName === 'INPUT')) {
+                targetInput = activeEl;
+            }
+        }
+    
+        // Apply value only to the popup field if found; otherwise, do not touch background fields
         if (targetInput) {
+            targetInput.focus();
             let existing = targetInput.value || '';
             if (appendMode && existing.trim().length > 0) {
                 targetInput.value = existing.trim() + ' ' + text;
@@ -385,17 +449,64 @@
             }
             targetInput.dispatchEvent(new Event('input', { bubbles: true }));
             targetInput.dispatchEvent(new Event('change', { bubbles: true }));
-            
-            showToast("✓ Notes applied successfully!");
+            targetInput.dispatchEvent(new Event('blur', { bubbles: true }));
+            showToast("✓ Applied to New Findings & copied!");
         } else {
-            navigator.clipboard.writeText(text).then(() => {
-                showToast("✓ Copied to clipboard!");
-            }).catch(err => {
-                console.error("Could not copy text: ", err);
-            });
+            showToast("✓ Copied to clipboard only!");
+        }
+    
+        // Always copy to clipboard as a reliable backup
+        let tempInput = document.createElement('textarea');
+        tempInput.value = text;
+        document.body.appendChild(tempInput);
+        tempInput.select();
+        try {
+            document.execCommand('copy');
+        } catch (err) {
+            showToast("⚠️ Could not copy text.");
+        }
+        tempInput.remove();
+    
+        if (typeof keepOpenMode !== 'undefined' && !keepOpenMode) {
+            let modal = document.getElementById('preset-notes-modal-test');
+            if (modal) modal.remove();
         }
     }
+    function fallbackCopyTextToClipboard(text) {
+        let tempInput = document.createElement('textarea');
+        tempInput.value = text;
+        document.body.appendChild(tempInput);
+        tempInput.select();
+        try {
+            document.execCommand('copy');
+            showToast("✓ Copied to clipboard!");
+        } catch (err) {
+            showToast("⚠️ Could not copy text.");
+        }
+        tempInput.remove();
+    }
 
+    // Helper to capture current modal position before switching menus
+    function getSavedModalPosition() {
+        let modal = document.getElementById('preset-notes-modal-test');
+        if (modal && modal.style.left && modal.style.top && modal.style.left !== '') {
+            return { left: modal.style.left, top: modal.style.top };
+        }
+        return {
+            left: GM_getValue('modal_pos_x', null),
+            top: GM_getValue('modal_pos_y', null)
+        };
+    }
+
+    function applySavedPosition(box) {
+        let pos = getSavedModalPosition();
+        if (pos.left !== null && pos.top !== null) {
+            box.style.left = pos.left;
+            box.style.top = pos.top;
+            box.style.position = 'fixed';
+            box.style.transform = 'none';
+        }
+    }
     function calculateInfinityFlatRateFindings() {
         let pageText = document.body.innerText;
         let match = pageText.match(/Serial Number\D*([569]\d{8})/i) || pageText.match(/\b([569]\d{8})\b/);
@@ -483,7 +594,8 @@
             hist = getAllHistory(),
             cc = getCurrentCompany(),
             iam = localStorage.getItem('preset_notes_append_mode') === 'true',
-            hrm = localStorage.getItem('preset_hide_recent') === 'true';
+            hrm = localStorage.getItem('preset_hide_recent') === 'true',
+            serialNum = getSerialNumber();
 
         let activeTheme = passedTheme || document.getElementById('preset-notes-modal-test')?.getAttribute('data-theme') || localStorage.getItem('onetrack_theme') || 'light';
         let isDark = activeTheme === 'dark';
@@ -494,21 +606,26 @@
         let ov = document.createElement('div');
         ov.id = 'preset-notes-modal-test';
         ov.setAttribute('data-theme', activeTheme);
-        ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;';
+        ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:transparent;z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;pointer-events:none;';
 
         let box = document.createElement('div');
         box.className = 'onetrack-modal' + (compactMode ? ' onetrack-compact-mode' : '');
         let boxBg = isDark ? '#1e1e1e' : '#fff';
         let boxColor = isDark ? '#e0e0e0' : '#333';
-        box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:500px;max-height:80vh;display:flex;flex-direction:column;position:relative;`;
+        box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:500px;max-height:80vh;display:flex;flex-direction:column;position:relative;pointer-events:auto;`;
         applyUIScale(box);
+        applySavedPosition(box);
+
+        let header = document.createElement('div');
+        header.style.cssText = 'display: flex; align-items: center; justify-content: space-between; margin-top: 0; margin-bottom: 8px; cursor: move;';
 
         let h = document.createElement('h3');
-        h.innerText = `[TEST] Preset Notes: ${dt}`;
-        h.style.cssText = `margin-top:0;margin-bottom:4px;font-size:16px;color:${isDark ? '#ffffff' : '#222'};text-align:center;cursor:move;`;
-        
-        makeDraggable(box, h);
-        box.appendChild(h);
+        h.innerText = `${dt} — S/N: ${serialNum}`;
+        h.style.cssText = `margin: 0; font-size: 14px; color: ${isDark ? '#ffffff' : '#222'};`;
+        header.appendChild(h);
+
+        makeDraggable(box, header);
+        box.appendChild(header);
 
         let hsRow = document.createElement('div');
         hsRow.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px;';
@@ -611,7 +728,6 @@
         cont.style.cssText = 'overflow-y:auto;flex:1;padding-right:5px;margin-bottom:12px;';
 
         let tds = new Date().toLocaleDateString('en-US', {month:'2-digit', day:'2-digit', year:'numeric'});
-        let serialNum = getSerialNumber();
 
         if (/enteralite\s*infinity/i.test(dt)) {
             let infBtn = document.createElement('button');
@@ -621,7 +737,6 @@
             infBtn.onclick = () => {
                 let findings = calculateInfinityFlatRateFindings();
                 if (findings) {
-                    ov.remove();
                     addHistoryItem(findings);
                     processTextSelection(findings);
                 }
@@ -660,7 +775,6 @@
                 btn.className = 'onetrack-btn';
                 btn.style.cssText = 'display:block;width:100%;padding:8px 10px;margin:4px 0;background:#eef7fe;color:#0366d6;border:1px solid #c8e1ff;border-radius:4px;cursor:pointer;font-size:12px;text-align:left;line-height:1.4;';
                 btn.onclick = () => {
-                    ov.remove();
                     addHistoryItem(hTxt);
                     processTextSelection(hTxt);
                 };
@@ -681,7 +795,6 @@
             btn.className = 'onetrack-btn';
             btn.style.cssText = `display:block;width:100%;padding:8px 10px;margin:4px 0;background:${isDark ? '#2a2a2a' : '#f8f9fa'};color:${isDark ? '#fff' : '#212529'};border:1px solid ${isDark ? '#444' : '#ced4da'};border-radius:4px;cursor:pointer;font-size:12px;text-align:left;line-height:1.4;`;
             btn.onclick = () => {
-                ov.remove();
                 addHistoryItem(cln);
                 processTextSelection(cln);
             };
@@ -709,7 +822,7 @@
 
         ov.appendChild(box);
         document.body.appendChild(ov);
-
+    
         setTimeout(() => {
             let firstInput = box.querySelector('input, button');
             if (firstInput) firstInput.focus();
@@ -726,13 +839,16 @@
         let ov = document.createElement('div');
         ov.id = 'preset-notes-modal-test';
         ov.setAttribute('data-theme', activeTheme);
-        ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;';
+        ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:transparent;z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;pointer-events:none;';
 
         let box = document.createElement('div');
         box.className = 'onetrack-modal' + (compactMode ? ' onetrack-compact-mode' : '');
         let boxBg = isDark ? '#1e1e1e' : '#fff';
         let boxColor = isDark ? '#e0e0e0' : '#333';
-        box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:400px;display:flex;flex-direction:column;position:relative;`;
+        box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:400px;display:flex;flex-direction:column;position:relative;pointer-events:auto;`;
+        applyUIScale(box);
+        applySavedPosition(box); // Maintains position across menus!
+        box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:400px;display:flex;flex-direction:column;position:relative;pointer-events:auto;`;
         applyUIScale(box);
 
         let h = document.createElement('h3');
@@ -799,14 +915,15 @@
         let ov = document.createElement('div');
         ov.id = 'preset-notes-modal-test';
         ov.setAttribute('data-theme', activeTheme);
-        ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;';
+        ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:transparent;z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;pointer-events:none;';
 
         let box = document.createElement('div');
         box.className = 'onetrack-modal' + (compactMode ? ' onetrack-compact-mode' : '');
         let boxBg = isDark ? '#1e1e1e' : '#fff';
         let boxColor = isDark ? '#e0e0e0' : '#333';
-        box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:450px;max-height:80vh;display:flex;flex-direction:column;position:relative;`;
+        box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:450px;max-height:80vh;display:flex;flex-direction:column;position:relative;pointer-events:auto;`;
         applyUIScale(box);
+        applySavedPosition(box);
 
         let h = document.createElement('h3');
         h.innerText = `Select Client (${sao ? 'All Clients' : cc})`;
@@ -825,7 +942,6 @@
             btn.className = 'onetrack-btn';
             btn.style.cssText = `display:block;width:100%;padding:8px 10px;margin:4px 0;background:${isDark ? '#2a2a2a' : '#f8f9fa'};color:${isDark ? '#fff' : '#212529'};border:1px solid ${isDark ? '#444' : '#ced4da'};border-radius:4px;cursor:pointer;font-size:12px;text-align:left;line-height:1.4;`;
             btn.onclick = () => {
-                ov.remove();
                 processTextSelection(ft);
             };
             cont.appendChild(btn);
@@ -843,7 +959,6 @@
                 if (!map[cc]) map[cc] = [];
                 if (!map[cc].includes(cleanNc)) map[cc].push(cleanNc);
                 localStorage.setItem('my_preset_client_mapping', JSON.stringify(map));
-                ov.remove();
                 processTextSelection(`${ap} by ${cleanNc}.`);
             }
         };
@@ -906,15 +1021,16 @@
 
         let ov = document.createElement('div');
         ov.id = 'preset-notes-modal-test';
-        ov.setAttribute('data-theme', activeTheme); // Add this line here!
-        ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;';
+        ov.setAttribute('data-theme', activeTheme);
+        ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:transparent;z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;pointer-events:none;';
 
         let box = document.createElement('div');
         box.className = 'onetrack-modal' + (compactMode ? ' onetrack-compact-mode' : '');
         let boxBg = isDark ? '#1e1e1e' : '#fff';
         let boxColor = isDark ? '#e0e0e0' : '#333';
-        box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:450px;display:flex;flex-direction:column;position:relative;`;
+        box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:450px;display:flex;flex-direction:column;position:relative;pointer-events:auto;`;
         applyUIScale(box);
+        applySavedPosition(box);
 
         let title = document.createElement('h3');
         title.innerText = "⚙️ Advanced Settings";
@@ -957,14 +1073,12 @@
                 ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
                 : currentTheme;
 
-            // Instantly redraw the main modal if it's currently open so it picks up the correct background & text colors right away
             const activeModal = document.getElementById('preset-notes-modal-test');
             if (activeModal) {
-                // Check if we are currently looking at the settings modal or the main preset notes modal, and refresh accordingly
-                if (typeof showAdvancedSettingsModal === 'function' && activeModal.innerText.includes('Advanced Settings')) {
+                if (activeModal.innerText.includes('Advanced Settings')) {
                     activeModal.remove();
                     showAdvancedSettingsModal();
-                } else if (typeof showMainModal === 'function') {
+                } else {
                     activeModal.remove();
                     showMainModal(resolvedTheme);
                 }
@@ -1009,6 +1123,21 @@
         };
         compactRow.appendChild(compactToggle);
         sa.appendChild(compactRow);
+
+        // Keep Open Mode Toggle
+        let keepOpenRow = document.createElement('div');
+        keepOpenRow.style.cssText = 'display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; font-size:13px; font-weight:bold;';
+        keepOpenRow.innerHTML = `<span>Keep Open After Applying Note</span>`;
+        let keepOpenToggle = document.createElement('input');
+        keepOpenToggle.type = 'checkbox';
+        keepOpenToggle.checked = keepOpenMode;
+        keepOpenToggle.onchange = (e) => {
+            keepOpenMode = e.target.checked;
+            localStorage.setItem('onetrack_keep_open', keepOpenMode);
+            showToast(`Keep Open Mode ${keepOpenMode ? 'Enabled' : 'Disabled'}`);
+        };
+        keepOpenRow.appendChild(keepOpenToggle);
+        sa.appendChild(keepOpenRow);
 
         let actionRow = document.createElement('div');
         actionRow.style.cssText = 'display:flex; justify-content:space-between; margin-bottom:12px; gap:8px;';
@@ -1122,15 +1251,16 @@
         let ov = document.createElement('div');
         ov.id = 'preset-notes-modal-test';
         ov.setAttribute('data-theme', activeTheme);
-        ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;';
+        ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:transparent;z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;pointer-events:none;';
 
         let box = document.createElement('div');
         box.className = 'onetrack-modal' + (compactMode ? ' onetrack-compact-mode' : '');
         
         let boxBg = isDark ? '#1e1e1e' : '#fff';
         let boxColor = isDark ? '#e0e0e0' : '#333';
-        box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:500px;max-height:85vh;display:flex;flex-direction:column;position:relative;`;
+        box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:500px;max-height:85vh;display:flex;flex-direction:column;position:relative;pointer-events:auto;`;
         applyUIScale(box);
+        applySavedPosition(box);
 
         let titleRow = document.createElement('div');
         titleRow.style.cssText = "display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;cursor:move;";
