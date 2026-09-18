@@ -220,7 +220,15 @@
             element.style.top = (element.offsetTop - pos2) + "px";
             element.style.left = (element.offsetLeft - pos1) + "px";
             element.style.position = 'fixed';
-            element.style.transform = 'none';
+            
+            // Preserve scale while dragging instead of resetting to 'none'
+            let currentScale = getUIScale();
+            if (currentScale !== 1.0) {
+                element.style.transform = `scale(${currentScale})`;
+                element.style.transformOrigin = 'center center';
+            } else {
+                element.style.transform = 'none';
+            }
         };
 
         const targetHandle = handle || element;
