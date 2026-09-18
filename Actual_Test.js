@@ -345,9 +345,32 @@
     }
 
     function getSerialNumber() {
-        let t = document.body ? document.body.innerText : '',
-            m = t.match(/Serial\s*#?\s*([^\r\n\s]+)/i);
-        return m && m[1] ? m[1].trim() : "N/A";
+        try {
+            let walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
+            let node;
+            while (node = walker.nextNode()) {
+                if (node.nodeValue && node.nodeValue.trim() === "Serial Number") {
+                    let parent = node.parentElement;
+                    if (parent) {
+                        let nextSib = parent.nextElementSibling;
+                        if (nextSib && nextSib.innerText.trim()) return nextSib.innerText.trim();
+                        else if (parent.parentElement) {
+                            let cells = parent.parentElement.children;
+                            for (let i = 0; i < cells.length; i++) {
+                                if (cells[i] === parent && cells[i+1] && cells[i+1].innerText.trim()) {
+                                    return cells[i+1].innerText.trim();
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            let t = document.body ? document.body.innerText : '';
+            let m = t.match(/Serial\s*Number\D*([^\r\n\s]+)/i);
+            return m && m[1] ? m[1].trim() : "N/A";
+        } catch (e) {
+            return "N/A";
+        }
     }
 
     function getCurrentCompany() {
@@ -399,7 +422,7 @@
                 }
             }
             if (!targetInput && targetFields.length > 0) {
-                targetInput = targetFields[targetFields.length - 1];
+                targetInput = targetFields[0];
             }
         }
 
@@ -415,15 +438,20 @@
             
             showToast("✓ Notes applied successfully!");
         } else {
-            navigator.clipboard.writeText(text).then(() => {
+            let tempInput = document.createElement('textarea');
+            tempInput.value = text;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            try {
+                document.execCommand('copy');
                 showToast("✓ Copied to clipboard!");
-            }).catch(err => {
-                console.error("Could not copy text: ", err);
-            });
+            } catch (err) {
+                showToast("⚠️ Could not copy text.");
+            }
+            tempInput.remove();
         }
 
-        // Handle keep open preference
-        if (!keepOpenMode) {
+        if (typeof keepOpenMode !== 'undefined' && !keepOpenMode) {
             let modal = document.getElementById('preset-notes-modal-test');
             if (modal) modal.remove();
         }
