@@ -169,7 +169,7 @@
 
             let collapseBtn = document.createElement('button');
             
-            // Check collapsed status mapping accurately
+            // Read collapse state reliably from saved map
             let isCollapsed = !!collapsedMap[devName];
             
             collapseBtn.innerText = isCollapsed ? '▶' : '▼';
@@ -222,9 +222,8 @@
             let fieldsContainer = document.createElement('div');
             fieldsContainer.style.cssText = `display:${isCollapsed ? 'none' : 'flex'};flex-direction:column;gap:10px;padding-left:5px;`;
 
-            // Collapse toggle behavior with immediate persistence
+            // Collapse toggle behavior with instant local state persistence
             collapseBtn.onclick = () => {
-                collectCurrentDOMData();
                 let currentName = nameInput.value.trim() || devName;
                 isCollapsed = !isCollapsed;
                 fieldsContainer.style.display = isCollapsed ? 'none' : 'flex';
@@ -297,7 +296,6 @@
 
     function collectCurrentDOMData() {
         let newMapping = {};
-        let newCollapsedMap = {};
         let devBoxes = listContainer.querySelectorAll('.te-device-box');
         devBoxes.forEach(box => {
             let nameInput = box.querySelector('.te-device-name-input');
@@ -308,15 +306,17 @@
             let collapseBtn = box.querySelector('button');
             let isCurrentlyCollapsed = collapseBtn && collapseBtn.innerText === '▶';
             
-            // Map exact collapse state accurately by current name or fallback tracking
+            // Re-sync name changes or maintain collapsed flag
             if (isCurrentlyCollapsed) {
-                newCollapsedMap[devName] = true;
+                collapsedMap[devName] = true;
             } else {
-                if (collapsedMap[devName] === true || collapsedMap[oldOrig] === true) {
-                    // if it was explicitly true previously and wasn't toggled back, keep it
-                    if (collapseBtn && collapseBtn.innerText === '▶') {
-                        newCollapsedMap[devName] = true;
-                    }
+                if (collapsedMap[devName] === true) {
+                    collapsedMap[devName] = true;
+                } else if (oldOrig && collapsedMap[oldOrig] === true) {
+                    collapsedMap[devName] = true;
+                    delete collapsedMap[oldOrig];
+                } else {
+                    collapsedMap[devName] = false;
                 }
             }
 
@@ -333,7 +333,6 @@
             newMapping[devName] = { pm: pmArr, repair: repairArr };
         });
         mapping = newMapping;
-        collapsedMap = newCollapsedMap;
         localStorage.setItem(STORAGE_COLLAPSED_KEY, JSON.stringify(collapsedMap));
     }
 
