@@ -170,6 +170,7 @@
 
             let collapseBtn = document.createElement('button');
             
+            // Read collapse state reliably from saved map
             let isCollapsed = !!collapsedMap[devName];
             devBox.dataset.isCollapsed = isCollapsed ? "true" : "false";
             
@@ -223,6 +224,7 @@
             let fieldsContainer = document.createElement('div');
             fieldsContainer.style.cssText = `display:${isCollapsed ? 'none' : 'flex'};flex-direction:column;gap:10px;padding-left:5px;`;
 
+            // Collapse toggle behavior with explicit dataset tracking
             collapseBtn.onclick = () => {
                 let currentName = nameInput.value.trim() || devName;
                 isCollapsed = !isCollapsed;
@@ -388,7 +390,7 @@
         setOverlay.style.cssText = "position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.4);z-index:10005;display:flex;justify-content:center;align-items:center;font-family:sans-serif;";
 
         let setCard = document.createElement('div');
-        setCard.style.cssText = `background:${bgCol};color:${textCol};padding:20px;border-radius:8px;width:380px;box-shadow:0 4px 12px rgba(0,0,0,0.2);display:flex;flex-direction:column;gap:15px;position:relative;`;
+        setCard.style.cssText = `background:${bgCol};color:${textCol};padding:20px;border-radius:8px;width:340px;box-shadow:0 4px 12px rgba(0,0,0,0.2);display:flex;flex-direction:column;gap:15px;position:relative;`;
 
         let setHeader = document.createElement('h4');
         setHeader.innerText = "TE Manager Settings";
@@ -413,57 +415,44 @@
         themeRow.appendChild(themeSelect);
         setCard.appendChild(themeRow);
 
-        // --- Preset Scale Section ---
-        let scaleContainer = document.createElement('div');
-        scaleContainer.style.cssText = "display:flex;flex-direction:column;gap:6px;";
-        
+        let scaleRow = document.createElement('div');
+        scaleRow.style.cssText = "display:flex;justify-content:space-between;align-items:center;";
         let scaleLabel = document.createElement('span');
-        scaleLabel.innerText = "UI Scale Presets:";
+        scaleLabel.innerText = "UI Scale (0.5 - 2.0):";
         scaleLabel.style.fontSize = "13px";
-        scaleLabel.style.fontWeight = "bold";
-        scaleContainer.appendChild(scaleLabel);
+        
+        let scaleInput = document.createElement('input');
+        scaleInput.type = 'text';
+        scaleInput.value = getUIScale();
+        scaleInput.style.cssText = `width:70px;padding:4px;background:${inputBgCol};color:${textCol};border:1px solid ${inputBorderCol};border-radius:4px;text-align:center;`;
+        
+        let getSanitizedScale = () => {
+            let cleanVal = scaleInput.value.replace(/[^0-9.]/g, '');
+            let val = parseFloat(cleanVal);
+            if (isNaN(val)) return 1.0;
+            return Math.min(Math.max(val, 0.5), 2.0);
+        };
 
-        let presetButtonsRow = document.createElement('div');
-        presetButtonsRow.style.cssText = "display:flex;flex-wrap:wrap;gap:6px;";
-
-        let currentScale = getUIScale();
-        let presetValues = [
-            { label: '50%', val: 0.5 },
-            { label: '75%', val: 0.75 },
-            { label: '100%', val: 1.0 },
-            { label: '125%', val: 1.25 },
-            { label: '150%', val: 1.5 },
-            { label: '175%', val: 1.75 },
-            { label: '200%', val: 2.0 }
-        ];
-
-        let presetBtnElements = [];
-
-        presetValues.forEach(preset => {
-            let pBtn = document.createElement('button');
-            pBtn.innerText = preset.label;
-            
-            let isSelected = Math.abs(currentScale - preset.val) < 0.01;
-            pBtn.style.cssText = `flex: 1 1 28%;padding:6px;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;border:1px solid ${isSelected ? '#780034' : inputBorderCol};background:${isSelected ? '#780034' : (isDark ? '#333' : '#f0f0f0')};color:${isSelected ? '#fff' : textCol};`;
-            
-            pBtn.onclick = () => {
-                localStorage.setItem(STORAGE_SCALE_KEY, preset.val);
+        scaleInput.oninput = () => {
+            let cleanVal = scaleInput.value.replace(/[^0-9.]/g, '');
+            let val = parseFloat(cleanVal);
+            if (!isNaN(val)) {
+                let clamped = Math.min(Math.max(val, 0.5), 2.0);
+                localStorage.setItem(STORAGE_SCALE_KEY, clamped);
                 applyUIScale(card);
-                // Update active states visually
-                presetBtnElements.forEach(item => {
-                    let match = item.val === preset.val;
-                    item.btn.style.background = match ? '#780034' : (isDark ? '#333' : '#f0f0f0');
-                    item.btn.style.color = match ? '#fff' : textCol;
-                    item.btn.style.borderColor = match ? '#780034' : inputBorderCol;
-                });
-            };
+            }
+        };
 
-            presetBtnElements.push({ val: preset.val, btn: pBtn });
-            presetButtonsRow.appendChild(pBtn);
-        });
+        scaleInput.onblur = () => {
+            let finalVal = getSanitizedScale();
+            scaleInput.value = finalVal;
+            localStorage.setItem(STORAGE_SCALE_KEY, finalVal);
+            applyUIScale(card);
+        };
 
-        scaleContainer.appendChild(presetButtonsRow);
-        setCard.appendChild(scaleContainer);
+        scaleRow.appendChild(scaleLabel);
+        scaleRow.appendChild(scaleInput);
+        setCard.appendChild(scaleRow);
 
         let resetBtn = document.createElement('button');
         resetBtn.innerText = "Reset Window Position & Scale";
@@ -472,6 +461,7 @@
             localStorage.removeItem(STORAGE_POS_KEY);
             localStorage.removeItem(STORAGE_SCALE_KEY);
             localStorage.removeItem(STORAGE_THEME_KEY);
+            scaleInput.value = '1.0';
             applySavedPosition(card);
             applyUIScale(card);
             setOverlay.remove();
@@ -492,6 +482,12 @@
         setSave.style.cssText = "padding:5px 10px;background:#780034;color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:bold;";
         setSave.onclick = () => {
             localStorage.setItem(STORAGE_THEME_KEY, themeSelect.value);
+            
+            let finalScale = getSanitizedScale();
+            scaleInput.value = finalScale;
+            localStorage.setItem(STORAGE_SCALE_KEY, finalScale);
+            applyUIScale(card);
+            
             setOverlay.remove();
         };
 
