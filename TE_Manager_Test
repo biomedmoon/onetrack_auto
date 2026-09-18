@@ -429,26 +429,27 @@
         scaleInput.value = getUIScale();
         scaleInput.style.cssText = `width:70px;padding:4px;background:${inputBgCol};color:${textCol};border:1px solid ${inputBorderCol};border-radius:4px;text-align:center;`;
         
-        // Strict real-time sanitization and enforcement
+        // Strict boundary enforcement
         let enforceScaleBounds = () => {
             let val = parseFloat(scaleInput.value);
             if (!isNaN(val)) {
                 if (val > 2.0) {
+                    scaleInput.value = '2.0';
                     val = 2.0;
-                    scaleInput.value = val;
                 } else if (val < 0.5) {
+                    scaleInput.value = '0.5';
                     val = 0.5;
-                    scaleInput.value = val;
                 }
                 localStorage.setItem(STORAGE_SCALE_KEY, val);
                 applyUIScale(card);
             }
         };
 
+        // Trigger correction live as they type or change it
         scaleInput.oninput = enforceScaleBounds;
         scaleInput.onchange = enforceScaleBounds;
         scaleInput.onblur = () => {
-            if (!scaleInput.value ||isNaN(parseFloat(scaleInput.value))) {
+            if (!scaleInput.value || isNaN(parseFloat(scaleInput.value))) {
                 scaleInput.value = getUIScale();
             }
             enforceScaleBounds();
