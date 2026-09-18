@@ -3,7 +3,7 @@
 // @namespace    http://tampermonkey.net/
 // @version      1.3.3
 // @description  Automates workflows, UI enhancements, hotkeys, and persistent settings.
-// @author       jekosol
+// @author       Biomed Team
 // @match        *://*/*
 // @grant        GM_getValue
 // @grant        GM_setValue
@@ -220,7 +220,15 @@
             element.style.top = (element.offsetTop - pos2) + "px";
             element.style.left = (element.offsetLeft - pos1) + "px";
             element.style.position = 'fixed';
-            element.style.transform = 'none';
+            
+            // Preserve scale while dragging instead of resetting to 'none'
+            let currentScale = getUIScale();
+            if (currentScale !== 1.0) {
+                element.style.transform = `scale(${currentScale})`;
+                element.style.transformOrigin = 'center center';
+            } else {
+                element.style.transform = 'none';
+            }
         };
 
         const targetHandle = handle || element;
@@ -507,6 +515,13 @@
             box.style.transform = 'none';
         }
     }
+    function applySavedScale(box) {
+        let scale = getUIScale();
+        if (scale !== 1.0) {
+            box.style.transform = `scale(${scale})`;
+            box.style.transformOrigin = 'center center';
+        }
+    }
     function calculateInfinityFlatRateFindings() {
         let pageText = document.body.innerText;
         let match = pageText.match(/Serial Number\D*([569]\d{8})/i) || pageText.match(/\b([569]\d{8})\b/);
@@ -615,6 +630,7 @@
         box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:500px;max-height:80vh;display:flex;flex-direction:column;position:relative;pointer-events:auto;`;
         applyUIScale(box);
         applySavedPosition(box);
+        applySavedScale(box);
 
         let header = document.createElement('div');
         header.style.cssText = 'display: flex; align-items: center; justify-content: space-between; margin-top: 0; margin-bottom: 8px; cursor: move;';
@@ -848,6 +864,7 @@
         box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:400px;display:flex;flex-direction:column;position:relative;pointer-events:auto;`;
         applyUIScale(box);
         applySavedPosition(box); // Maintains position across menus!
+        applySavedScale(box);
         box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:400px;display:flex;flex-direction:column;position:relative;pointer-events:auto;`;
         applyUIScale(box);
 
@@ -924,6 +941,7 @@
         box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:450px;max-height:80vh;display:flex;flex-direction:column;position:relative;pointer-events:auto;`;
         applyUIScale(box);
         applySavedPosition(box);
+        applySavedScale(box);
 
         let h = document.createElement('h3');
         h.innerText = `Select Client (${sao ? 'All Clients' : cc})`;
@@ -1031,6 +1049,7 @@
         box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:450px;display:flex;flex-direction:column;position:relative;pointer-events:auto;`;
         applyUIScale(box);
         applySavedPosition(box);
+        applySavedScale(box);
 
         let title = document.createElement('h3');
         title.innerText = "⚙️ Advanced Settings";
@@ -1261,6 +1280,7 @@
         box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:500px;max-height:85vh;display:flex;flex-direction:column;position:relative;pointer-events:auto;`;
         applyUIScale(box);
         applySavedPosition(box);
+        applySavedScale(box);
 
         let titleRow = document.createElement('div');
         titleRow.style.cssText = "display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;cursor:move;";
