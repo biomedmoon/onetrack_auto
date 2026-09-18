@@ -298,22 +298,29 @@
     addDevBtn.onclick = () => {
         collectCurrentDOMData();
         
-        // Automatically check the page for common device/equipment name elements
+        // Target the specific Model field element on OneTrack repair/PM pages
         let detectedName = "";
-        let candidateSelectors = [
-            '.equipment-name', '.device-title', '#equipment-name', '#device-title',
-            'h1', 'h2', '.page-title', '[data-equipment-name]', '.asset-name'
-        ];
-        for (let sel of candidateSelectors) {
-            let el = document.querySelector(sel);
-            if (el && el.innerText && el.innerText.trim().length > 0) {
-                let text = el.innerText.trim();
-                // Basic filter to ensure we grab clean strings rather than huge blocks of text
-                if (text.length < 50) {
-                    detectedName = text;
-                    break;
+        
+        // 1. Look for elements labeled Model or near the Model row
+        let labels = document.querySelectorAll('td, th, span, label, div');
+        for (let label of labels) {
+            if (label.innerText && label.innerText.trim() === 'Model') {
+                // Usually the next sibling or cell contains the actual model value
+                let targetCell = label.nextElementSibling || (label.parentElement ? label.parentElement.querySelector('td:nth-child(2), span, a') : null);
+                if (targetCell && targetCell.innerText) {
+                    let val = targetCell.innerText.trim();
+                    if (val && val !== 'Model') {
+                        detectedName = val;
+                        break;
+                    }
                 }
             }
+        }
+
+        // 2. Fallback: check common OneTrack model anchors/links if the label scan missed it
+        if (!detectedName) {
+            let modelLink = document.querySelector('a[href*="Model"], .model-field, tr:has(td:contains("Model")) td:nth-child(2)');
+            if (modelLink) detectedName = modelLink.innerText.trim();
         }
 
         let defaultName = detectedName ? detectedName : "New Device";
