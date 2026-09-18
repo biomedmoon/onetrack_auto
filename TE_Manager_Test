@@ -169,7 +169,7 @@
 
             let collapseBtn = document.createElement('button');
             
-            // Resolve initial collapse state accurately checking current or original key
+            // Check collapsed status mapping accurately
             let isCollapsed = !!collapsedMap[devName];
             
             collapseBtn.innerText = isCollapsed ? '▶' : '▼';
@@ -222,13 +222,14 @@
             let fieldsContainer = document.createElement('div');
             fieldsContainer.style.cssText = `display:${isCollapsed ? 'none' : 'flex'};flex-direction:column;gap:10px;padding-left:5px;`;
 
-            // Collapse toggle behavior
+            // Collapse toggle behavior with immediate persistence
             collapseBtn.onclick = () => {
                 collectCurrentDOMData();
                 let currentName = nameInput.value.trim() || devName;
                 isCollapsed = !isCollapsed;
                 fieldsContainer.style.display = isCollapsed ? 'none' : 'flex';
                 collapseBtn.innerText = isCollapsed ? '▶' : '▼';
+                
                 collapsedMap[currentName] = isCollapsed;
                 localStorage.setItem(STORAGE_COLLAPSED_KEY, JSON.stringify(collapsedMap));
             };
@@ -296,6 +297,7 @@
 
     function collectCurrentDOMData() {
         let newMapping = {};
+        let newCollapsedMap = {};
         let devBoxes = listContainer.querySelectorAll('.te-device-box');
         devBoxes.forEach(box => {
             let nameInput = box.querySelector('.te-device-name-input');
@@ -306,15 +308,15 @@
             let collapseBtn = box.querySelector('button');
             let isCurrentlyCollapsed = collapseBtn && collapseBtn.innerText === '▶';
             
-            // Preserve collapse state tracking using either current name or fallback to prior state key
+            // Map exact collapse state accurately by current name or fallback tracking
             if (isCurrentlyCollapsed) {
-                collapsedMap[devName] = true;
+                newCollapsedMap[devName] = true;
             } else {
-                if (collapsedMap[devName] !== undefined) {
-                    collapsedMap[devName] = false;
-                } else if (oldOrig && collapsedMap[oldOrig] !== undefined) {
-                    collapsedMap[devName] = collapsedMap[oldOrig];
-                    delete collapsedMap[oldOrig];
+                if (collapsedMap[devName] === true || collapsedMap[oldOrig] === true) {
+                    // if it was explicitly true previously and wasn't toggled back, keep it
+                    if (collapseBtn && collapseBtn.innerText === '▶') {
+                        newCollapsedMap[devName] = true;
+                    }
                 }
             }
 
@@ -331,6 +333,7 @@
             newMapping[devName] = { pm: pmArr, repair: repairArr };
         });
         mapping = newMapping;
+        collapsedMap = newCollapsedMap;
         localStorage.setItem(STORAGE_COLLAPSED_KEY, JSON.stringify(collapsedMap));
     }
 
