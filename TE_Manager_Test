@@ -171,6 +171,7 @@
             
             // Read collapse state reliably from saved map
             let isCollapsed = !!collapsedMap[devName];
+            devBox.dataset.isCollapsed = isCollapsed ? "true" : "false";
             
             collapseBtn.innerText = isCollapsed ? '▶' : '▼';
             collapseBtn.style.cssText = `background:transparent;color:${textCol};border:none;cursor:pointer;font-size:12px;padding:2px 4px;font-weight:bold;`;
@@ -222,12 +223,13 @@
             let fieldsContainer = document.createElement('div');
             fieldsContainer.style.cssText = `display:${isCollapsed ? 'none' : 'flex'};flex-direction:column;gap:10px;padding-left:5px;`;
 
-            // Collapse toggle behavior with instant local state persistence
+            // Collapse toggle behavior with explicit dataset tracking
             collapseBtn.onclick = () => {
                 let currentName = nameInput.value.trim() || devName;
                 isCollapsed = !isCollapsed;
                 fieldsContainer.style.display = isCollapsed ? 'none' : 'flex';
                 collapseBtn.innerText = isCollapsed ? '▶' : '▼';
+                devBox.dataset.isCollapsed = isCollapsed ? "true" : "false";
                 
                 collapsedMap[currentName] = isCollapsed;
                 localStorage.setItem(STORAGE_COLLAPSED_KEY, JSON.stringify(collapsedMap));
@@ -303,10 +305,8 @@
             if (!devName) return;
 
             let oldOrig = box.dataset.originalName;
-            let collapseBtn = box.querySelector('button');
-            let isCurrentlyCollapsed = collapseBtn && collapseBtn.innerText === '▶';
+            let isCurrentlyCollapsed = box.dataset.isCollapsed === "true";
             
-            // Re-sync name changes or maintain collapsed flag
             if (isCurrentlyCollapsed) {
                 collapsedMap[devName] = true;
             } else {
