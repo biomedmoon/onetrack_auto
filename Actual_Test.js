@@ -616,13 +616,6 @@
         applyUIScale(box);
         applySavedPosition(box);
 
-        if (savedX !== null && savedY !== null) {
-            box.style.left = savedX;
-            box.style.top = savedY;
-            box.style.position = 'fixed';
-            box.style.transform = 'none'; // Overrides centering transform
-        }
-
         let header = document.createElement('div');
         header.style.cssText = 'display: flex; align-items: center; justify-content: space-between; margin-top: 0; margin-bottom: 8px; cursor: move;';
 
