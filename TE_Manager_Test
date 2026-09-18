@@ -8,6 +8,7 @@
     const STORAGE_POS_KEY = 'te_manager_modal_pos';
     const STORAGE_SCALE_KEY = 'te_manager_ui_scale';
     const STORAGE_THEME_KEY = 'te_manager_theme_mode'; // 'auto', 'light', 'dark'
+    const STORAGE_COLLAPSED_KEY = 'te_manager_collapsed_states';
 
     function getUIScale() {
         let val = localStorage.getItem(STORAGE_SCALE_KEY);
@@ -16,10 +17,8 @@
 
     function applyUIScale(element) {
         let scale = getUIScale();
-        if (scale !== 1.0) {
-            element.style.transform = `scale(${scale})`;
-            element.style.transformOrigin = 'center center';
-        }
+        element.style.transform = `scale(${scale})`;
+        element.style.transformOrigin = 'center center';
     }
 
     function applySavedPosition(element) {
@@ -31,8 +30,7 @@
                 element.style.top = pos.top;
                 element.style.left = pos.left;
                 element.style.position = 'fixed';
-                element.style.transform = `scale(${scale})`;
-                element.style.transformOrigin = 'center center';
+                applyUIScale(element);
                 return;
             } catch (e) {}
         }
@@ -78,6 +76,14 @@
         };
     } catch (e) {
         mapping = {};
+    }
+
+    let rawCollapsed = localStorage.getItem(STORAGE_COLLAPSED_KEY),
+        collapsedMap = {};
+    try {
+        collapsedMap = rawCollapsed ? JSON.parse(rawCollapsed) : {};
+    } catch (e) {
+        collapsedMap = {};
     }
 
     let overlay = document.createElement('div');
@@ -132,9 +138,7 @@
         card.style.top = (card.offsetTop - pos2) + "px";
         card.style.left = (card.offsetLeft - pos1) + "px";
         card.style.position = 'fixed';
-        let currentScale = getUIScale();
-        card.style.transform = `scale(${currentScale})`;
-        card.style.transformOrigin = 'center center';
+        applyUIScale(card);
     }
 
     function closeDragElement() {
@@ -166,7 +170,8 @@
 
             // Collapse Toggle Button
             let collapseBtn = document.createElement('button');
-            collapseBtn.innerText = "▼";
+            let isCollapsed = !!collapsedMap[devName];
+            collapseBtn.innerText = isCollapsed ? '▶' : '▼';
             collapseBtn.style.cssText = `background:transparent;color:${textCol};border:none;cursor:pointer;font-size:12px;padding:2px 4px;font-weight:bold;`;
             
             let nameInput = document.createElement('input');
@@ -175,11 +180,25 @@
             nameInput.className = 'te-device-name-input';
             nameInput.style.cssText = `flex-grow:1;padding:4px;font-weight:bold;background:${inputBgCol};color:${textCol};border:1px solid ${inputBorderCol};border-radius:3px;`;
             
+            nameInput.oninput = () => {
+                let newName = nameInput.value.trim();
+                if (newName && newName !== devName) {
+                    if (collapsedMap[devName] !== undefined) {
+                        collapsedMap[newName] = collapsedMap[devName];
+                        delete collapsedMap[devName];
+                        localStorage.setItem(STORAGE_COLLAPSED_KEY, JSON.stringify(collapsedMap));
+                    }
+                }
+            };
+
             let delDevBtn = document.createElement('button');
             delDevBtn.innerText = "Delete Device";
             delDevBtn.style.cssText = "background:#d9534f;color:#fff;border:none;padding:4px 8px;border-radius:3px;cursor:pointer;font-size:11px;";
             delDevBtn.onclick = () => {
+                collectCurrentDOMData();
                 delete mapping[devName];
+                delete collapsedMap[devName];
+                localStorage.setItem(STORAGE_COLLAPSED_KEY, JSON.stringify(collapsedMap));
                 renderList();
             };
 
@@ -200,14 +219,17 @@
             mapping[devName] = dataObj;
 
             let fieldsContainer = document.createElement('div');
-            fieldsContainer.style.cssText = "display:flex;flex-direction:column;gap:10px;padding-left:5px;transition:all 0.2s ease;";
+            fieldsContainer.style.cssText = `display:${isCollapsed ? 'none' : 'flex'};flex-direction:column;gap:10px;padding-left:5px;`;
 
             // Collapse toggle behavior
-            let isCollapsed = false;
             collapseBtn.onclick = () => {
+                collectCurrentDOMData();
+                let currentName = nameInput.value.trim() || devName;
                 isCollapsed = !isCollapsed;
                 fieldsContainer.style.display = isCollapsed ? 'none' : 'flex';
                 collapseBtn.innerText = isCollapsed ? '▶' : '▼';
+                collapsedMap[currentName] = isCollapsed;
+                localStorage.setItem(STORAGE_COLLAPSED_KEY, JSON.stringify(collapsedMap));
             };
 
             function renderSection(labelTitle, keyName, accentColor) {
@@ -252,6 +274,7 @@
                     delBtn.innerText = "X";
                     delBtn.style.cssText = "background:#d9534f;color:#fff;border:none;padding:3px 6px;border-radius:3px;cursor:pointer;font-size:10px;font-weight:bold;";
                     delBtn.onclick = () => {
+                        collectCurrentDOMData();
                         dataObj[keyName].splice(index, 1);
                         renderList();
                     };
@@ -272,11 +295,22 @@
 
     function collectCurrentDOMData() {
         let newMapping = {};
+        let newCollapsedMap = {};
         let devBoxes = listContainer.querySelectorAll('.te-device-box');
         devBoxes.forEach(box => {
             let nameInput = box.querySelector('.te-device-name-input');
             let devName = nameInput ? nameInput.value.trim() : '';
             if (!devName) return;
+
+            let oldOrig = box.dataset.originalName;
+            let collapseBtn = box.querySelector('button');
+            let isCurrentlyCollapsed = collapseBtn && collapseBtn.innerText === '▶';
+            
+            if (isCurrentlyCollapsed) {
+                newCollapsedMap[devName] = true;
+            } else if (collapsedMap[oldOrig]) {
+                newCollapsedMap[devName] = true;
+            }
 
             let repairArr = [];
             box.querySelectorAll('.te-repair-input').forEach(inp => {
@@ -291,6 +325,8 @@
             newMapping[devName] = { pm: pmArr, repair: repairArr };
         });
         mapping = newMapping;
+        collapsedMap = newCollapsedMap;
+        localStorage.setItem(STORAGE_COLLAPSED_KEY, JSON.stringify(collapsedMap));
     }
 
     renderList();
@@ -338,6 +374,9 @@
 
     // --- Settings Modal Definition ---
     function openSettingsModal() {
+        let existingSet = document.getElementById('te-settings-modal');
+        if (existingSet) existingSet.remove();
+
         let setOverlay = document.createElement('div');
         setOverlay.id = 'te-settings-modal';
         setOverlay.style.cssText = "position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.4);z-index:10005;display:flex;justify-content:center;align-items:center;font-family:sans-serif;";
@@ -369,7 +408,7 @@
         themeRow.appendChild(themeSelect);
         setCard.appendChild(themeRow);
 
-        // UI Scaling Slider / Input
+        // UI Scaling Dynamic Input
         let scaleRow = document.createElement('div');
         scaleRow.style.cssText = "display:flex;justify-content:space-between;align-items:center;";
         let scaleLabel = document.createElement('span');
@@ -382,6 +421,15 @@
         scaleInput.step = '0.05';
         scaleInput.value = getUIScale();
         scaleInput.style.cssText = `width:70px;padding:4px;background:${inputBgCol};color:${textCol};border:1px solid ${inputBorderCol};border-radius:4px;text-align:center;`;
+        
+        scaleInput.oninput = () => {
+            let val = parseFloat(scaleInput.value);
+            if (!isNaN(val) && val >= 0.5 && val <= 2.0) {
+                localStorage.setItem(STORAGE_SCALE_KEY, val);
+                applyUIScale(card);
+            }
+        };
+
         scaleRow.appendChild(scaleLabel);
         scaleRow.appendChild(scaleInput);
         setCard.appendChild(scaleRow);
@@ -394,9 +442,10 @@
             localStorage.removeItem(STORAGE_POS_KEY);
             localStorage.removeItem(STORAGE_SCALE_KEY);
             localStorage.removeItem(STORAGE_THEME_KEY);
+            applySavedPosition(card);
+            applyUIScale(card);
             setOverlay.remove();
-            overlay.remove();
-            alert("Settings reset to default! Reopen the manager to apply.");
+            alert("Position and scale reset to default!");
         };
         setCard.appendChild(resetBtn);
 
@@ -405,21 +454,21 @@
         setBtnRow.style.cssText = "display:flex;justify-content:flex-end;gap:8px;margin-top:10px;";
         
         let setCancel = document.createElement('button');
-        setCancel.innerText = "Cancel";
+        setCancel.innerText = "Close";
         setCancel.style.cssText = `padding:5px 10px;background:${isDark ? '#444' : '#e0e0e0'};color:${textCol};border:none;border-radius:4px;cursor:pointer;`;
         setCancel.onclick = () => setOverlay.remove();
 
         let setSave = document.createElement('button');
-        setSave.innerText = "Apply & Save";
+        setSave.innerText = "Save Settings";
         setSave.style.cssText = "padding:5px 10px;background:#780034;color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:bold;";
         setSave.onclick = () => {
             localStorage.setItem(STORAGE_THEME_KEY, themeSelect.value);
             let newScale = parseFloat(scaleInput.value);
             if (!isNaN(newScale)) {
                 localStorage.setItem(STORAGE_SCALE_KEY, newScale);
+                applyUIScale(card);
             }
             setOverlay.remove();
-            overlay.remove();
         };
 
         setBtnRow.appendChild(setCancel);
