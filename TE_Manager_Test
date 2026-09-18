@@ -388,7 +388,7 @@
         setOverlay.style.cssText = "position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.4);z-index:10005;display:flex;justify-content:center;align-items:center;font-family:sans-serif;";
 
         let setCard = document.createElement('div');
-        setCard.style.cssText = `background:${bgCol};color:${textCol};padding:20px;border-radius:8px;width:360px;box-shadow:0 4px 12px rgba(0,0,0,0.2);display:flex;flex-direction:column;gap:15px;position:relative;`;
+        setCard.style.cssText = `background:${bgCol};color:${textCol};padding:20px;border-radius:8px;width:380px;box-shadow:0 4px 12px rgba(0,0,0,0.2);display:flex;flex-direction:column;gap:15px;position:relative;`;
 
         let setHeader = document.createElement('h4');
         setHeader.innerText = "TE Manager Settings";
