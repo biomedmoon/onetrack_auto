@@ -307,17 +307,10 @@
             let oldOrig = box.dataset.originalName;
             let isCurrentlyCollapsed = box.dataset.isCollapsed === "true";
             
-            if (isCurrentlyCollapsed) {
-                collapsedMap[devName] = true;
-            } else {
-                if (collapsedMap[devName] === true) {
-                    collapsedMap[devName] = true;
-                } else if (oldOrig && collapsedMap[oldOrig] === true) {
-                    collapsedMap[devName] = true;
-                    delete collapsedMap[oldOrig];
-                } else {
-                    collapsedMap[devName] = false;
-                }
+            // Explicitly sync collapse state mapping before wiping or rebuilding
+            collapsedMap[devName] = isCurrentlyCollapsed;
+            if (oldOrig && oldOrig !== devName) {
+                delete collapsedMap[oldOrig];
             }
 
             let repairArr = [];
@@ -343,7 +336,23 @@
     addDevBtn.style.cssText = `background:${isDark ? '#444' : '#f0f0f0'};color:${textCol};border:1px solid ${inputBorderCol};padding:6px;border-radius:4px;cursor:pointer;margin-bottom:15px;font-weight:bold;width:100%;`;
     addDevBtn.onclick = () => {
         collectCurrentDOMData();
-        let newName = prompt("Enter new device name/type:", "New Device");
+        
+        // Try to intelligently detect current open unmapped device name from the page if available
+        let suggestedName = "New Device";
+        let possibleSelectors = ['.device-name', '.asset-name', 'h1', 'h2', '.title'];
+        for (let sel of possibleSelectors) {
+            let el = document.querySelector(sel);
+            if (el && el.innerText.trim()) {
+                let text = el.innerText.trim();
+                // Check if it's not already mapped
+                if (!mapping[text] && text.length < 50) {
+                    suggestedName = text;
+                    break;
+                }
+            }
+        }
+
+        let newName = prompt("Enter new device name/type:", suggestedName);
         if (newName && newName.trim()) {
             mapping[newName.trim()] = { pm: ["TE: "], repair: ["TE: "] };
             renderList();
@@ -417,20 +426,22 @@
         let scaleRow = document.createElement('div');
         scaleRow.style.cssText = "display:flex;justify-content:space-between;align-items:center;";
         let scaleLabel = document.createElement('span');
-        scaleLabel.innerText = "UI Scale:";
+        scaleLabel.innerText = "UI Scale (%):";
         scaleLabel.style.fontSize = "13px";
+        
         let scaleInput = document.createElement('input');
         scaleInput.type = 'number';
-        scaleInput.min = '0.7';
-        scaleInput.max = '1.5';
-        scaleInput.step = '0.05';
-        scaleInput.value = getUIScale();
+        scaleInput.min = '70';
+        scaleInput.max = '150';
+        scaleInput.step = '5';
+        scaleInput.value = Math.round(getUIScale() * 100);
         scaleInput.style.cssText = `width:70px;padding:4px;background:${inputBgCol};color:${textCol};border:1px solid ${inputBorderCol};border-radius:4px;text-align:center;`;
         
         scaleInput.oninput = () => {
             let val = parseFloat(scaleInput.value);
-            if (!isNaN(val) && val >= 0.5 && val <= 2.0) {
-                localStorage.setItem(STORAGE_SCALE_KEY, val);
+            if (!isNaN(val) && val >= 50 && val <= 200) {
+                let decimalScale = val / 100;
+                localStorage.setItem(STORAGE_SCALE_KEY, decimalScale);
                 applyUIScale(card);
             }
         };
@@ -466,9 +477,10 @@
         setSave.style.cssText = "padding:5px 10px;background:#780034;color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:bold;";
         setSave.onclick = () => {
             localStorage.setItem(STORAGE_THEME_KEY, themeSelect.value);
-            let newScale = parseFloat(scaleInput.value);
-            if (!isNaN(newScale)) {
-                localStorage.setItem(STORAGE_SCALE_KEY, newScale);
+            let newScalePercent = parseFloat(scaleInput.value);
+            if (!isNaN(newScalePercent)) {
+                let decimalScale = newScalePercent / 100;
+                localStorage.setItem(STORAGE_SCALE_KEY, decimalScale);
                 applyUIScale(card);
             }
             setOverlay.remove();
