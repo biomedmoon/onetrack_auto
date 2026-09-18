@@ -156,7 +156,6 @@
     function renderList() {
         listContainer.innerHTML = '';
         
-        // Sort keys alphabetically
         let sortedKeys = Object.keys(mapping).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'accent' }));
 
         sortedKeys.forEach((devName) => {
@@ -168,9 +167,11 @@
             let topRow = document.createElement('div');
             topRow.style.cssText = "display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px;";
 
-            // Collapse Toggle Button
             let collapseBtn = document.createElement('button');
+            
+            // Resolve initial collapse state accurately checking current or original key
             let isCollapsed = !!collapsedMap[devName];
+            
             collapseBtn.innerText = isCollapsed ? '▶' : '▼';
             collapseBtn.style.cssText = `background:transparent;color:${textCol};border:none;cursor:pointer;font-size:12px;padding:2px 4px;font-weight:bold;`;
             
@@ -295,7 +296,6 @@
 
     function collectCurrentDOMData() {
         let newMapping = {};
-        let newCollapsedMap = {};
         let devBoxes = listContainer.querySelectorAll('.te-device-box');
         devBoxes.forEach(box => {
             let nameInput = box.querySelector('.te-device-name-input');
@@ -306,10 +306,16 @@
             let collapseBtn = box.querySelector('button');
             let isCurrentlyCollapsed = collapseBtn && collapseBtn.innerText === '▶';
             
+            // Preserve collapse state tracking using either current name or fallback to prior state key
             if (isCurrentlyCollapsed) {
-                newCollapsedMap[devName] = true;
-            } else if (collapsedMap[oldOrig]) {
-                newCollapsedMap[devName] = true;
+                collapsedMap[devName] = true;
+            } else {
+                if (collapsedMap[devName] !== undefined) {
+                    collapsedMap[devName] = false;
+                } else if (oldOrig && collapsedMap[oldOrig] !== undefined) {
+                    collapsedMap[devName] = collapsedMap[oldOrig];
+                    delete collapsedMap[oldOrig];
+                }
             }
 
             let repairArr = [];
@@ -325,7 +331,6 @@
             newMapping[devName] = { pm: pmArr, repair: repairArr };
         });
         mapping = newMapping;
-        collapsedMap = newCollapsedMap;
         localStorage.setItem(STORAGE_COLLAPSED_KEY, JSON.stringify(collapsedMap));
     }
 
@@ -389,7 +394,6 @@
         setHeader.style.cssText = "margin:0;font-size:15px;border-bottom:1px solid " + borderCol + ";padding-bottom:8px;";
         setCard.appendChild(setHeader);
 
-        // Theme preference dropdown
         let themeRow = document.createElement('div');
         themeRow.style.cssText = "display:flex;justify-content:space-between;align-items:center;";
         let themeLabel = document.createElement('span');
@@ -408,7 +412,6 @@
         themeRow.appendChild(themeSelect);
         setCard.appendChild(themeRow);
 
-        // UI Scaling Dynamic Input
         let scaleRow = document.createElement('div');
         scaleRow.style.cssText = "display:flex;justify-content:space-between;align-items:center;";
         let scaleLabel = document.createElement('span');
@@ -434,7 +437,6 @@
         scaleRow.appendChild(scaleInput);
         setCard.appendChild(scaleRow);
 
-        // Reset to Default Button
         let resetBtn = document.createElement('button');
         resetBtn.innerText = "Reset Window Position & Scale";
         resetBtn.style.cssText = "background:#d9534f;color:#fff;border:none;padding:6px;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;margin-top:5px;";
@@ -449,7 +451,6 @@
         };
         setCard.appendChild(resetBtn);
 
-        // Action Buttons
         let setBtnRow = document.createElement('div');
         setBtnRow.style.cssText = "display:flex;justify-content:flex-end;gap:8px;margin-top:10px;";
         
