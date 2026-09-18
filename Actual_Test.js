@@ -417,61 +417,65 @@
     }
 
     function processTextSelection(text) {
-        let appendMode = localStorage.getItem('preset_notes_append_mode') === 'true';
-        let activeEl = document.activeElement;
-        let targetInput = null;
+    let appendMode = localStorage.getItem('preset_notes_append_mode') === 'true';
+    let activeEl = document.activeElement;
+    let targetInput = null;
 
-        // 1. Target the currently focused text field or textarea
-        if (activeEl && (activeEl.tagName === 'TEXTAREA' || (activeEl.tagName === 'INPUT' && activeEl.type === 'text'))) {
-            targetInput = activeEl;
-        } else {
-            // 2. Search for OneTrack report/finding textareas
-            let textareas = document.querySelectorAll('textarea');
-            for (let ta of textareas) {
-                let label = (ta.getAttribute('aria-label') || ta.name || ta.id || ta.placeholder || '').toLowerCase();
-                if (/finding|note|comment|description|repair/i.test(label)) {
-                    targetInput = ta;
-                    break;
-                }
+    // 1. Specifically look for the active popup or text area on the page
+    let popupTextarea = document.querySelector('#_modal_container textarea, .ant-modal textarea, textarea'); 
+
+    if (activeEl && (activeEl.tagName === 'TEXTAREA' || (activeEl.tagName === 'INPUT' && activeEl.type === 'text'))) {
+        targetInput = activeEl;
+    } else if (popupTextarea) {
+        // Target the findings popup textarea explicitly if it's open
+        targetInput = popupTextarea;
+    } else {
+        // Search general OneTrack report/finding textareas as a fallback
+        let textareas = document.querySelectorAll('textarea');
+        for (let ta of textareas) {
+            let label = (ta.getAttribute('aria-label') || ta.name || ta.id || ta.placeholder || '').toLowerCase();
+            if (/finding|note|comment|description|repair/i.test(label)) {
+                targetInput = ta;
+                break;
             }
-            // 3. Fallback to the first available text field on the page
-            if (!targetInput) {
-                targetInput = document.querySelector('textarea, input[type="text"]');
-            }
-        }
-
-        // Apply value if a field was found
-        if (targetInput) {
-            targetInput.focus();
-            let existing = targetInput.value || '';
-            if (appendMode && existing.trim().length > 0) {
-                targetInput.value = existing.trim() + ' ' + text;
-            } else {
-                targetInput.value = text;
-            }
-            targetInput.dispatchEvent(new Event('input', { bubbles: true }));
-            targetInput.dispatchEvent(new Event('change', { bubbles: true }));
-            targetInput.dispatchEvent(new Event('blur', { bubbles: true }));
-        }
-
-        // Foolproof clipboard copy using a temporary textarea
-        let tempInput = document.createElement('textarea');
-        tempInput.value = text;
-        document.body.appendChild(tempInput);
-        tempInput.select();
-        try {
-            document.execCommand('copy');
-            showToast(targetInput ? "✓ Applied & copied to clipboard!" : "✓ Copied to clipboard!");
-        } catch (err) {
-            showToast("⚠️ Could not copy text.");
-        }
-        tempInput.remove();
-
-        if (typeof keepOpenMode !== 'undefined' && !keepOpenMode) {
-            let modal = document.getElementById('preset-notes-modal-test');
-            if (modal) modal.remove();
         }
     }
+
+    // Apply value if a field was found, otherwise strictly copy to clipboard
+    if (targetInput) {
+        targetInput.focus();
+        let existing = targetInput.value || '';
+        if (appendMode && existing.trim().length > 0) {
+            targetInput.value = existing.trim() + ' ' + text;
+        } else {
+            targetInput.value = text;
+        }
+        targetInput.dispatchEvent(new Event('input', { bubbles: true }));
+        targetInput.dispatchEvent(new Event('change', { bubbles: true }));
+        targetInput.dispatchEvent(new Event('blur', { bubbles: true }));
+        
+        showToast("✓ Applied & copied to clipboard!");
+    } else {
+        showToast("✓ Copied to clipboard only!");
+    }
+
+    // Foolproof clipboard copy using a temporary textarea
+    let tempInput = document.createElement('textarea');
+    tempInput.value = text;
+    document.body.appendChild(tempInput);
+    tempInput.select();
+    try {
+        document.execCommand('copy');
+    } catch (err) {
+        showToast("⚠️ Could not copy text.");
+    }
+    tempInput.remove();
+
+    if (typeof keepOpenMode !== 'undefined' && !keepOpenMode) {
+        let modal = document.getElementById('preset-notes-modal-test');
+        if (modal) modal.remove();
+    }
+}
     function fallbackCopyTextToClipboard(text) {
         let tempInput = document.createElement('textarea');
         tempInput.value = text;
