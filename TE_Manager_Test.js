@@ -13,7 +13,7 @@
     function getUIScale() {
         let val = localStorage.getItem(STORAGE_SCALE_KEY);
         let parsed = val ? parseFloat(val) : 1.0;
-        return Math.min(Math.max(parsed, 0.5), 2.0); // Hard clamp between 50% and 200%
+        return Math.min(Math.max(parsed, 0.5), 2.0);
     }
 
     function applyUIScale(element) {
@@ -298,29 +298,26 @@
     addDevBtn.onclick = () => {
         collectCurrentDOMData();
         
-        // Target the specific Model field element on OneTrack repair/PM pages
         let detectedName = "";
         
-        // 1. Look for elements labeled Model or near the Model row
-        let labels = document.querySelectorAll('td, th, span, label, div');
-        for (let label of labels) {
-            if (label.innerText && label.innerText.trim() === 'Model') {
-                // Usually the next sibling or cell contains the actual model value
-                let targetCell = label.nextElementSibling || (label.parentElement ? label.parentElement.querySelector('td:nth-child(2), span, a') : null);
-                if (targetCell && targetCell.innerText) {
-                    let val = targetCell.innerText.trim();
-                    if (val && val !== 'Model') {
-                        detectedName = val;
-                        break;
+        // Target the specific "Model" label cell in OneTrack tables/grids
+        let allCells = document.querySelectorAll('td, th, div, span, label');
+        for (let cell of allCells) {
+            if (cell.textContent && cell.textContent.trim() === 'Model') {
+                // Find the parent row or next cell container
+                let row = cell.closest('tr') || cell.parentElement;
+                if (row) {
+                    // Look for anchor links or text cells inside this row that aren't the label itself
+                    let valueEl = row.querySelector('a, td:not(:first-child), span:not(:first-child)');
+                    if (valueEl && valueEl.textContent) {
+                        let text = valueEl.textContent.trim();
+                        if (text && text !== 'Model' && text.length < 100) {
+                            detectedName = text;
+                            break;
+                        }
                     }
                 }
             }
-        }
-
-        // 2. Fallback: check common OneTrack model anchors/links if the label scan missed it
-        if (!detectedName) {
-            let modelLink = document.querySelector('a[href*="Model"], .model-field, tr:has(td:contains("Model")) td:nth-child(2)');
-            if (modelLink) detectedName = modelLink.innerText.trim();
         }
 
         let defaultName = detectedName ? detectedName : "New Device";
