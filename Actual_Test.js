@@ -407,26 +407,30 @@
 
     function processTextSelection(text) {
         let appendMode = localStorage.getItem('preset_notes_append_mode') === 'true';
-        let targetFields = document.querySelectorAll('textarea, input[type="text"]');
         let activeEl = document.activeElement;
-
         let targetInput = null;
+
+        // 1. Check if user is actively focused on a valid text input or textarea
         if (activeEl && (activeEl.tagName === 'TEXTAREA' || (activeEl.tagName === 'INPUT' && activeEl.type === 'text'))) {
             targetInput = activeEl;
         } else {
-            for (let el of targetFields) {
-                let label = el.getAttribute('aria-label') || el.name || el.id || '';
-                if (/finding|note|comment|description/i.test(label) || targetFields.length === 1) {
-                    targetInput = el;
+            // 2. Otherwise search for OneTrack report/finding textareas automatically
+            let textareas = document.querySelectorAll('textarea');
+            for (let ta of textareas) {
+                let label = (ta.getAttribute('aria-label') || ta.name || ta.id || ta.placeholder || '').toLowerCase();
+                if (/finding|note|comment|description|repair/i.test(label)) {
+                    targetInput = ta;
                     break;
                 }
             }
-            if (!targetInput && targetFields.length > 0) {
-                targetInput = targetFields[0];
+            // 3. Fallback to the first available textarea or text input on page
+            if (!targetInput) {
+                targetInput = document.querySelector('textarea, input[type="text"]');
             }
         }
 
         if (targetInput) {
+            targetInput.focus();
             let existing = targetInput.value || '';
             if (appendMode && existing.trim().length > 0) {
                 targetInput.value = existing.trim() + ' ' + text;
@@ -438,17 +442,16 @@
             
             showToast("✓ Notes applied successfully!");
         } else {
-            let tempInput = document.createElement('textarea');
-            tempInput.value = text;
-            document.body.appendChild(tempInput);
-            tempInput.select();
-            try {
-                document.execCommand('copy');
-                showToast("✓ Copied to clipboard!");
-            } catch (err) {
-                showToast("⚠️ Could not copy text.");
+            // Fallback to clipboard if no input field found
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(() => {
+                    showToast("✓ Copied to clipboard!");
+                }).catch(() => {
+                    fallbackCopyTextToClipboard(text);
+                });
+            } else {
+                fallbackCopyTextToClipboard(text);
             }
-            tempInput.remove();
         }
 
         if (typeof keepOpenMode !== 'undefined' && !keepOpenMode) {
@@ -457,6 +460,41 @@
         }
     }
 
+    function fallbackCopyTextToClipboard(text) {
+        let tempInput = document.createElement('textarea');
+        tempInput.value = text;
+        document.body.appendChild(tempInput);
+        tempInput.select();
+        try {
+            document.execCommand('copy');
+            showToast("✓ Copied to clipboard!");
+        } catch (err) {
+            showToast("⚠️ Could not copy text.");
+        }
+        tempInput.remove();
+    }
+
+    // Helper to capture current modal position before switching menus
+    function getSavedModalPosition() {
+        let modal = document.getElementById('preset-notes-modal-test');
+        if (modal && modal.style.left && modal.style.top && modal.style.left !== '') {
+            return { left: modal.style.left, top: modal.style.top };
+        }
+        return {
+            left: GM_getValue('modal_pos_x', null),
+            top: GM_getValue('modal_pos_y', null)
+        };
+    }
+
+    function applySavedPosition(box) {
+        let pos = getSavedModalPosition();
+        if (pos.left !== null && pos.top !== null) {
+            box.style.left = pos.left;
+            box.style.top = pos.top;
+            box.style.position = 'fixed';
+            box.style.transform = 'none';
+        }
+    }
     function calculateInfinityFlatRateFindings() {
         let pageText = document.body.innerText;
         let match = pageText.match(/Serial Number\D*([569]\d{8})/i) || pageText.match(/\b([569]\d{8})\b/);
@@ -803,6 +841,9 @@
         box.className = 'onetrack-modal' + (compactMode ? ' onetrack-compact-mode' : '');
         let boxBg = isDark ? '#1e1e1e' : '#fff';
         let boxColor = isDark ? '#e0e0e0' : '#333';
+        box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:400px;display:flex;flex-direction:column;position:relative;pointer-events:auto;`;
+        applyUIScale(box);
+        applySavedPosition(box); // Maintains position across menus!
         box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:400px;display:flex;flex-direction:column;position:relative;pointer-events:auto;`;
         applyUIScale(box);
 
