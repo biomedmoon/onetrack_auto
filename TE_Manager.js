@@ -1,66 +1,187 @@
-(function() {
+(function () {
     let existing = document.getElementById('te-config-modal');
     if (existing) existing.remove();
+    let existingSettings = document.getElementById('te-settings-modal');
+    if (existingSettings) existingSettings.remove();
 
-    let rawMapping = localStorage.getItem('te_custom_mapping'),
-        mapping = {};
+    // --- Persistence & Theme Helpers ---
+    const STORAGE_POS_KEY = 'te_manager_modal_pos';
+    const STORAGE_SCALE_KEY = 'te_manager_ui_scale';
+    const STORAGE_THEME_KEY = 'te_manager_theme_mode';
+    const STORAGE_COLLAPSED_KEY = 'te_manager_collapsed_states';
+
+    function getUIScale() {
+        let val = localStorage.getItem(STORAGE_SCALE_KEY);
+        let parsed = val ? parseFloat(val) : 1.0;
+        return Math.min(Math.max(parsed, 0.5), 2.0);
+    }
+
+    function applyUIScale(element) {
+        let scale = getUIScale();
+        element.style.transform = `scale(${scale})`;
+        element.style.transformOrigin = 'center center';
+    }
+
+    function applySavedPosition(element) {
+        let rawPos = localStorage.getItem(STORAGE_POS_KEY);
+        let scale = getUIScale();
+        if (rawPos) {
+            try {
+                let pos = JSON.parse(rawPos);
+                element.style.top = pos.top;
+                element.style.left = pos.left;
+                element.style.position = 'fixed';
+                element.style.transform = `scale(${scale})`;
+                element.style.transformOrigin = 'center center';
+                return;
+            } catch (e) {}
+        }
+        element.style.position = 'fixed';
+        element.style.top = '50%';
+        element.style.left = '50%';
+        element.style.transform = `translate(-50%, -50%) scale(${scale})`;
+        element.style.transformOrigin = 'center center';
+    }
+
+    let themePref = localStorage.getItem(STORAGE_THEME_KEY) || 'auto';
+    let isDark = false;
+    if (themePref === 'dark') {
+        isDark = true;
+    } else if (themePref === 'light') {
+        isDark = false;
+    } else {
+        isDark = document.body.classList.contains('dark-theme') || window.matchMedia('(prefers-color-scheme: dark)').matches || localStorage.getItem('onetrack_dark_mode') === 'true';
+    }
+
+    let bgCol = isDark ? '#1e1e1e' : '#fff';
+    let textCol = isDark ? '#e0e0e0' : '#333';
+    let borderCol = isDark ? '#444' : '#ddd';
+    let boxBgCol = isDark ? '#2a2a2a' : '#f9f9f9';
+    let inputBgCol = isDark ? '#333' : '#fff';
+    let inputBorderCol = isDark ? '#555' : '#ccc';
+
+    let rawMapping = localStorage.getItem('te_custom_mapping'), mapping = {};
     try {
         mapping = rawMapping ? JSON.parse(rawMapping) : {
-            "Sapphire": {
-                pm: ["TE: 12345"],
-                repair: ["TE: 54321"]
-            },
-            "Curlin 6000 CMS": {
-                pm: ["TE: 67890"],
-                repair: ["TE: 09876"]
-            }
+            "Sapphire": { pm: ["TE: 12345"], repair: ["TE: 54321"] },
+            "Curlin 6000 CMS": { pm: ["TE: 67890"], repair: ["TE: 09876"] }
         };
     } catch (e) {
         mapping = {};
     }
 
+    let rawCollapsed = localStorage.getItem(STORAGE_COLLAPSED_KEY), collapsedStates = {};
+    try {
+        collapsedStates = rawCollapsed ? JSON.parse(rawCollapsed) : {};
+    } catch (e) {
+        collapsedStates = {};
+    }
+
+    function saveCollapsedStates() {
+        localStorage.setItem(STORAGE_COLLAPSED_KEY, JSON.stringify(collapsedStates));
+    }
+
     let overlay = document.createElement('div');
     overlay.id = 'te-config-modal';
-    overlay.style.cssText = "position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:10000;display:flex;justify-content:center;align-items:center;font-family:sans-serif;";
+    overlay.style.cssText = "position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:10000;display:flex;justify-content:center;align-items:center;font-family:sans-serif;pointer-events:none;";
 
     let card = document.createElement('div');
-    card.style.cssText = "background:#fff;padding:20px;border-radius:8px;width:580px;max-height:85vh;box-shadow:0 4px 12px rgba(0,0,0,0.15);display:flex;flex-direction:column;";
+    card.style.cssText = `background:${bgCol};color:${textCol};padding:20px;border-radius:8px;width:580px;max-height:85vh;box-shadow:0 4px 12px rgba(0,0,0,0.15);display:flex;flex-direction:column;pointer-events:auto;position:relative;`;
+    applyUIScale(card);
+    applySavedPosition(card);
+
+    let titleBar = document.createElement('div');
+    titleBar.style.cssText = "cursor:move;padding-bottom:10px;margin-bottom:10px;border-bottom:1px solid " + borderCol + ";display:flex;justify-content:space-between;align-items:center;";
 
     let title = document.createElement('h3');
     title.innerText = "Test Equipment Configuration Manager";
-    title.style.cssText = "margin-top:0;color:#333;font-size:16px;text-align:center;";
-    card.appendChild(title);
+    title.style.cssText = `margin:0;color:${textCol};font-size:16px;flex-grow:1;text-align:center;padding-left:24px;`;
+
+    let settingsBtn = document.createElement('button');
+    settingsBtn.innerHTML = "⚙️";
+    settingsBtn.title = "Settings (Theme & Scaling)";
+    settingsBtn.style.cssText = "background:transparent;border:none;cursor:pointer;font-size:16px;padding:2px;border-radius:4px;";
+    settingsBtn.onclick = (e) => {
+        e.stopPropagation();
+        openSettingsModal();
+    };
+
+    titleBar.appendChild(title);
+    titleBar.appendChild(settingsBtn);
+    card.appendChild(titleBar);
+
+    let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+    titleBar.onmousedown = (e) => {
+        if (e.target === settingsBtn) return;
+        e.preventDefault();
+        pos3 = e.clientX;
+        pos4 = e.clientY;
+        document.onmouseup = closeDragElement;
+        document.onmousemove = elementDrag;
+    };
+
+    function elementDrag(e) {
+        e.preventDefault();
+        pos1 = pos3 - e.clientX;
+        pos2 = pos4 - e.clientY;
+        pos3 = e.clientX;
+        pos4 = e.clientY;
+        card.style.top = (card.offsetTop - pos2) + "px";
+        card.style.left = (card.offsetLeft - pos1) + "px";
+        card.style.position = 'fixed';
+        let currentScale = getUIScale();
+        card.style.transform = `scale(${currentScale})`;
+        card.style.transformOrigin = 'center center';
+    }
+
+    function closeDragElement() {
+        document.onmouseup = null;
+        document.onmousemove = null;
+        let posData = { top: card.style.top, left: card.style.left };
+        localStorage.setItem(STORAGE_POS_KEY, JSON.stringify(posData));
+    }
 
     let listContainer = document.createElement('div');
     listContainer.id = 'te-list-container';
-    listContainer.style.cssText = "flex-grow:1;overflow-y:auto;margin-bottom:15px;border:1px solid #ddd;padding:10px;border-radius:4px;max-height:420px;";
+    listContainer.style.cssText = `flex-grow:1;overflow-y:auto;margin-bottom:15px;border:1px solid ${borderCol};padding:10px;border-radius:4px;max-height:420px;`;
     card.appendChild(listContainer);
 
     function renderList() {
         listContainer.innerHTML = '';
-        Object.keys(mapping).forEach((devName) => {
+        let sortedKeys = Object.keys(mapping).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'accent' }));
+
+        sortedKeys.forEach((devName) => {
             let devBox = document.createElement('div');
             devBox.className = 'te-device-box';
             devBox.dataset.originalName = devName;
-            devBox.style.cssText = "background:#f9f9f9;padding:10px;margin-bottom:12px;border-radius:4px;border:1px solid #e0e0e0;";
+            devBox.style.cssText = `background:${boxBgCol};padding:10px;margin-bottom:12px;border-radius:4px;border:1px solid ${borderCol};`;
 
             let topRow = document.createElement('div');
-            topRow.style.cssText = "display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;";
+            topRow.style.cssText = "display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px;";
+
+            let collapseBtn = document.createElement('button');
+            let isCollapsed = collapsedStates[devName] === true;
+            collapseBtn.innerText = isCollapsed ? '▶' : '▼';
+            collapseBtn.style.cssText = `background:transparent;color:${textCol};border:none;cursor:pointer;font-size:12px;padding:2px 4px;font-weight:bold;`;
 
             let nameInput = document.createElement('input');
             nameInput.type = 'text';
             nameInput.value = devName;
             nameInput.className = 'te-device-name-input';
-            nameInput.style.cssText = "flex-grow:1;padding:4px;font-weight:bold;border:1px solid #ccc;border-radius:3px;margin-right:8px;";
-            topRow.appendChild(nameInput);
+            nameInput.style.cssText = `flex-grow:1;padding:4px;font-weight:bold;background:${inputBgCol};color:${textCol};border:1px solid ${inputBorderCol};border-radius:3px;`;
 
             let delDevBtn = document.createElement('button');
             delDevBtn.innerText = "Delete Device";
             delDevBtn.style.cssText = "background:#d9534f;color:#fff;border:none;padding:4px 8px;border-radius:3px;cursor:pointer;font-size:11px;";
             delDevBtn.onclick = () => {
                 delete mapping[devName];
+                delete collapsedStates[devName];
+                saveCollapsedStates();
                 renderList();
             };
+
+            topRow.appendChild(collapseBtn);
+            topRow.appendChild(nameInput);
             topRow.appendChild(delDevBtn);
             devBox.appendChild(topRow);
 
@@ -76,7 +197,15 @@
             mapping[devName] = dataObj;
 
             let fieldsContainer = document.createElement('div');
-            fieldsContainer.style.cssText = "display:flex;flex-direction:column;gap:10px;padding-left:5px;";
+            fieldsContainer.style.cssText = `display:${isCollapsed ? 'none' : 'flex'};flex-direction:column;gap:10px;padding-left:5px;transition:all 0.2s ease;`;
+
+            collapseBtn.onclick = () => {
+                isCollapsed = !isCollapsed;
+                collapsedStates[devName] = isCollapsed;
+                saveCollapsedStates();
+                fieldsContainer.style.display = isCollapsed ? 'none' : 'flex';
+                collapseBtn.innerText = isCollapsed ? '▶' : '▼';
+            };
 
             function renderSection(labelTitle, keyName, accentColor) {
                 let sectionDiv = document.createElement('div');
@@ -92,7 +221,7 @@
 
                 let addBtn = document.createElement('button');
                 addBtn.innerText = "+ Add";
-                addBtn.style.cssText = "background:#f0f0f0;color:#333;border:1px solid #ccc;padding:1px 6px;border-radius:3px;cursor:pointer;font-size:10px;font-weight:bold;";
+                addBtn.style.cssText = `background:${isDark ? '#444' : '#f0f0f0'};color:${textCol};border:1px solid ${inputBorderCol};padding:1px 6px;border-radius:3px;cursor:pointer;font-size:10px;font-weight:bold;`;
                 addBtn.onclick = () => {
                     collectCurrentDOMData();
                     mapping[devName][keyName].push("TE: ");
@@ -113,7 +242,7 @@
                     input.type = 'text';
                     input.value = val;
                     input.className = listClass;
-                    input.style.cssText = "flex-grow:1;padding:3px;border:1px solid #ccc;border-radius:3px;font-family:monospace;font-size:12px;";
+                    input.style.cssText = `flex-grow:1;padding:3px;background:${inputBgCol};color:${textCol};border:1px solid ${inputBorderCol};border-radius:3px;font-family:monospace;font-size:12px;`;
                     row.appendChild(input);
 
                     let delBtn = document.createElement('button');
@@ -131,8 +260,8 @@
                 return sectionDiv;
             }
 
-            fieldsContainer.appendChild(renderSection("PM TE Setups:", "pm", "#555"));
-            fieldsContainer.appendChild(renderSection("Repair TE Setups:", "repair", "#780034"));
+            fieldsContainer.appendChild(renderSection("PM TE Setups:", "pm", isDark ? '#aaa' : '#555'));
+            fieldsContainer.appendChild(renderSection("Repair TE Setups:", "repair", isDark ? '#ff99aa' : '#780034'));
             devBox.appendChild(fieldsContainer);
             listContainer.appendChild(devBox);
         });
@@ -165,10 +294,34 @@
 
     let addDevBtn = document.createElement('button');
     addDevBtn.innerText = "+ Add New Device Type";
-    addDevBtn.style.cssText = "background:#f0f0f0;color:#333;border:1px solid #ccc;padding:6px;border-radius:4px;cursor:pointer;margin-bottom:15px;font-weight:bold;width:100%;";
+    addDevBtn.style.cssText = `background:${isDark ? '#444' : '#f0f0f0'};color:${textCol};border:1px solid ${inputBorderCol};padding:6px;border-radius:4px;cursor:pointer;margin-bottom:15px;font-weight:bold;width:100%;`;
     addDevBtn.onclick = () => {
         collectCurrentDOMData();
-        let newName = prompt("Enter new device name/type:", "New Device");
+        
+        let detectedName = "";
+        
+        // Target the specific "Model" label cell in OneTrack tables/grids
+        let allCells = document.querySelectorAll('td, th, div, span, label');
+        for (let cell of allCells) {
+            if (cell.textContent && cell.textContent.trim() === 'Model') {
+                // Find the parent row or next cell container
+                let row = cell.closest('tr') || cell.parentElement;
+                if (row) {
+                    // Look for anchor links or text cells inside this row that aren't the label itself
+                    let valueEl = row.querySelector('a, td:not(:first-child), span:not(:first-child)');
+                    if (valueEl && valueEl.textContent) {
+                        let text = valueEl.textContent.trim();
+                        if (text && text !== 'Model' && text.length < 100) {
+                            detectedName = text;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        let defaultName = detectedName ? detectedName : "New Device";
+        let newName = prompt("Enter new device name/type:", defaultName);
         if (newName && newName.trim()) {
             mapping[newName.trim()] = { pm: ["TE: "], repair: ["TE: "] };
             renderList();
@@ -181,7 +334,7 @@
 
     let cancelBtn = document.createElement('button');
     cancelBtn.innerText = "Cancel";
-    cancelBtn.style.cssText = "padding:6px 12px;background:#e0e0e0;border:none;border-radius:4px;cursor:pointer;";
+    cancelBtn.style.cssText = `padding:6px 12px;background:${isDark ? '#444' : '#e0e0e0'};color:${textCol};border:none;border-radius:4px;cursor:pointer;`;
     cancelBtn.onclick = () => overlay.remove();
     btnContainer.appendChild(cancelBtn);
 
@@ -203,4 +356,95 @@
 
     overlay.appendChild(card);
     document.body.appendChild(overlay);
+
+    function openSettingsModal() {
+        let setOverlay = document.createElement('div');
+        setOverlay.id = 'te-settings-modal';
+        setOverlay.style.cssText = "position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.4);z-index:10005;display:flex;justify-content:center;align-items:center;font-family:sans-serif;";
+
+        let setCard = document.createElement('div');
+        setCard.style.cssText = `background:${bgCol};color:${textCol};padding:20px;border-radius:8px;width:340px;box-shadow:0 4px 12px rgba(0,0,0,0.2);display:flex;flex-direction:column;gap:15px;position:relative;`;
+
+        let setHeader = document.createElement('h4');
+        setHeader.innerText = "TE Manager Settings";
+        setHeader.style.cssText = "margin:0;font-size:15px;border-bottom:1px solid " + borderCol + ";padding-bottom:8px;";
+        setCard.appendChild(setHeader);
+
+        let themeRow = document.createElement('div');
+        themeRow.style.cssText = "display:flex;justify-content:space-between;align-items:center;";
+        let themeLabel = document.createElement('span');
+        themeLabel.innerText = "Theme Mode:";
+        themeLabel.style.fontSize = "13px";
+
+        let themeSelect = document.createElement('select');
+        themeSelect.style.cssText = `padding:4px;background:${inputBgCol};color:${textCol};border:1px solid ${inputBorderCol};border-radius:4px;`;
+        ['auto', 'light', 'dark'].forEach(mode => {
+            let opt = document.createElement('option');
+            opt.value = mode;
+            opt.innerText = mode.charAt(0).toUpperCase() + mode.slice(1);
+            if (themePref === mode) opt.selected = true;
+            themeSelect.appendChild(opt);
+        });
+        themeRow.appendChild(themeLabel);
+        themeRow.appendChild(themeSelect);
+        setCard.appendChild(themeRow);
+
+        let scaleRow = document.createElement('div');
+        scaleRow.style.cssText = "display:flex;justify-content:space-between;align-items:center;";
+        let scaleLabel = document.createElement('span');
+        scaleLabel.innerText = "UI Scale:";
+        scaleLabel.style.fontSize = "13px";
+
+        let scaleInput = document.createElement('input');
+        scaleInput.type = 'number';
+        scaleInput.min = '0.5';
+        scaleInput.max = '2.0';
+        scaleInput.step = '0.05';
+        scaleInput.value = getUIScale();
+        scaleInput.style.cssText = `width:70px;padding:4px;background:${inputBgCol};color:${textCol};border:1px solid ${inputBorderCol};border-radius:4px;text-align:center;`;
+        scaleRow.appendChild(scaleLabel);
+        scaleRow.appendChild(scaleInput);
+        setCard.appendChild(scaleRow);
+
+        let resetBtn = document.createElement('button');
+        resetBtn.innerText = "Reset Window Position & Scale";
+        resetBtn.style.cssText = "background:#d9534f;color:#fff;border:none;padding:6px;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;margin-top:5px;";
+        resetBtn.onclick = () => {
+            localStorage.removeItem(STORAGE_POS_KEY);
+            localStorage.removeItem(STORAGE_SCALE_KEY);
+            localStorage.removeItem(STORAGE_THEME_KEY);
+            localStorage.removeItem(STORAGE_COLLAPSED_KEY);
+            setOverlay.remove();
+            overlay.remove();
+            alert("Settings reset to default! Reopen the manager to apply.");
+        };
+        setCard.appendChild(resetBtn);
+
+        let setBtnRow = document.createElement('div');
+        setBtnRow.style.cssText = "display:flex;justify-content:flex-end;gap:8px;margin-top:10px;";
+
+        let setCancel = document.createElement('button');
+        setCancel.innerText = "Cancel";
+        setCancel.style.cssText = `padding:5px 10px;background:${isDark ? '#444' : '#e0e0e0'};color:${textCol};border:none;border-radius:4px;cursor:pointer;`;
+        setCancel.onclick = () => setOverlay.remove();
+
+        let setSave = document.createElement('button');
+        setSave.innerText = "Apply & Save";
+        setSave.style.cssText = "padding:5px 10px;background:#780034;color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:bold;";
+        setSave.onclick = () => {
+            localStorage.setItem(STORAGE_THEME_KEY, themeSelect.value);
+            let newScale = parseFloat(scaleInput.value);
+            if (!isNaN(newScale)) {
+                localStorage.setItem(STORAGE_SCALE_KEY, newScale);
+            }
+            setOverlay.remove();
+            overlay.remove();
+        };
+
+        setBtnRow.appendChild(setCancel);
+        setBtnRow.appendChild(setSave);
+        setCard.appendChild(setBtnRow);
+        setOverlay.appendChild(setCard);
+        document.body.appendChild(setOverlay);
+    }
 })();
