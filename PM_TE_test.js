@@ -45,6 +45,7 @@
     }
 
     function executeScriptWithId(equipmentString) {
+        // 1. Copy to clipboard and show notification (keeping your existing behavior)
         navigator.clipboard.writeText(equipmentString).then(() => {
             const notification = document.createElement('div');
             notification.innerText = `Copied: ${equipmentString}`;
@@ -54,6 +55,26 @@
         }).catch(err => {
             console.error('Clipboard copy failed:', err);
         });
+
+        // 2. Automatically find and populate the "Notes" field
+        const allElements = Array.from(document.querySelectorAll('td, th, label, div, span'));
+        const notesLabel = allElements.find(el => el.textContent.trim() === 'Notes');
+        if (notesLabel) {
+            // Traverse up slightly or search nearby for the associated textarea/input box in the form block
+            let container = notesLabel.closest('tr') || notesLabel.parentElement;
+            if (container) {
+                let notesInput = container.querySelector('textarea, input[type="text"], input:not([type])');
+                if (!notesInput) {
+                    // Fallback: search globally if not nested right in the same row/container
+                    notesInput = document.querySelector('textarea');
+                }
+                if (notesInput) {
+                    notesInput.value = equipmentString;
+                    notesInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    notesInput.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            }
+        }
 
         function createModal(title, options, callback) {
             let overlay = document.createElement('div');
