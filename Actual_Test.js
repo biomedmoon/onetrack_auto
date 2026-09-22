@@ -1511,23 +1511,22 @@
         document.body.appendChild(ov);
     }
 
-    // Function to initialize the hotkey listener silently on page refresh
-    function initOneTrackHotkey() {
-        window.addEventListener('keydown', (e) => {
-            if (e.altKey && e.code === customHotkey) {
-                e.preventDefault();
-                let existingModal = document.getElementById('preset-notes-modal-test');
-                if (existingModal) existingModal.remove();
-                else showMainModal();
-            }
-        });
-    }
+    // Register the hotkey listener immediately on script execution
+if (typeof window.oneTrackHotkeyInitialized === 'undefined') {
+    window.oneTrackHotkeyInitialized = true;
     
-    // Attach the listener automatically when the page loads, without opening the modal
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initOneTrackHotkey);
-    } else {
-        initOneTrackHotkey();
-    }
-
-})();
+    window.addEventListener('keydown', (e) => {
+        // Fallback to a default key if customHotkey isn't loaded yet (e.g., 'KeyQ' or 'KeyZ')
+        let targetKey = typeof customHotkey !== 'undefined' ? customHotkey : 'KeyQ';
+        
+        if (e.altKey && e.code === targetKey) {
+            e.preventDefault();
+            let existingModal = document.getElementById('preset-notes-modal-test');
+            if (existingModal) {
+                existingModal.remove();
+            } else {
+                showMainModal();
+            }
+        }
+    });
+}
