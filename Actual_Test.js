@@ -7,6 +7,7 @@
 // @match        *://*/*
 // @grant        GM_getValue
 // @grant        GM_setValue
+// @run-at       document-idle
 // ==/UserScript==
 
 (function() {
