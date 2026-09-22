@@ -1511,22 +1511,23 @@
         document.body.appendChild(ov);
     }
 
-    // Register the hotkey listener immediately on script execution
-if (typeof window.oneTrackHotkeyInitialized === 'undefined') {
-    window.oneTrackHotkeyInitialized = true;
-    
-    window.addEventListener('keydown', (e) => {
-        // Fallback to a default key if customHotkey isn't loaded yet (e.g., 'KeyQ' or 'KeyZ')
-        let targetKey = typeof customHotkey !== 'undefined' ? customHotkey : 'KeyQ';
+        // Register the hotkey listener immediately on script execution
+    if (typeof window.oneTrackHotkeyInitialized === 'undefined') {
+        window.oneTrackHotkeyInitialized = true;
         
-        if (e.altKey && e.code === targetKey) {
-            e.preventDefault();
-            let existingModal = document.getElementById('preset-notes-modal-test');
-            if (existingModal) {
-                existingModal.remove();
-            } else {
-                showMainModal();
+        window.addEventListener('keydown', (e) => {
+            // Fallback to a default key if customHotkey isn't loaded yet (e.g., 'KeyQ' or 'KeyZ')
+            let targetKey = typeof customHotkey !== 'undefined' ? customHotkey : 'KeyQ';
+            
+            if (e.altKey && e.code === targetKey) {
+                e.preventDefault();
+                let existingModal = document.getElementById('preset-notes-modal-test');
+                if (existingModal) {
+                    existingModal.remove();
+                } else {
+                    showMainModal();
+                }
             }
-        }
-    });
-}
+        });
+    }
+ );
