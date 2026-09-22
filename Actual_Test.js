@@ -99,10 +99,12 @@
             position: fixed;
             z-index: 999999;
         }
-        .onetrack-wrap-mode input[type="text"] {
-            white-space: normal !important;
+        .onetrack-wrap-mode textarea.onetrack-phrase-input {
+            white-space: pre-wrap !important;
+            word-break: break-word !important;
             height: auto !important;
-            word-break: break-word;
+            min-height: 32px;
+            resize: vertical;
         }
     `;
     document.head.appendChild(themeStyles);
@@ -1369,6 +1371,15 @@
             wrapMode = e.target.checked;
             localStorage.setItem('onetrack_wrap_mode', wrapMode);
             box.classList.toggle('onetrack-wrap-mode', wrapMode);
+            box.querySelectorAll('.onetrack-phrase-input').forEach(ta => {
+                ta.style.resize = wrapMode ? 'vertical' : 'none';
+                if (wrapMode) {
+                    ta.style.height = 'auto';
+                    ta.style.height = (ta.scrollHeight) + 'px';
+                } else {
+                    ta.style.height = '32px';
+                }
+            });
         };
         wrapRow.appendChild(wrapToggle);
         
@@ -1420,11 +1431,24 @@
             ph.forEach((nt, i) => {
                 let r = document.createElement('div');
                 r.style.cssText = "display:flex;gap:6px;margin-bottom:6px;align-items:center;";
-                let inp = document.createElement('input');
-                inp.type = 'text';
+                let inp = document.createElement('textarea');
+                inp.rows = wrapMode ? 2 : 1;
+                inp.className = 'onetrack-phrase-input';
                 inp.value = nt;
-                inp.style.cssText = `flex-grow:1;padding:5px;border:1px solid ${isDark ? '#555' : '#ccc'};border-radius:3px;font-size:11px;background:${isDark ? '#333' : '#fff'};color:${isDark ? '#fff' : '#000'};`;
+                inp.style.cssText = `flex-grow:1;padding:5px;border:1px solid ${isDark ? '#555' : '#ccc'};border-radius:3px;font-size:11px;font-family:sans-serif;resize:${wrapMode ? 'vertical' : 'none'};`;
+                
+                if (wrapMode) {
+                    inp.style.height = 'auto';
+                    inp.style.height = (inp.scrollHeight) + 'px';
+                }
+                inp.oninput = function() {
+                    if (wrapMode) {
+                        this.style.height = 'auto';
+                        this.style.height = (this.scrollHeight) + 'px';
+                    }
+                };
                 inp.onchange = (e) => ph[i] = e.target.value.trim();
+                r.appendChild(inp);
                 r.appendChild(inp);
 
                 let db = document.createElement('button');
