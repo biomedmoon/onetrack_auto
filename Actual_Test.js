@@ -1511,21 +1511,8 @@
         document.body.appendChild(ov);
     }
 
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', () => {
-            window.addEventListener('keydown', (e) => {
-                if (e.altKey && e.code === customHotkey) {
-                    e.preventDefault();
-                    let existingModal = document.getElementById('preset-notes-modal-test');
-                    if (existingModal) existingModal.remove();
-                    else showMainModal();
-                }
-            });
-
-            checkWhatsNew();
-            showMainModal();
-        });
-    } else {
+    // Function to initialize the hotkey listener silently on page refresh
+    function initOneTrackHotkey() {
         window.addEventListener('keydown', (e) => {
             if (e.altKey && e.code === customHotkey) {
                 e.preventDefault();
@@ -1534,9 +1521,13 @@
                 else showMainModal();
             }
         });
-
-        checkWhatsNew();
-        showMainModal();
+    }
+    
+    // Attach the listener automatically when the page loads, without opening the modal
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initOneTrackHotkey);
+    } else {
+        initOneTrackHotkey();
     }
 
 })();
