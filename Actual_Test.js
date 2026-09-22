@@ -1511,12 +1511,11 @@
         document.body.appendChild(ov);
     }
 
-        // Register the hotkey listener immediately on script execution
+    // Register the hotkey listener immediately on script execution
     if (typeof window.oneTrackHotkeyInitialized === 'undefined') {
         window.oneTrackHotkeyInitialized = true;
         
         window.addEventListener('keydown', (e) => {
-            // Fallback to a default key if customHotkey isn't loaded yet (e.g., 'KeyQ' or 'KeyZ')
             let targetKey = typeof customHotkey !== 'undefined' ? customHotkey : 'KeyQ';
             
             if (e.altKey && e.code === targetKey) {
@@ -1530,4 +1529,5 @@
             }
         });
     }
- );
+
+})();
