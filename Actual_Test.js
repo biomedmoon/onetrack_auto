@@ -1510,16 +1510,32 @@
         document.body.appendChild(ov);
     }
 
-    window.addEventListener('keydown', (e) => {
-        if (e.altKey && e.code === customHotkey) {
-            e.preventDefault();
-            let existingModal = document.getElementById('preset-notes-modal-test');
-            if (existingModal) existingModal.remove();
-            else showMainModal();
-        }
-    });
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+            window.addEventListener('keydown', (e) => {
+                if (e.altKey && e.code === customHotkey) {
+                    e.preventDefault();
+                    let existingModal = document.getElementById('preset-notes-modal-test');
+                    if (existingModal) existingModal.remove();
+                    else showMainModal();
+                }
+            });
 
-    checkWhatsNew();
-    showMainModal();
+            checkWhatsNew();
+            showMainModal();
+        });
+    } else {
+        window.addEventListener('keydown', (e) => {
+            if (e.altKey && e.code === customHotkey) {
+                e.preventDefault();
+                let existingModal = document.getElementById('preset-notes-modal-test');
+                if (existingModal) existingModal.remove();
+                else showMainModal();
+            }
+        });
+
+        checkWhatsNew();
+        showMainModal();
+    }
 
 })();
