@@ -260,7 +260,7 @@
         if (!force && lastSeenVersion === CURRENT_VERSION) return;
 
         let ov = document.createElement('div');
-        ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:transparent;z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;pointer-events:none;';
+        ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:transparent;z-index:1000000;display:flex;align-items:center;justify-content:center;font-family:sans-serif;pointer-events:none;';
 
         let box = document.createElement('div');
         box.className = 'onetrack-modal';
