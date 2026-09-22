@@ -13,7 +13,7 @@
     function getUIScale() {
         let val = localStorage.getItem(STORAGE_SCALE_KEY);
         let parsed = val ? parseFloat(val) : 1.0;
-        return Math.min(Math.max(parsed, 0.5), 2.0);
+        return Math.min(Math.max(parsed, 0.5), 1.5);
     }
 
     function applyUIScale(element) {
@@ -398,7 +398,7 @@
         let scaleInput = document.createElement('input');
         scaleInput.type = 'number';
         scaleInput.min = '0.5';
-        scaleInput.max = '2.0';
+        scaleInput.max = '1.5';
         scaleInput.step = '0.05';
         scaleInput.value = getUIScale();
         scaleInput.style.cssText = `width:70px;padding:4px;background:${inputBgCol};color:${textCol};border:1px solid ${inputBorderCol};border-radius:4px;text-align:center;`;
