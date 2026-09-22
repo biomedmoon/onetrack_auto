@@ -137,7 +137,7 @@
     }
 
     let currentTheme = localStorage.getItem('onetrack_theme') || 'auto';
-    let customHotkey = localStorage.getItem('onetrack_hotkey') || 'KeyP';
+    let customHotkey = localStorage.getItem('onetrack_test_hotkey') || 'KeyP';
     let compactMode = localStorage.getItem('onetrack_compact') === 'true';
     let keepOpenMode = localStorage.getItem('onetrack_keep_open') === 'true';
     let wrapMode = localStorage.getItem('onetrack_wrap_mode') === 'true';
@@ -220,7 +220,7 @@
     function exportSettings() {
         let settings = {
             theme: localStorage.getItem('onetrack_theme'),
-            hotkey: localStorage.getItem('onetrack_hotkey'),
+            hotkey: localStorage.getItem('onetrack_test_hotkey'),
             compact: localStorage.getItem('onetrack_compact'),
             keepOpen: localStorage.getItem('onetrack_keep_open'),
             version: CURRENT_VERSION
@@ -243,7 +243,7 @@
             try {
                 let settings = JSON.parse(e.target.result);
                 if (settings.theme) localStorage.setItem('onetrack_theme', settings.theme);
-                if (settings.hotkey) localStorage.setItem('onetrack_hotkey', settings.hotkey);
+                if (settings.hotkey) localStorage.setItem('onetrack_test_hotkey', settings.hotkey);
                 if (settings.compact !== undefined) localStorage.setItem('onetrack_compact', settings.compact);
                 if (settings.keepOpen !== undefined) localStorage.setItem('onetrack_keep_open', settings.keepOpen);
                 showToast('Settings imported successfully! Reloading...');
@@ -1250,7 +1250,7 @@
             if (e.key.length === 1) {
                 let newKey = 'Key' + e.key.toUpperCase();
                 customHotkey = newKey;
-                localStorage.setItem('onetrack_hotkey', newKey);
+                localStorage.setItem('onetrack_test_hotkey', newKey);
                 hotkeyInput.value = e.key.toUpperCase();
                 showToast(`Hotkey updated to Alt + ${e.key.toUpperCase()}`);
             }
