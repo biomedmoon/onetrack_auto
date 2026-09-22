@@ -1435,12 +1435,18 @@
                 inp.rows = wrapMode ? 2 : 1;
                 inp.className = 'onetrack-phrase-input';
                 inp.value = nt;
-                inp.style.cssText = `flex-grow:1;padding:5px;border:1px solid ${isDark ? '#555' : '#ccc'};border-radius:3px;font-size:11px;font-family:sans-serif;resize:${wrapMode ? 'vertical' : 'none'};`;
+                inp.style.cssText = `flex-grow:1; padding:5px; border:1px solid ${isDark ? '#555' : '#ccc'}; border-radius:3px; font-size:11px; font-family:sans-serif; resize:${wrapMode ? 'vertical' : 'none'}; height:${wrapMode ? 'auto' : '32px'};`;
                 
+                r.appendChild(inp);
+                
+                // If wrapping is enabled, calculate the correct expanded height right away after it's in the DOM
                 if (wrapMode) {
-                    inp.style.height = 'auto';
-                    inp.style.height = (inp.scrollHeight) + 'px';
+                    setTimeout(() => {
+                        inp.style.height = 'auto';
+                        inp.style.height = (inp.scrollHeight) + 'px';
+                    }, 0);
                 }
+                
                 inp.oninput = function() {
                     if (wrapMode) {
                         this.style.height = 'auto';
