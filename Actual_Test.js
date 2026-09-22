@@ -1510,17 +1510,17 @@
         document.body.appendChild(ov);
     }
 
-    window.addEventListener('load', () => {
-        window.addEventListener('keydown', (e) => {
-            if (e.altKey && e.code === customHotkey) {
-                e.preventDefault();
-                let existingModal = document.getElementById('preset-notes-modal-test');
-                if (existingModal) existingModal.remove();
-                else showMainModal();
-            }
-        });
-    
-        checkWhatsNew();
+window.addEventListener('load', () => {
+    window.addEventListener('keydown', (e) => {
+        if (e.altKey && e.code === customHotkey) {
+            e.preventDefault();
+            let existingModal = document.getElementById('preset-notes-modal-test');
+            if (existingModal) existingModal.remove();
+            else showMainModal();
+        }
     });
+
+    checkWhatsNew();
+});
 
 })();
