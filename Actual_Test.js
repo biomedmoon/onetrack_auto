@@ -99,6 +99,11 @@
             position: fixed;
             z-index: 999999;
         }
+        .onetrack-wrap-mode input[type="text"] {
+            white-space: normal !important;
+            height: auto !important;
+            word-break: break-word;
+        }
     `;
     document.head.appendChild(themeStyles);
 
@@ -133,6 +138,7 @@
     let customHotkey = localStorage.getItem('onetrack_hotkey') || 'KeyP';
     let compactMode = localStorage.getItem('onetrack_compact') === 'true';
     let keepOpenMode = localStorage.getItem('onetrack_keep_open') === 'true';
+    let wrapMode = localStorage.getItem('onetrack_wrap_mode') === 'true';
 
     applyTheme(currentTheme);
 
@@ -1349,6 +1355,27 @@
         titleRow.appendChild(settingsBtn);
         makeDraggable(box, titleRow);
         box.appendChild(titleRow);
+
+        let wrapRow = document.createElement('label');
+        let rowBg = isDark ? '#2a2a2a' : '#f8f9fa';
+        let rowBorder = isDark ? '#444' : '#e9ecef';
+        let rowColor = isDark ? '#e0e0e0' : '#212529';
+        wrapRow.style.cssText = `display:flex;align-items:center;gap:6px;font-size:11px;cursor:pointer;user-select:none;background:${rowBg};padding:6px 8px;border-radius:4px;border:1px solid ${rowBorder};margin-bottom:10px;color:${rowColor};font-weight:bold;`;
+        
+        let wrapToggle = document.createElement('input');
+        wrapToggle.type = 'checkbox';
+        wrapToggle.checked = wrapMode;
+        wrapToggle.onchange = (e) => {
+            wrapMode = e.target.checked;
+            localStorage.setItem('onetrack_wrap_mode', wrapMode);
+            box.classList.toggle('onetrack-wrap-mode', wrapMode);
+        };
+        wrapRow.appendChild(wrapToggle);
+        
+        let wrapLabelText = document.createElement('span');
+        wrapLabelText.innerText = 'Enable dynamic text wrapping for entries';
+        wrapRow.appendChild(wrapLabelText);
+        box.appendChild(wrapRow);
 
         let sa = document.createElement('div');
         sa.style.cssText = "flex-grow:1;overflow-y:auto;margin-bottom:15px;padding-right:5px;max-height:360px;";
