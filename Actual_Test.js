@@ -29,6 +29,7 @@
     const CONFIG = {
         hotkey: isTestEnv ? 'KeyP' : 'KeyQ',
         envName: isTestEnv ? 'TEST' : 'LIVE',
+        storagePrefix: isTestEnv ? 'onetrack_test_' : 'onetrack_live_',
         debugMode: isTestEnv
     };
     const RELEASE_NOTES = [
@@ -144,7 +145,7 @@
     }
 
     let currentTheme = localStorage.getItem('onetrack_theme') || 'auto';
-    let customHotkey = localStorage.getItem('onetrack_hotkey') || 'KeyQ';
+    let customHotkey = localStorage.getItem(CONFIG.storagePrefix + 'custom_hotkey') || CONFIG.hotkey;
     let compactMode = localStorage.getItem('onetrack_compact') === 'true';
     let keepOpenMode = localStorage.getItem('onetrack_keep_open') === 'true';
     let wrapMode = localStorage.getItem('onetrack_wrap_mode') === 'true';
@@ -1257,7 +1258,7 @@
             if (e.key.length === 1) {
                 let newKey = 'Key' + e.key.toUpperCase();
                 customHotkey = newKey;
-                localStorage.setItem('onetrack_hotkey', newKey);
+                localStorage.setItem(CONFIG.storagePrefix + 'custom_hotkey', newKey);
                 hotkeyInput.value = e.key.toUpperCase();
                 showToast(`Hotkey updated to Alt + ${e.key.toUpperCase()}`);
             }
@@ -1518,10 +1519,10 @@
     }
 
     window.addEventListener('keydown', (e) => {
-        let targetKey = (typeof customHotkey !== 'undefined' && customHotkey) ? customHotkey : CONFIG.hotkey;
+        let savedKey = localStorage.getItem(CONFIG.storagePrefix + 'custom_hotkey');
+        let targetKey = savedKey ? savedKey : CONFIG.hotkey;
         if (e.altKey && e.code === targetKey) {
             e.preventDefault();
-
             console.log(`[OneTrack Debug] Fired via ${CONFIG.envName} environment script using hotkey: ${e.code}`);
             
             let existingModal = document.getElementById('preset-notes-modal');
