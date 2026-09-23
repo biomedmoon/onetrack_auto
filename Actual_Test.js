@@ -1521,6 +1521,9 @@
         let targetKey = (typeof customHotkey !== 'undefined' && customHotkey) ? customHotkey : CONFIG.hotkey;
         if (e.altKey && e.code === targetKey) {
             e.preventDefault();
+
+            console.log(`[OneTrack Debug] Fired via ${CONFIG.envName} environment script using hotkey: ${e.code}`);
+            
             let existingModal = document.getElementById('preset-notes-modal');
             if (existingModal) existingModal.remove();
             else showMainModal();
