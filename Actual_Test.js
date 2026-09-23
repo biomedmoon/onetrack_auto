@@ -1516,7 +1516,7 @@
         window.oneTrackHotkeyInitialized = true;
         
         window.addEventListener('keydown', (e) => {
-            let targetKey = typeof customHotkey !== 'undefined' ? customHotkey : 'KeyQ';
+            let targetKey = typeof customHotkey !== 'undefined' ? customHotkey : 'KeyP';
             
             if (e.altKey && e.code === targetKey) {
                 e.preventDefault();
