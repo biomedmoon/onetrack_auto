@@ -3,11 +3,10 @@
 // @namespace    http://tampermonkey.net/
 // @version      1.3.4
 // @description  Automates workflows, UI enhancements, hotkeys, and persistent settings.
-// @author       Biomed Team
+// @author       jekosol
 // @match        *://*/*
 // @grant        GM_getValue
 // @grant        GM_setValue
-// @run-at       document-idle
 // ==/UserScript==
 
 (function() {
@@ -25,6 +24,13 @@
         };
     }
     const CURRENT_VERSION = '1.3.4';
+    // --- ENVIRONMENT AUTO-DETECTION ---
+    const isTestEnv = typeof GM_info !== 'undefined' && GM_info && GM_info.script && GM_info.script.name.includes('Test');
+    const CONFIG = {
+        hotkey: isTestEnv ? 'KeyP' : 'KeyQ',
+        envName: isTestEnv ? 'TEST' : 'LIVE',
+        debugMode: isTestEnv
+    };
     const RELEASE_NOTES = [
         "Added customizable Theme Toggle (Dark/Light Mode).",
         "Enabled draggable floating UI panels.",
@@ -43,13 +49,13 @@
     themeStyles.id = 'onetrack-theme-styles';
     themeStyles.innerHTML = `
         /* Light Mode Defaults */
-        #preset-notes-modal-test, .onetrack-ui-panel {
+        #preset-notes-modal, .onetrack-ui-panel {
             background-color: transparent;
             color: #333333;
         }
 
         /* 1. Make backdrop completely transparent / non-dimming and allow clicking through */
-        #preset-notes-modal-test {
+        #preset-notes-modal {
             background: transparent !important;
             pointer-events: none !important;
             position: fixed !important;
@@ -61,14 +67,14 @@
         }
 
         /* 2. The actual modal box and panels remain fully clickable */
-        #preset-notes-modal-test > .onetrack-modal,
+        #preset-notes-modal > .onetrack-modal,
         .onetrack-ui-panel {
             pointer-events: auto !important;
         }
 
         /* 3. Style the actual modal card container nicely in dark mode */
-        #preset-notes-modal-test[data-theme="dark"] .onetrack-modal,
-        #preset-notes-modal-test[data-theme="dark"] > div:not([style*="position:fixed"]) {
+        #preset-notes-modal[data-theme="dark"] .onetrack-modal,
+        #preset-notes-modal[data-theme="dark"] > div:not([style*="position:fixed"]) {
             background-color: #1e1e1e !important;
             color: #e0e0e0 !important;
             border: 1px solid #333333 !important;
@@ -76,22 +82,22 @@
         }
 
         /* 4. Fix contrast for labels and text inside Advanced Settings and modals */
-        #preset-notes-modal-test[data-theme="dark"] label,
-        #preset-notes-modal-test[data-theme="dark"] span,
-        #preset-notes-modal-test[data-theme="dark"] div {
+        #preset-notes-modal[data-theme="dark"] label,
+        #preset-notes-modal[data-theme="dark"] span,
+        #preset-notes-modal[data-theme="dark"] div {
             color: #e0e0e0;
         }
 
         /* 5. Force Company and Warranty Banners to keep their vibrant inline background colors */
-        #preset-notes-modal-test[data-theme="dark"] div[style*="background:"] {
+        #preset-notes-modal[data-theme="dark"] div[style*="background:"] {
             color: #ffffff !important;
             text-shadow: 0 1px 2px rgba(0,0,0,0.4);
         }
 
         /* Dark Mode Text Inputs & Selects */
-        #preset-notes-modal-test[data-theme="dark"] input:not([type="checkbox"]):not([type="radio"]),
-        #preset-notes-modal-test[data-theme="dark"] textarea,
-        #preset-notes-modal-test[data-theme="dark"] select {
+        #preset-notes-modal[data-theme="dark"] input:not([type="checkbox"]):not([type="radio"]),
+        #preset-notes-modal[data-theme="dark"] textarea,
+        #preset-notes-modal[data-theme="dark"] select {
             background: #2a2a2a !important;
             color: #ffffff !important;
             border: 1px solid #555555 !important;
@@ -116,7 +122,7 @@
             ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
             : themeChoice;
 
-        const modals = document.querySelectorAll('#preset-notes-modal-test, .onetrack-ui-panel');
+        const modals = document.querySelectorAll('#preset-notes-modal, .onetrack-ui-panel');
         modals.forEach(modal => {
             if (activeTheme === 'dark') {
                 modal.setAttribute('data-theme', 'dark');
@@ -131,14 +137,14 @@
 
     function applyCompactMode(isCompact) {
         localStorage.setItem('onetrack_compact', isCompact);
-        const modal = document.getElementById('preset-notes-modal-test');
+        const modal = document.getElementById('preset-notes-modal');
         if (modal) {
             modal.classList.toggle('onetrack-compact-mode', isCompact);
         }
     }
 
     let currentTheme = localStorage.getItem('onetrack_theme') || 'auto';
-    let customHotkey = localStorage.getItem('onetrack_test_hotkey') || 'KeyP';
+    let customHotkey = localStorage.getItem('onetrack_hotkey') || 'KeyQ';
     let compactMode = localStorage.getItem('onetrack_compact') === 'true';
     let keepOpenMode = localStorage.getItem('onetrack_keep_open') === 'true';
     let wrapMode = localStorage.getItem('onetrack_wrap_mode') === 'true';
@@ -221,7 +227,7 @@
     function exportSettings() {
         let settings = {
             theme: localStorage.getItem('onetrack_theme'),
-            hotkey: localStorage.getItem('onetrack_test_hotkey'),
+            hotkey: localStorage.getItem('onetrack_hotkey'),
             compact: localStorage.getItem('onetrack_compact'),
             keepOpen: localStorage.getItem('onetrack_keep_open'),
             version: CURRENT_VERSION
@@ -244,7 +250,7 @@
             try {
                 let settings = JSON.parse(e.target.result);
                 if (settings.theme) localStorage.setItem('onetrack_theme', settings.theme);
-                if (settings.hotkey) localStorage.setItem('onetrack_test_hotkey', settings.hotkey);
+                if (settings.hotkey) localStorage.setItem('onetrack_hotkey', settings.hotkey);
                 if (settings.compact !== undefined) localStorage.setItem('onetrack_compact', settings.compact);
                 if (settings.keepOpen !== undefined) localStorage.setItem('onetrack_keep_open', settings.keepOpen);
                 showToast('Settings imported successfully! Reloading...');
@@ -455,13 +461,13 @@
         tempInput.remove();
 
         if (typeof keepOpenMode !== 'undefined' && !keepOpenMode) {
-            let modal = document.getElementById('preset-notes-modal-test');
+            let modal = document.getElementById('preset-notes-modal');
             if (modal) modal.remove();
         }
     }
 
     function getSavedModalPosition() {
-        let modal = document.getElementById('preset-notes-modal-test');
+        let modal = document.getElementById('preset-notes-modal');
         if (modal && modal.style.left && modal.style.top && modal.style.left !== '') {
             return { left: modal.style.left, top: modal.style.top };
         }
@@ -556,14 +562,14 @@
             hrm = localStorage.getItem('preset_hide_recent') === 'true',
             serialNum = getSerialNumber();
 
-        let activeTheme = passedTheme || document.getElementById('preset-notes-modal-test')?.getAttribute('data-theme') || localStorage.getItem('onetrack_theme') || 'light';
+        let activeTheme = passedTheme || document.getElementById('preset-notes-modal')?.getAttribute('data-theme') || localStorage.getItem('onetrack_theme') || 'light';
         let isDark = activeTheme === 'dark';
 
-        let ex = document.getElementById('preset-notes-modal-test');
+        let ex = document.getElementById('preset-notes-modal');
         if (ex) ex.remove();
 
         let ov = document.createElement('div');
-        ov.id = 'preset-notes-modal-test';
+        ov.id = 'preset-notes-modal';
         ov.setAttribute('data-theme', activeTheme);
         ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:transparent;z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;pointer-events:none;';
 
@@ -750,14 +756,14 @@
     }
 
     function showDeclineActionModal(passedTheme) {
-        let activeTheme = passedTheme || document.getElementById('preset-notes-modal-test')?.getAttribute('data-theme') || 'light';
+        let activeTheme = passedTheme || document.getElementById('preset-notes-modal')?.getAttribute('data-theme') || 'light';
         let isDark = activeTheme === 'dark';
 
-        let ex = document.getElementById('preset-notes-modal-test');
+        let ex = document.getElementById('preset-notes-modal');
         if (ex) ex.remove();
 
         let ov = document.createElement('div');
-        ov.id = 'preset-notes-modal-test';
+        ov.id = 'preset-notes-modal';
         ov.setAttribute('data-theme', activeTheme);
         ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:transparent;z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;pointer-events:none;';
 
@@ -802,7 +808,7 @@
     }
 
     function showClientSelectModal(ap, sao, passedTheme) {
-        let activeTheme = passedTheme || document.getElementById('preset-notes-modal-test')?.getAttribute('data-theme') || 'light';
+        let activeTheme = passedTheme || document.getElementById('preset-notes-modal')?.getAttribute('data-theme') || 'light';
         let isDark = activeTheme === 'dark';
         let map = getClientMapping(), cc = getCurrentCompany(), clients = [], allClientsObj = {};
 
@@ -818,11 +824,11 @@
             sao = true;
         }
 
-        let ex = document.getElementById('preset-notes-modal-test');
+        let ex = document.getElementById('preset-notes-modal');
         if (ex) ex.remove();
 
         let ov = document.createElement('div');
-        ov.id = 'preset-notes-modal-test';
+        ov.id = 'preset-notes-modal';
         ov.setAttribute('data-theme', activeTheme);
         ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:transparent;z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;pointer-events:none;';
 
@@ -901,14 +907,14 @@
     // --- NEW: COLLAPSIBLE COMPANY / CLIENT MAPPING SUB-MENU ---
     function showManageCompaniesModal(passedTheme) {
         let map = getClientMapping();
-        let activeTheme = passedTheme || document.getElementById('preset-notes-modal-test')?.getAttribute('data-theme') || 'light';
+        let activeTheme = passedTheme || document.getElementById('preset-notes-modal')?.getAttribute('data-theme') || 'light';
         let isDark = activeTheme === 'dark';
 
-        let ex = document.getElementById('preset-notes-modal-test');
+        let ex = document.getElementById('preset-notes-modal');
         if (ex) ex.remove();
 
         let ov = document.createElement('div');
-        ov.id = 'preset-notes-modal-test';
+        ov.id = 'preset-notes-modal';
         ov.setAttribute('data-theme', activeTheme);
         ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:transparent;z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;pointer-events:none;';
 
@@ -1063,14 +1069,14 @@
     // --- NEW: DEDICATED GLOBAL PHRASES EDITOR SUB-MENU ---
     function showManageGlobalPhrasesModal(passedTheme) {
         let gp = getGlobalPhrases();
-        let activeTheme = passedTheme || document.getElementById('preset-notes-modal-test')?.getAttribute('data-theme') || 'light';
+        let activeTheme = passedTheme || document.getElementById('preset-notes-modal')?.getAttribute('data-theme') || 'light';
         let isDark = activeTheme === 'dark';
 
-        let ex = document.getElementById('preset-notes-modal-test');
+        let ex = document.getElementById('preset-notes-modal');
         if (ex) ex.remove();
 
         let ov = document.createElement('div');
-        ov.id = 'preset-notes-modal-test';
+        ov.id = 'preset-notes-modal';
         ov.setAttribute('data-theme', activeTheme);
         ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:transparent;z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;pointer-events:none;';
 
@@ -1175,14 +1181,14 @@
     }
 
     function showAdvancedSettingsModal() {
-        let activeTheme = document.getElementById('preset-notes-modal-test')?.getAttribute('data-theme') || localStorage.getItem('onetrack_theme') || 'light';
+        let activeTheme = document.getElementById('preset-notes-modal')?.getAttribute('data-theme') || localStorage.getItem('onetrack_theme') || 'light';
         let isDark = activeTheme === 'dark';
 
-        let ex = document.getElementById('preset-notes-modal-test');
+        let ex = document.getElementById('preset-notes-modal');
         if (ex) ex.remove();
 
         let ov = document.createElement('div');
-        ov.id = 'preset-notes-modal-test';
+        ov.id = 'preset-notes-modal';
         ov.setAttribute('data-theme', activeTheme);
         ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:transparent;z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;pointer-events:none;';
 
@@ -1228,7 +1234,7 @@
             currentTheme = e.target.value;
             applyTheme(currentTheme);
             const resolvedTheme = (currentTheme === 'auto') ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : currentTheme;
-            let activeModal = document.getElementById('preset-notes-modal-test');
+            let activeModal = document.getElementById('preset-notes-modal');
             if (activeModal) {
                 activeModal.remove();
                 showAdvancedSettingsModal();
@@ -1251,7 +1257,7 @@
             if (e.key.length === 1) {
                 let newKey = 'Key' + e.key.toUpperCase();
                 customHotkey = newKey;
-                localStorage.setItem('onetrack_test_hotkey', newKey);
+                localStorage.setItem('onetrack_hotkey', newKey);
                 hotkeyInput.value = e.key.toUpperCase();
                 showToast(`Hotkey updated to Alt + ${e.key.toUpperCase()}`);
             }
@@ -1323,14 +1329,14 @@
 
     function showEditModal(passedTheme) {
         let dt = getDeviceType(), ph = [...getPhrasesForDevice(dt)];
-        let activeTheme = passedTheme || document.getElementById('preset-notes-modal-test')?.getAttribute('data-theme') || localStorage.getItem('onetrack_theme') || 'light';
+        let activeTheme = passedTheme || document.getElementById('preset-notes-modal')?.getAttribute('data-theme') || localStorage.getItem('onetrack_theme') || 'light';
         let isDark = activeTheme === 'dark';
 
-        let ex = document.getElementById('preset-notes-modal-test');
+        let ex = document.getElementById('preset-notes-modal');
         if (ex) ex.remove();
 
         let ov = document.createElement('div');
-        ov.id = 'preset-notes-modal-test';
+        ov.id = 'preset-notes-modal';
         ov.setAttribute('data-theme', activeTheme);
         ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:transparent;z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;pointer-events:none;';
 
@@ -1511,23 +1517,17 @@
         document.body.appendChild(ov);
     }
 
-    // Register the hotkey listener immediately on script execution
-    if (typeof window.oneTrackHotkeyInitialized === 'undefined') {
-        window.oneTrackHotkeyInitialized = true;
-        
-        window.addEventListener('keydown', (e) => {
-            let targetKey = typeof customHotkey !== 'undefined' ? customHotkey : 'KeyP';
-            
-            if (e.altKey && e.code === targetKey) {
-                e.preventDefault();
-                let existingModal = document.getElementById('preset-notes-modal-test');
-                if (existingModal) {
-                    existingModal.remove();
-                } else {
-                    showMainModal();
-                }
-            }
-        });
-    }
+    window.addEventListener('keydown', (e) => {
+        let targetKey = (typeof customHotkey !== 'undefined' && customHotkey) ? customHotkey : CONFIG.hotkey;
+        if (e.altKey && e.code === targetKey) {
+            e.preventDefault();
+            let existingModal = document.getElementById('preset-notes-modal');
+            if (existingModal) existingModal.remove();
+            else showMainModal();
+        }
+    });
+
+    checkWhatsNew();
+    showMainModal();
 
 })();
