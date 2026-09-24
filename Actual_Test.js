@@ -1555,12 +1555,21 @@
     });
 
     checkWhatsNew();
-    // Auto-restore modal only if persistence is enabled AND it was left open
-    if (localStorage.getItem(CONFIG.storagePrefix + 'persist_modal_enabled') === 'true' && 
-        localStorage.getItem(CONFIG.storagePrefix + 'modal_persisted') === 'true') {
+
+    // --- AUTO-RESTORE / TOGGLE MANAGEMENT ---
+    let persistEnabled = localStorage.getItem(CONFIG.storagePrefix + 'persist_modal_enabled') === 'true';
+    let wasPersisted = localStorage.getItem(CONFIG.storagePrefix + 'modal_persisted') === 'true';
+
+    // If persistence is active AND it was open before a reload, restore it
+    if (persistEnabled && wasPersisted) {
         setTimeout(() => {
-            showMainModal();
-        }, 300);
+            if (!document.getElementById('preset-notes-modal')) {
+                showMainModal();
+            }
+        }, 400);
+    } else {
+        // Otherwise, clear any leftover persistence flags so a normal bookmarklet click starts clean
+        localStorage.removeItem(CONFIG.storagePrefix + 'modal_persisted');
     }
 
 })();
