@@ -1556,20 +1556,28 @@
 
     checkWhatsNew();
 
-    // --- AUTO-RESTORE / TOGGLE MANAGEMENT ---
-    let persistEnabled = localStorage.getItem(CONFIG.storagePrefix + 'persist_modal_enabled') === 'true';
-    let wasPersisted = localStorage.getItem(CONFIG.storagePrefix + 'modal_persisted') === 'true';
+    // --- BULLETPROOF AUTO-RESTORE ON REFRESH ---
+    const persistEnabled = localStorage.getItem(CONFIG.storagePrefix + 'persist_modal_enabled') === 'true';
+    const wasPersisted = localStorage.getItem(CONFIG.storagePrefix + 'modal_persisted') === 'true';
 
-    // If persistence is active AND it was open before a reload, restore it
     if (persistEnabled && wasPersisted) {
-        setTimeout(() => {
-            if (!document.getElementById('preset-notes-modal')) {
-                showMainModal();
-            }
-        }, 400);
-    } else {
-        // Otherwise, clear any leftover persistence flags so a normal bookmarklet click starts clean
+        // Clear the transient flag immediately so it doesn't loop if manually closed later
         localStorage.removeItem(CONFIG.storagePrefix + 'modal_persisted');
+
+        // Multi-stage retry ensures the DOM is fully settled after an SPA/page reload
+        let attempts = 0;
+        const restoreInterval = setInterval(() => {
+            attempts++;
+            // Check if the main page container/body is stable and modal isn't already present
+            if (document.body && !document.getElementById('preset-notes-modal')) {
+                // Optional: verify essential page elements exist if needed, e.g., getDeviceType() !== 'Unknown'
+                showMainModal();
+                clearInterval(restoreInterval);
+            } else if (attempts > 10) {
+                // Stop trying after ~2.5 seconds if the DOM never stabilizes
+                clearInterval(restoreInterval);
+            }
+        }, 250);
     }
 
 })();
