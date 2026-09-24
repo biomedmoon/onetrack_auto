@@ -555,10 +555,17 @@
     }
 
     function showMainModal(passedTheme) {
-        // If refresh persistence is enabled, mark it as active
+        // If refresh persistence is enabled, mark it as active and bind unloader
         let persistEnabled = localStorage.getItem(CONFIG.storagePrefix + 'persist_modal_enabled') === 'true';
         if (persistEnabled) {
             localStorage.setItem(CONFIG.storagePrefix + 'modal_persisted', 'true');
+            
+            // Catch the exact moment a refresh or navigation is triggered while open
+            window.addEventListener('beforeunload', () => {
+                if (localStorage.getItem(CONFIG.storagePrefix + 'persist_modal_enabled') === 'true') {
+                    localStorage.setItem(CONFIG.storagePrefix + 'modal_persisted', 'true');
+                }
+            });
         }
         let dt = getDeviceType(),
             ph = getPhrasesForDevice(dt),
