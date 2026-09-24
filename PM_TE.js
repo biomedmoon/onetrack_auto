@@ -45,7 +45,7 @@
     }
 
     function executeScriptWithId(equipmentString) {
-        // 1. Copy to clipboard and show notification (keeping your existing behavior)
+        // 1. Copy to clipboard and show notification
         navigator.clipboard.writeText(equipmentString).then(() => {
             const notification = document.createElement('div');
             notification.innerText = `Copied: ${equipmentString}`;
@@ -60,12 +60,10 @@
         const allElements = Array.from(document.querySelectorAll('td, th, label, div, span'));
         const notesLabel = allElements.find(el => el.textContent.trim() === 'Notes');
         if (notesLabel) {
-            // Traverse up slightly or search nearby for the associated textarea/input box in the form block
             let container = notesLabel.closest('tr') || notesLabel.parentElement;
             if (container) {
                 let notesInput = container.querySelector('textarea, input[type="text"], input:not([type])');
                 if (!notesInput) {
-                    // Fallback: search globally if not nested right in the same row/container
                     notesInput = document.querySelector('textarea');
                 }
                 if (notesInput) {
@@ -133,6 +131,13 @@
                 processNextRow(index + 1);
             };
 
+            // Solis automatic software version rule
+            if (deviceName.toLowerCase().includes('solis') && labelText.includes('latest software version installed')) {
+                fillValue('1.06');
+                return;
+            }
+
+            // Curlin specific software selection rules
             if (deviceName.toLowerCase().includes('curlin') && labelText.includes('latest software version installed')) {
                 createModal('Select Latest Software Version', ['0106', '0106(M)'], fillValue);
                 return;
@@ -146,7 +151,31 @@
 
             if (exp) {
                 let targetText = exp.innerText.trim();
-                if (targetText === 'PASS' && sel) {
+                
+                if (targetText.includes('PASS,FAIL,NA') || targetText.includes('PASS/FAIL/NA')) {
+                    if (sel) {
+                        for (let opt of sel.options) {
+                            if (opt.text.trim().toUpperCase() === 'NA') {
+                                sel.value = opt.value;
+                                sel.dispatchEvent(new Event('change', { bubbles: true }));
+                                break;
+                            }
+                        }
+                    }
+                    if (txt) {
+                        txt.value = 'NA';
+                        txt.dispatchEvent(new Event('input', { bubbles: true }));
+                        txt.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+
+                    const notification = document.createElement('div');
+                    notification.innerText = "Populated 'NA' by default for multi-option field.";
+                    notification.style.cssText = "position:fixed;top:20px;right:20px;background:#780034;color:#fff;padding:10px 15px;z-index:9999;border-radius:4px;font-family:sans-serif;";
+                    document.body.appendChild(notification);
+                    setTimeout(() => notification.remove(), 2500);
+
+                    processNextRow(index + 1);
+                } else if (targetText === 'PASS' && sel) {
                     for (let opt of sel.options) {
                         if (opt.text.trim() === 'PASS') {
                             sel.value = opt.value;
