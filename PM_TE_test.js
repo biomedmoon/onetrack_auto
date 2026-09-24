@@ -144,7 +144,31 @@
 
             if (exp) {
                 let targetText = exp.innerText.trim();
-                if (targetText === 'PASS' && sel) {
+                
+                if (targetText.includes('PASS,FAIL,NA') || targetText.includes('PASS/FAIL/NA')) {
+                    if (sel) {
+                        for (let opt of sel.options) {
+                            if (opt.text.trim().toUpperCase() === 'NA') {
+                                sel.value = opt.value;
+                                sel.dispatchEvent(new Event('change', { bubbles: true }));
+                                break;
+                            }
+                        }
+                    }
+                    if (txt) {
+                        txt.value = 'NA';
+                        txt.dispatchEvent(new Event('input', { bubbles: true }));
+                        txt.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+
+                    const notification = document.createElement('div');
+                    notification.innerText = "Populated 'NA' by default for multi-option field.";
+                    notification.style.cssText = "position:fixed;top:20px;right:20px;background:#780034;color:#fff;padding:10px 15px;z-index:9999;border-radius:4px;font-family:sans-serif;";
+                    document.body.appendChild(notification);
+                    setTimeout(() => notification.remove(), 2500);
+
+                    processNextRow(index + 1);
+                } else if (targetText === 'PASS' && sel) {
                     for (let opt of sel.options) {
                         if (opt.text.trim() === 'PASS') {
                             sel.value = opt.value;
