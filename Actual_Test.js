@@ -147,7 +147,7 @@
     let currentTheme = localStorage.getItem('onetrack_theme') || 'auto';
     let customHotkey = localStorage.getItem(CONFIG.storagePrefix + 'custom_hotkey') || CONFIG.hotkey;
     let compactMode = localStorage.getItem('onetrack_compact') === 'true';
-    let keepOpenMode = localStorage.getItem(CONFIG.storagePrefix + 'keep_open') === 'true';
+    let keepOpenMode = localStorage.getItem('onetrack_keep_open') === 'true';
     let wrapMode = localStorage.getItem('onetrack_wrap_mode') === 'true';
 
     applyTheme(currentTheme);
@@ -555,18 +555,6 @@
     }
 
     function showMainModal(passedTheme) {
-        // If refresh persistence is enabled, mark it as active and bind unloader
-        let persistEnabled = localStorage.getItem(CONFIG.storagePrefix + 'persist_modal_enabled') === 'true';
-        if (persistEnabled) {
-            localStorage.setItem(CONFIG.storagePrefix + 'modal_persisted', 'true');
-            
-            // Catch the exact moment a refresh or navigation is triggered while open
-            window.addEventListener('beforeunload', () => {
-                if (localStorage.getItem(CONFIG.storagePrefix + 'persist_modal_enabled') === 'true') {
-                    localStorage.setItem(CONFIG.storagePrefix + 'modal_persisted', 'true');
-                }
-            });
-        }
         let dt = getDeviceType(),
             ph = getPhrasesForDevice(dt),
             hist = getAllHistory(),
@@ -761,10 +749,7 @@
         cb.innerText = 'Cancel';
         cb.className = 'onetrack-btn';
         cb.style.cssText = isDark ? 'width:100%;padding:8px;background:#444;color:#e0e0e0;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;' : 'width:100%;padding:8px;background:#e0e0e0;color:#333;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;';
-        cb.onclick = () => {
-            localStorage.removeItem(CONFIG.storagePrefix + 'modal_persisted');
-            ov.remove();
-        };
+        cb.onclick = () => ov.remove();
         box.appendChild(cb);
 
         ov.appendChild(box);
@@ -1303,26 +1288,11 @@
         keepOpenToggle.checked = keepOpenMode;
         keepOpenToggle.onchange = (e) => {
             keepOpenMode = e.target.checked;
-            localStorage.setItem(CONFIG.storagePrefix + 'keep_open', keepOpenMode);
+            localStorage.setItem('onetrack_keep_open', keepOpenMode);
             showToast(`Keep Open Mode ${keepOpenMode ? 'Enabled' : 'Disabled'}`);
         };
         keepOpenRow.appendChild(keepOpenToggle);
         sa.appendChild(keepOpenRow);
-        
-        let persistModalRow = document.createElement('div');
-        persistModalRow.style.cssText = 'display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; font-size:13px; font-weight:bold;';
-        persistModalRow.innerHTML = `<span>Persist Modal Across Refreshes</span>`;
-        
-        let persistModalToggle = document.createElement('input');
-        persistModalToggle.type = 'checkbox';
-        persistModalToggle.checked = localStorage.getItem(CONFIG.storagePrefix + 'persist_modal_enabled') === 'true';
-        persistModalToggle.onchange = (e) => {
-            let enabled = e.target.checked;
-            localStorage.setItem(CONFIG.storagePrefix + 'persist_modal_enabled', enabled);
-            showToast(`Refresh Persistence ${enabled ? 'Enabled' : 'Disabled'}`);
-        };
-        persistModalRow.appendChild(persistModalToggle);
-        sa.appendChild(persistModalRow);
 
         let actionRow = document.createElement('div');
         actionRow.style.cssText = 'display:flex; justify-content:space-between; margin-bottom:12px; gap:8px;';
@@ -1562,29 +1532,6 @@
     });
 
     checkWhatsNew();
-
-    // --- BULLETPROOF AUTO-RESTORE ON REFRESH ---
-    const persistEnabled = localStorage.getItem(CONFIG.storagePrefix + 'persist_modal_enabled') === 'true';
-    const wasPersisted = localStorage.getItem(CONFIG.storagePrefix + 'modal_persisted') === 'true';
-
-    if (persistEnabled && wasPersisted) {
-        // Clear the transient flag immediately so it doesn't loop if manually closed later
-        localStorage.removeItem(CONFIG.storagePrefix + 'modal_persisted');
-
-        // Multi-stage retry ensures the DOM is fully settled after an SPA/page reload
-        let attempts = 0;
-        const restoreInterval = setInterval(() => {
-            attempts++;
-            // Check if the main page container/body is stable and modal isn't already present
-            if (document.body && !document.getElementById('preset-notes-modal')) {
-                // Optional: verify essential page elements exist if needed, e.g., getDeviceType() !== 'Unknown'
-                showMainModal();
-                clearInterval(restoreInterval);
-            } else if (attempts > 10) {
-                // Stop trying after ~2.5 seconds if the DOM never stabilizes
-                clearInterval(restoreInterval);
-            }
-        }, 250);
-    }
+    showMainModal();
 
 })();
