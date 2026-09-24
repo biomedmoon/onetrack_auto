@@ -131,6 +131,13 @@
                 processNextRow(index + 1);
             };
 
+            // Solis automatic software version rule
+            if (deviceName.toLowerCase().includes('solis') && labelText.includes('latest software version installed')) {
+                fillValue('1.06');
+                return;
+            }
+
+            // Curlin specific software selection rules
             if (deviceName.toLowerCase().includes('curlin') && labelText.includes('latest software version installed')) {
                 createModal('Select Latest Software Version', ['0106', '0106(M)'], fillValue);
                 return;
