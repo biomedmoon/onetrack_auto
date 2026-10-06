@@ -39,7 +39,7 @@
         "Introduced UI Compact Mode preferences.",
         "Added JSON Settings Export and Import backup functionality.",
         "Shifted Company/Client Mapping into a separate collapsible sub-menu.",
-        "Added dedicated Global Common Phrases editor accessible from any device screen."
+        "Added dedicated Global Common Phrases editor accessible from any device screen.",
         "Added OEM Parts support for Infinity Enteral devices."
     ];
 
