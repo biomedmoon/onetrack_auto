@@ -941,7 +941,6 @@
         makeDraggable(box, h);
         box.appendChild(h);
     
-        // Scrollable container for parts list to keep modal compact
         let listContainer = document.createElement('div');
         listContainer.style.cssText = 'max-height:280px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;margin-bottom:12px;padding-right:4px;';
     
@@ -956,7 +955,6 @@
         let selectedItems = new Set();
     
         parts.forEach(part => {
-            // Split part number from description
             let spaceIndex = part.indexOf(' ');
             let partNum = part.substring(0, spaceIndex);
             let partName = part.substring(spaceIndex + 1);
@@ -1006,7 +1004,10 @@
         cancelBtn.innerText = 'Cancel';
         cancelBtn.className = 'onetrack-btn';
         cancelBtn.style.cssText = isDark ? 'padding:8px 14px;background:#444;color:#e0e0e0;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;' : 'padding:8px 14px;background:#e0e0e0;color:#333;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;';
-        cancelBtn.onclick = () => ov.remove();
+        cancelBtn.onclick = () => {
+            ov.remove();
+            showMainModal(activeTheme);
+        };
     
         let okBtn = document.createElement('button');
         okBtn.innerText = 'OK';
@@ -1015,7 +1016,11 @@
         okBtn.onclick = () => {
             let selectedArray = Array.from(selectedItems);
             if (selectedArray.length > 0) {
-                let partsString = selectedArray.join(', ');
+                let cleanNames = selectedArray.map(p => {
+                    let spIdx = p.indexOf(' ');
+                    return spIdx !== -1 ? p.substring(spIdx + 1) : p;
+                });
+                let partsString = cleanNames.join(', ');
                 let resultText = `Per Moog Medical the following has been replaced: ${partsString}. The device has met the release criteria associated with the inline inspection, testing and final release elements.`;
                 addHistoryItem(resultText);
                 processTextSelection(resultText);
