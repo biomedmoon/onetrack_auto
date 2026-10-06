@@ -690,6 +690,15 @@
                 if (findings) { addHistoryItem(findings); processTextSelection(findings); }
             };
             cont.appendChild(infBtn);
+            let oemBtn = document.createElement('button');
+            oemBtn.innerText = '🔧 OEM Replaced Parts Selection...';
+            oemBtn.className = 'onetrack-btn';
+            oemBtn.style.cssText = 'display:block;width:100%;padding:8px 10px;margin:4px 0;background:#e2f0cb;color:#2b542c;border:1px solid #b5d89c;border-radius:4px;cursor:pointer;font-size:12px;text-align:left;font-weight:bold;line-height:1.4;';
+            oemBtn.onclick = () => {
+                ov.remove();
+                showInfinityPartsModal(activeTheme);
+            };
+            cont.appendChild(oemBtn);
         }
 
         let db = document.createElement('button');
@@ -904,7 +913,64 @@
         ov.appendChild(box);
         document.body.appendChild(ov);
     }
-
+    function showInfinityPartsModal(activeTheme) {
+        let isDark = activeTheme === 'dark';
+        let overlay = document.createElement('div');
+        overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:99999;';
+    
+        let modal = document.createElement('div');
+        modal.style.cssText = `background:${isDark ? '#222' : '#fff'};color:${isDark ? '#fff' : '#333'};padding:20px;border-radius:8px;width:350px;box-shadow:0 4px 12px rgba(0,0,0,0.2);font-family:sans-serif;`;
+    
+        let title = document.createElement('div');
+        title.innerText = 'Select OEM Replaced Parts';
+        title.style.cssText = 'font-weight:bold;font-size:14px;margin-bottom:12px;';
+        modal.appendChild(title);
+    
+        let parts = ['25771-001 Backlight Difuser', '25795-001 LCD Display', '26503-001 Battery Assembly', '26542-001/80786-001 Infinity II Pump Cover', '27696-001 Infinity Bottom Housing', '28270-001/84239 Infinity Motor', '28483-001 Rotor Assembly', '42611 Canon Motor', '43763-101 Infinity II PCB Assembly', '56717-001/80782-001 Top Housing'];
+        let checkboxes = [];
+    
+        parts.forEach(part => {
+            let label = document.createElement('label');
+            label.style.cssText = 'display:flex;align-items:center;gap:8px;font-size:12px;margin-bottom:8px;cursor:pointer;';
+            
+            let cb = document.createElement('input');
+            cb.type = 'checkbox';
+            cb.value = part;
+            
+            label.appendChild(cb);
+            label.appendChild(document.createTextNode(part));
+            modal.appendChild(label);
+            checkboxes.push(cb);
+        });
+    
+        let btnRow = document.createElement('div');
+        btnRow.style.cssText = 'display:flex;justify-content:flex-end;gap:8px;margin-top:16px;';
+    
+        let cancelBtn = document.createElement('button');
+        cancelBtn.innerText = 'Cancel';
+        cancelBtn.style.cssText = 'padding:6px 12px;border:1px solid #ccc;background:transparent;cursor:pointer;border-radius:4px;font-size:12px;';
+        cancelBtn.onclick = () => overlay.remove();
+    
+        let okBtn = document.createElement('button');
+        okBtn.innerText = 'OK';
+        okBtn.style.cssText = 'padding:6px 14px;background:#0366d6;color:#fff;border:none;cursor:pointer;border-radius:4px;font-size:12px;font-weight:bold;';
+        okBtn.onclick = () => {
+            let selectedParts = checkboxes.filter(cb => cb.checked).map(cb => cb.value);
+            if (selectedParts.length > 0) {
+                let formattedList = selectedParts.map(p => `\n- ${p}`).join('');
+                let resultText = `OEM performed repairs and replaced the following components:${formattedList}`;
+                addHistoryItem(resultText);
+                processTextSelection(resultText);
+            }
+            overlay.remove();
+        };
+    
+        btnRow.appendChild(cancelBtn);
+        btnRow.appendChild(okBtn);
+        modal.appendChild(btnRow);
+        overlay.appendChild(modal);
+        document.body.appendChild(overlay);
+    }
     // --- NEW: COLLAPSIBLE COMPANY / CLIENT MAPPING SUB-MENU ---
     function showManageCompaniesModal(passedTheme) {
         let map = getClientMapping();
