@@ -913,63 +913,121 @@
         ov.appendChild(box);
         document.body.appendChild(ov);
     }
-    function showInfinityPartsModal(activeTheme) {
+    function showInfinityPartsModal(passedTheme) {
+        let activeTheme = passedTheme || document.getElementById('preset-notes-modal')?.getAttribute('data-theme') || 'light';
         let isDark = activeTheme === 'dark';
-        let overlay = document.createElement('div');
-        overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:99999;';
     
-        let modal = document.createElement('div');
-        modal.style.cssText = `background:${isDark ? '#222' : '#fff'};color:${isDark ? '#fff' : '#333'};padding:20px;border-radius:8px;width:350px;box-shadow:0 4px 12px rgba(0,0,0,0.2);font-family:sans-serif;`;
+        let ex = document.getElementById('preset-notes-modal');
+        if (ex) ex.remove();
     
-        let title = document.createElement('div');
-        title.innerText = 'Select OEM Replaced Parts';
-        title.style.cssText = 'font-weight:bold;font-size:14px;margin-bottom:12px;';
-        modal.appendChild(title);
+        let ov = document.createElement('div');
+        ov.id = 'preset-notes-modal';
+        ov.setAttribute('data-theme', activeTheme);
+        ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:transparent;z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;pointer-events:none;';
     
-        let parts = ['25771-001 Backlight Difuser', '25795-001 LCD Display', '26503-001 Battery Assembly', '26542-001/80786-001 Infinity II Pump Cover', '27696-001 Infinity Bottom Housing', '28270-001/84239 Infinity Motor', '28483-001 Rotor Assembly', '42611 Canon Motor', '43763-101 Infinity II PCB Assembly', '56717-001/80782-001 Top Housing'];
-        let checkboxes = [];
+        let box = document.createElement('div');
+        box.className = 'onetrack-modal' + (compactMode ? ' onetrack-compact-mode' : '');
+        let boxBg = isDark ? '#1e1e1e' : '#fff';
+        let boxColor = isDark ? '#e0e0e0' : '#333';
+        box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:460px;display:flex;flex-direction:column;position:relative;pointer-events:auto;`;
+        
+        applyUIScale(box);
+        applySavedPosition(box);
+        applySavedScale(box);
+    
+        let h = document.createElement('h3');
+        h.innerText = 'Select OEM Replaced Parts';
+        h.style.cssText = `margin-top:0;margin-bottom:12px;font-size:16px;color:${isDark ? '#fff' : '#222'};text-align:center;cursor:move;`;
+        makeDraggable(box, h);
+        box.appendChild(h);
+    
+        // Scrollable container for parts list to keep modal compact
+        let listContainer = document.createElement('div');
+        listContainer.style.cssText = 'max-height:280px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;margin-bottom:12px;padding-right:4px;';
+    
+        let parts = [
+            '25771-001 Backlight Difuser', '25795-001 LCD Display', 
+            '26503-001 Battery Assembly', '26542-001/80786-001 Infinity II Pump Cover', 
+            '27696-001 Infinity Bottom Housing', '28270-001/84239 Infinity Motor', 
+            '28483-001 Rotor Assembly', '42611 Canon Motor', 
+            '43763-101 Infinity II PCB Assembly', '56717-001/80782-001 Top Housing'
+        ];
+        
+        let selectedItems = new Set();
     
         parts.forEach(part => {
-            let label = document.createElement('label');
-            label.style.cssText = 'display:flex;align-items:center;gap:8px;font-size:12px;margin-bottom:8px;cursor:pointer;';
+            // Split part number from description
+            let spaceIndex = part.indexOf(' ');
+            let partNum = part.substring(0, spaceIndex);
+            let partName = part.substring(spaceIndex + 1);
+    
+            let itemBox = document.createElement('div');
+            itemBox.className = 'onetrack-btn';
             
-            let cb = document.createElement('input');
-            cb.type = 'checkbox';
-            cb.value = part;
-            
-            label.appendChild(cb);
-            label.appendChild(document.createTextNode(part));
-            modal.appendChild(label);
-            checkboxes.push(cb);
+            let baseBg = isDark ? '#2a2a2a' : '#f8f9fa';
+            let baseBorder = isDark ? '#444' : '#dee2e6';
+            let baseColor = isDark ? '#ccc' : '#495057';
+    
+            itemBox.style.cssText = `display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:${baseBg};border:1px solid ${baseBorder};border-radius:4px;cursor:pointer;font-size:11px;transition:all 0.15s ease;`;
+    
+            let numSpan = document.createElement('span');
+            numSpan.innerText = partNum;
+            numSpan.style.cssText = `font-weight:bold;color:${isDark ? '#fff' : '#212529'};font-family:monospace;`;
+    
+            let nameSpan = document.createElement('span');
+            nameSpan.innerText = partName;
+            nameSpan.style.cssText = `color:${baseColor};text-align:right;max-width:60%;`;
+    
+            itemBox.appendChild(numSpan);
+            itemBox.appendChild(nameSpan);
+    
+            itemBox.onclick = () => {
+                if (selectedItems.has(part)) {
+                    selectedItems.delete(part);
+                    itemBox.style.background = baseBg;
+                    itemBox.style.borderColor = baseBorder;
+                    itemBox.style.color = baseColor;
+                } else {
+                    selectedItems.add(part);
+                    itemBox.style.background = isDark ? '#0d3b66' : '#e7f5ff';
+                    itemBox.style.borderColor = '#0366d6';
+                }
+            };
+    
+            listContainer.appendChild(itemBox);
         });
     
+        box.appendChild(listContainer);
+    
         let btnRow = document.createElement('div');
-        btnRow.style.cssText = 'display:flex;justify-content:flex-end;gap:8px;margin-top:16px;';
+        btnRow.style.cssText = 'display:flex;justify-content:flex-end;gap:8px;';
     
         let cancelBtn = document.createElement('button');
         cancelBtn.innerText = 'Cancel';
-        cancelBtn.style.cssText = 'padding:6px 12px;border:1px solid #ccc;background:transparent;cursor:pointer;border-radius:4px;font-size:12px;';
-        cancelBtn.onclick = () => overlay.remove();
+        cancelBtn.className = 'onetrack-btn';
+        cancelBtn.style.cssText = isDark ? 'padding:8px 14px;background:#444;color:#e0e0e0;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;' : 'padding:8px 14px;background:#e0e0e0;color:#333;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;';
+        cancelBtn.onclick = () => ov.remove();
     
         let okBtn = document.createElement('button');
         okBtn.innerText = 'OK';
-        okBtn.style.cssText = 'padding:6px 14px;background:#0366d6;color:#fff;border:none;cursor:pointer;border-radius:4px;font-size:12px;font-weight:bold;';
+        okBtn.className = 'onetrack-btn';
+        okBtn.style.cssText = 'padding:8px 16px;background:#0366d6;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;';
         okBtn.onclick = () => {
-            let selectedParts = checkboxes.filter(cb => cb.checked).map(cb => cb.value);
-            if (selectedParts.length > 0) {
-                let formattedList = selectedParts.map(p => `\n- ${p}`).join('');
-                let resultText = `OEM performed repairs and replaced the following components:${formattedList}`;
+            let selectedArray = Array.from(selectedItems);
+            if (selectedArray.length > 0) {
+                let partsString = selectedArray.join(', ');
+                let resultText = `Per Moog Medical the following has been replaced: ${partsString}. The device has met the release criteria associated with the inline inspection, testing and final release elements.`;
                 addHistoryItem(resultText);
                 processTextSelection(resultText);
             }
-            overlay.remove();
+            ov.remove();
         };
     
         btnRow.appendChild(cancelBtn);
         btnRow.appendChild(okBtn);
-        modal.appendChild(btnRow);
-        overlay.appendChild(modal);
-        document.body.appendChild(overlay);
+        box.appendChild(btnRow);
+        ov.appendChild(box);
+        document.body.appendChild(ov);
     }
     // --- NEW: COLLAPSIBLE COMPANY / CLIENT MAPPING SUB-MENU ---
     function showManageCompaniesModal(passedTheme) {
