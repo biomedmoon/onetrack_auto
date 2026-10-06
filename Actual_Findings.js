@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         OneTrack Automation & Helper - Actual_Findings
+// @name         OneTrack Automation & Helper - Actual_Test
 // @namespace    http://tampermonkey.net/
 // @version      1.3.4
 // @description  Automates workflows, UI enhancements, hotkeys, and persistent settings.
@@ -24,6 +24,14 @@
         };
     }
     const CURRENT_VERSION = '1.3.4';
+    // --- ENVIRONMENT AUTO-DETECTION ---
+    const isTestEnv = typeof GM_info !== 'undefined' && GM_info && GM_info.script && GM_info.script.name.includes('Test');
+    const CONFIG = {
+        hotkey: isTestEnv ? 'KeyP' : 'KeyQ',
+        envName: isTestEnv ? 'TEST' : 'LIVE',
+        storagePrefix: isTestEnv ? 'onetrack_test_' : 'onetrack_live_',
+        debugMode: isTestEnv
+    };
     const RELEASE_NOTES = [
         "Added customizable Theme Toggle (Dark/Light Mode).",
         "Enabled draggable floating UI panels.",
@@ -32,6 +40,7 @@
         "Added JSON Settings Export and Import backup functionality.",
         "Shifted Company/Client Mapping into a separate collapsible sub-menu.",
         "Added dedicated Global Common Phrases editor accessible from any device screen."
+        "Added OEM Parts support for Infinity Enteral devices."
     ];
 
     // 1. Inject clean theme styles (Backdrop made fully transparent / non-dimming)
@@ -42,13 +51,13 @@
     themeStyles.id = 'onetrack-theme-styles';
     themeStyles.innerHTML = `
         /* Light Mode Defaults */
-        #preset-notes-modal-test, .onetrack-ui-panel {
+        #preset-notes-modal, .onetrack-ui-panel {
             background-color: transparent;
             color: #333333;
         }
 
         /* 1. Make backdrop completely transparent / non-dimming and allow clicking through */
-        #preset-notes-modal-test {
+        #preset-notes-modal {
             background: transparent !important;
             pointer-events: none !important;
             position: fixed !important;
@@ -60,14 +69,14 @@
         }
 
         /* 2. The actual modal box and panels remain fully clickable */
-        #preset-notes-modal-test > .onetrack-modal,
+        #preset-notes-modal > .onetrack-modal,
         .onetrack-ui-panel {
             pointer-events: auto !important;
         }
 
         /* 3. Style the actual modal card container nicely in dark mode */
-        #preset-notes-modal-test[data-theme="dark"] .onetrack-modal,
-        #preset-notes-modal-test[data-theme="dark"] > div:not([style*="position:fixed"]) {
+        #preset-notes-modal[data-theme="dark"] .onetrack-modal,
+        #preset-notes-modal[data-theme="dark"] > div:not([style*="position:fixed"]) {
             background-color: #1e1e1e !important;
             color: #e0e0e0 !important;
             border: 1px solid #333333 !important;
@@ -75,22 +84,22 @@
         }
 
         /* 4. Fix contrast for labels and text inside Advanced Settings and modals */
-        #preset-notes-modal-test[data-theme="dark"] label,
-        #preset-notes-modal-test[data-theme="dark"] span,
-        #preset-notes-modal-test[data-theme="dark"] div {
+        #preset-notes-modal[data-theme="dark"] label,
+        #preset-notes-modal[data-theme="dark"] span,
+        #preset-notes-modal[data-theme="dark"] div {
             color: #e0e0e0;
         }
 
         /* 5. Force Company and Warranty Banners to keep their vibrant inline background colors */
-        #preset-notes-modal-test[data-theme="dark"] div[style*="background:"] {
+        #preset-notes-modal[data-theme="dark"] div[style*="background:"] {
             color: #ffffff !important;
             text-shadow: 0 1px 2px rgba(0,0,0,0.4);
         }
 
         /* Dark Mode Text Inputs & Selects */
-        #preset-notes-modal-test[data-theme="dark"] input:not([type="checkbox"]):not([type="radio"]),
-        #preset-notes-modal-test[data-theme="dark"] textarea,
-        #preset-notes-modal-test[data-theme="dark"] select {
+        #preset-notes-modal[data-theme="dark"] input:not([type="checkbox"]):not([type="radio"]),
+        #preset-notes-modal[data-theme="dark"] textarea,
+        #preset-notes-modal[data-theme="dark"] select {
             background: #2a2a2a !important;
             color: #ffffff !important;
             border: 1px solid #555555 !important;
@@ -115,7 +124,7 @@
             ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
             : themeChoice;
 
-        const modals = document.querySelectorAll('#preset-notes-modal-test, .onetrack-ui-panel');
+        const modals = document.querySelectorAll('#preset-notes-modal, .onetrack-ui-panel');
         modals.forEach(modal => {
             if (activeTheme === 'dark') {
                 modal.setAttribute('data-theme', 'dark');
@@ -130,14 +139,14 @@
 
     function applyCompactMode(isCompact) {
         localStorage.setItem('onetrack_compact', isCompact);
-        const modal = document.getElementById('preset-notes-modal-test');
+        const modal = document.getElementById('preset-notes-modal');
         if (modal) {
             modal.classList.toggle('onetrack-compact-mode', isCompact);
         }
     }
 
     let currentTheme = localStorage.getItem('onetrack_theme') || 'auto';
-    let customHotkey = localStorage.getItem('onetrack_hotkey') || 'KeyQ';
+    let customHotkey = localStorage.getItem(CONFIG.storagePrefix + 'custom_hotkey') || CONFIG.hotkey;
     let compactMode = localStorage.getItem('onetrack_compact') === 'true';
     let keepOpenMode = localStorage.getItem('onetrack_keep_open') === 'true';
     let wrapMode = localStorage.getItem('onetrack_wrap_mode') === 'true';
@@ -454,13 +463,13 @@
         tempInput.remove();
 
         if (typeof keepOpenMode !== 'undefined' && !keepOpenMode) {
-            let modal = document.getElementById('preset-notes-modal-test');
+            let modal = document.getElementById('preset-notes-modal');
             if (modal) modal.remove();
         }
     }
 
     function getSavedModalPosition() {
-        let modal = document.getElementById('preset-notes-modal-test');
+        let modal = document.getElementById('preset-notes-modal');
         if (modal && modal.style.left && modal.style.top && modal.style.left !== '') {
             return { left: modal.style.left, top: modal.style.top };
         }
@@ -555,14 +564,14 @@
             hrm = localStorage.getItem('preset_hide_recent') === 'true',
             serialNum = getSerialNumber();
 
-        let activeTheme = passedTheme || document.getElementById('preset-notes-modal-test')?.getAttribute('data-theme') || localStorage.getItem('onetrack_theme') || 'light';
+        let activeTheme = passedTheme || document.getElementById('preset-notes-modal')?.getAttribute('data-theme') || localStorage.getItem('onetrack_theme') || 'light';
         let isDark = activeTheme === 'dark';
 
-        let ex = document.getElementById('preset-notes-modal-test');
+        let ex = document.getElementById('preset-notes-modal');
         if (ex) ex.remove();
 
         let ov = document.createElement('div');
-        ov.id = 'preset-notes-modal-test';
+        ov.id = 'preset-notes-modal';
         ov.setAttribute('data-theme', activeTheme);
         ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:transparent;z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;pointer-events:none;';
 
@@ -682,6 +691,15 @@
                 if (findings) { addHistoryItem(findings); processTextSelection(findings); }
             };
             cont.appendChild(infBtn);
+            let oemBtn = document.createElement('button');
+            oemBtn.innerText = '🔧 OEM Replaced Parts Selection...';
+            oemBtn.className = 'onetrack-btn';
+            oemBtn.style.cssText = 'display:block;width:100%;padding:8px 10px;margin:4px 0;background:#e2f0cb;color:#2b542c;border:1px solid #b5d89c;border-radius:4px;cursor:pointer;font-size:12px;text-align:left;font-weight:bold;line-height:1.4;';
+            oemBtn.onclick = () => {
+                ov.remove();
+                showInfinityPartsModal(activeTheme);
+            };
+            cont.appendChild(oemBtn);
         }
 
         let db = document.createElement('button');
@@ -749,14 +767,14 @@
     }
 
     function showDeclineActionModal(passedTheme) {
-        let activeTheme = passedTheme || document.getElementById('preset-notes-modal-test')?.getAttribute('data-theme') || 'light';
+        let activeTheme = passedTheme || document.getElementById('preset-notes-modal')?.getAttribute('data-theme') || 'light';
         let isDark = activeTheme === 'dark';
 
-        let ex = document.getElementById('preset-notes-modal-test');
+        let ex = document.getElementById('preset-notes-modal');
         if (ex) ex.remove();
 
         let ov = document.createElement('div');
-        ov.id = 'preset-notes-modal-test';
+        ov.id = 'preset-notes-modal';
         ov.setAttribute('data-theme', activeTheme);
         ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:transparent;z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;pointer-events:none;';
 
@@ -801,7 +819,7 @@
     }
 
     function showClientSelectModal(ap, sao, passedTheme) {
-        let activeTheme = passedTheme || document.getElementById('preset-notes-modal-test')?.getAttribute('data-theme') || 'light';
+        let activeTheme = passedTheme || document.getElementById('preset-notes-modal')?.getAttribute('data-theme') || 'light';
         let isDark = activeTheme === 'dark';
         let map = getClientMapping(), cc = getCurrentCompany(), clients = [], allClientsObj = {};
 
@@ -817,11 +835,11 @@
             sao = true;
         }
 
-        let ex = document.getElementById('preset-notes-modal-test');
+        let ex = document.getElementById('preset-notes-modal');
         if (ex) ex.remove();
 
         let ov = document.createElement('div');
-        ov.id = 'preset-notes-modal-test';
+        ov.id = 'preset-notes-modal';
         ov.setAttribute('data-theme', activeTheme);
         ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:transparent;z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;pointer-events:none;';
 
@@ -896,18 +914,138 @@
         ov.appendChild(box);
         document.body.appendChild(ov);
     }
-
+    function showInfinityPartsModal(passedTheme) {
+        let activeTheme = passedTheme || document.getElementById('preset-notes-modal')?.getAttribute('data-theme') || 'light';
+        let isDark = activeTheme === 'dark';
+    
+        let ex = document.getElementById('preset-notes-modal');
+        if (ex) ex.remove();
+    
+        let ov = document.createElement('div');
+        ov.id = 'preset-notes-modal';
+        ov.setAttribute('data-theme', activeTheme);
+        ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:transparent;z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;pointer-events:none;';
+    
+        let box = document.createElement('div');
+        box.className = 'onetrack-modal' + (compactMode ? ' onetrack-compact-mode' : '');
+        let boxBg = isDark ? '#1e1e1e' : '#fff';
+        let boxColor = isDark ? '#e0e0e0' : '#333';
+        box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:460px;display:flex;flex-direction:column;position:relative;pointer-events:auto;`;
+        
+        applyUIScale(box);
+        applySavedPosition(box);
+        applySavedScale(box);
+    
+        let h = document.createElement('h3');
+        h.innerText = 'Select OEM Replaced Parts';
+        h.style.cssText = `margin-top:0;margin-bottom:12px;font-size:16px;color:${isDark ? '#fff' : '#222'};text-align:center;cursor:move;`;
+        makeDraggable(box, h);
+        box.appendChild(h);
+    
+        let listContainer = document.createElement('div');
+        listContainer.style.cssText = 'max-height:280px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;margin-bottom:12px;padding-right:4px;';
+    
+        let parts = [
+            '25771-001 Backlight Difuser', '25795-001 LCD Display', 
+            '26503-001 Battery Assembly', '26542-001/80786-001 Infinity II Pump Cover', 
+            '27696-001 Infinity Bottom Housing', '28270-001/84239 Infinity Motor', 
+            '28483-001 Rotor Assembly', '42611 Canon Motor', 
+            '43763-101 Infinity II PCB Assembly', '56717-001/80782-001 Top Housing'
+        ];
+        
+        let selectedItems = new Set();
+    
+        parts.forEach(part => {
+            let spaceIndex = part.indexOf(' ');
+            let partNum = part.substring(0, spaceIndex);
+            let partName = part.substring(spaceIndex + 1);
+    
+            let itemBox = document.createElement('div');
+            itemBox.className = 'onetrack-btn';
+            
+            let baseBg = isDark ? '#2a2a2a' : '#f8f9fa';
+            let baseBorder = isDark ? '#444' : '#dee2e6';
+            let baseColor = isDark ? '#ccc' : '#495057';
+    
+            itemBox.style.cssText = `display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:${baseBg};border:1px solid ${baseBorder};border-radius:4px;cursor:pointer;font-size:11px;transition:all 0.15s ease;`;
+    
+            let numSpan = document.createElement('span');
+            numSpan.innerText = partNum;
+            numSpan.style.cssText = `font-weight:bold;color:${isDark ? '#fff' : '#212529'};font-family:monospace;`;
+    
+            let nameSpan = document.createElement('span');
+            nameSpan.innerText = partName;
+            nameSpan.style.cssText = `color:${baseColor};text-align:right;max-width:60%;`;
+    
+            itemBox.appendChild(numSpan);
+            itemBox.appendChild(nameSpan);
+    
+            itemBox.onclick = () => {
+                if (selectedItems.has(part)) {
+                    selectedItems.delete(part);
+                    itemBox.style.background = baseBg;
+                    itemBox.style.borderColor = baseBorder;
+                    itemBox.style.color = baseColor;
+                } else {
+                    selectedItems.add(part);
+                    itemBox.style.background = isDark ? '#0d3b66' : '#e7f5ff';
+                    itemBox.style.borderColor = '#0366d6';
+                }
+            };
+    
+            listContainer.appendChild(itemBox);
+        });
+    
+        box.appendChild(listContainer);
+    
+        let btnRow = document.createElement('div');
+        btnRow.style.cssText = 'display:flex;justify-content:flex-end;gap:8px;';
+    
+        let cancelBtn = document.createElement('button');
+        cancelBtn.innerText = 'Cancel';
+        cancelBtn.className = 'onetrack-btn';
+        cancelBtn.style.cssText = isDark ? 'padding:8px 14px;background:#444;color:#e0e0e0;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;' : 'padding:8px 14px;background:#e0e0e0;color:#333;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;';
+        cancelBtn.onclick = () => {
+            ov.remove();
+            showMainModal(activeTheme);
+        };
+    
+        let okBtn = document.createElement('button');
+        okBtn.innerText = 'OK';
+        okBtn.className = 'onetrack-btn';
+        okBtn.style.cssText = 'padding:8px 16px;background:#0366d6;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;';
+        okBtn.onclick = () => {
+            let selectedArray = Array.from(selectedItems);
+            if (selectedArray.length > 0) {
+                let cleanNames = selectedArray.map(p => {
+                    let spIdx = p.indexOf(' ');
+                    return spIdx !== -1 ? p.substring(spIdx + 1) : p;
+                });
+                let partsString = cleanNames.join(', ');
+                let resultText = `Per Moog Medical the following has been replaced: ${partsString}. The device has met the release criteria associated with the inline inspection, testing and final release elements.`;
+                addHistoryItem(resultText);
+                processTextSelection(resultText);
+            }
+            ov.remove();
+        };
+    
+        btnRow.appendChild(cancelBtn);
+        btnRow.appendChild(okBtn);
+        box.appendChild(btnRow);
+        ov.appendChild(box);
+        document.body.appendChild(ov);
+    }
     // --- NEW: COLLAPSIBLE COMPANY / CLIENT MAPPING SUB-MENU ---
     function showManageCompaniesModal(passedTheme) {
         let map = getClientMapping();
-        let activeTheme = passedTheme || document.getElementById('preset-notes-modal-test')?.getAttribute('data-theme') || 'light';
+        let activeTheme = passedTheme || document.getElementById('preset-notes-modal')?.getAttribute('data-theme') || 'light';
         let isDark = activeTheme === 'dark';
 
-        let ex = document.getElementById('preset-notes-modal-test');
+        let ex = document.getElementById('preset-notes-modal');
         if (ex) ex.remove();
 
         let ov = document.createElement('div');
-        ov.id = 'preset-notes-modal-test';
+        ov.id = 'preset-notes-modal';
         ov.setAttribute('data-theme', activeTheme);
         ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:transparent;z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;pointer-events:none;';
 
@@ -1062,14 +1200,14 @@
     // --- NEW: DEDICATED GLOBAL PHRASES EDITOR SUB-MENU ---
     function showManageGlobalPhrasesModal(passedTheme) {
         let gp = getGlobalPhrases();
-        let activeTheme = passedTheme || document.getElementById('preset-notes-modal-test')?.getAttribute('data-theme') || 'light';
+        let activeTheme = passedTheme || document.getElementById('preset-notes-modal')?.getAttribute('data-theme') || 'light';
         let isDark = activeTheme === 'dark';
 
-        let ex = document.getElementById('preset-notes-modal-test');
+        let ex = document.getElementById('preset-notes-modal');
         if (ex) ex.remove();
 
         let ov = document.createElement('div');
-        ov.id = 'preset-notes-modal-test';
+        ov.id = 'preset-notes-modal';
         ov.setAttribute('data-theme', activeTheme);
         ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:transparent;z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;pointer-events:none;';
 
@@ -1174,14 +1312,14 @@
     }
 
     function showAdvancedSettingsModal() {
-        let activeTheme = document.getElementById('preset-notes-modal-test')?.getAttribute('data-theme') || localStorage.getItem('onetrack_theme') || 'light';
+        let activeTheme = document.getElementById('preset-notes-modal')?.getAttribute('data-theme') || localStorage.getItem('onetrack_theme') || 'light';
         let isDark = activeTheme === 'dark';
 
-        let ex = document.getElementById('preset-notes-modal-test');
+        let ex = document.getElementById('preset-notes-modal');
         if (ex) ex.remove();
 
         let ov = document.createElement('div');
-        ov.id = 'preset-notes-modal-test';
+        ov.id = 'preset-notes-modal';
         ov.setAttribute('data-theme', activeTheme);
         ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:transparent;z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;pointer-events:none;';
 
@@ -1227,7 +1365,7 @@
             currentTheme = e.target.value;
             applyTheme(currentTheme);
             const resolvedTheme = (currentTheme === 'auto') ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : currentTheme;
-            let activeModal = document.getElementById('preset-notes-modal-test');
+            let activeModal = document.getElementById('preset-notes-modal');
             if (activeModal) {
                 activeModal.remove();
                 showAdvancedSettingsModal();
@@ -1250,7 +1388,7 @@
             if (e.key.length === 1) {
                 let newKey = 'Key' + e.key.toUpperCase();
                 customHotkey = newKey;
-                localStorage.setItem('onetrack_hotkey', newKey);
+                localStorage.setItem(CONFIG.storagePrefix + 'custom_hotkey', newKey);
                 hotkeyInput.value = e.key.toUpperCase();
                 showToast(`Hotkey updated to Alt + ${e.key.toUpperCase()}`);
             }
@@ -1322,14 +1460,14 @@
 
     function showEditModal(passedTheme) {
         let dt = getDeviceType(), ph = [...getPhrasesForDevice(dt)];
-        let activeTheme = passedTheme || document.getElementById('preset-notes-modal-test')?.getAttribute('data-theme') || localStorage.getItem('onetrack_theme') || 'light';
+        let activeTheme = passedTheme || document.getElementById('preset-notes-modal')?.getAttribute('data-theme') || localStorage.getItem('onetrack_theme') || 'light';
         let isDark = activeTheme === 'dark';
 
-        let ex = document.getElementById('preset-notes-modal-test');
+        let ex = document.getElementById('preset-notes-modal');
         if (ex) ex.remove();
 
         let ov = document.createElement('div');
-        ov.id = 'preset-notes-modal-test';
+        ov.id = 'preset-notes-modal';
         ov.setAttribute('data-theme', activeTheme);
         ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:transparent;z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;pointer-events:none;';
 
@@ -1511,9 +1649,13 @@
     }
 
     window.addEventListener('keydown', (e) => {
-        if (e.altKey && e.code === customHotkey) {
+        let savedKey = localStorage.getItem(CONFIG.storagePrefix + 'custom_hotkey');
+        let targetKey = savedKey ? savedKey : CONFIG.hotkey;
+        if (e.altKey && e.code === targetKey) {
             e.preventDefault();
-            let existingModal = document.getElementById('preset-notes-modal-test');
+            console.log(`[OneTrack Debug] Fired via ${CONFIG.envName} environment script using hotkey: ${e.code}`);
+            
+            let existingModal = document.getElementById('preset-notes-modal');
             if (existingModal) existingModal.remove();
             else showMainModal();
         }
