@@ -1780,40 +1780,43 @@
         let dt = getDeviceType(), ph = [...getPhrasesForDevice(dt)];
         let activeTheme = passedTheme || document.getElementById('preset-notes-modal')?.getAttribute('data-theme') || localStorage.getItem('onetrack_theme') || 'light';
         let isDark = activeTheme === 'dark';
-
+    
         let ex = document.getElementById('preset-notes-modal');
         if (ex) ex.remove();
-
+    
         let ov = document.createElement('div');
         ov.id = 'preset-notes-modal';
         ov.setAttribute('data-theme', activeTheme);
         ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:transparent;z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;pointer-events:none;';
-
+    
         let box = document.createElement('div');
         box.className = 'onetrack-modal' + (compactMode ? ' onetrack-compact-mode' : '');
         let boxBg = isDark ? '#1e1e1e' : '#fff';
         let boxColor = isDark ? '#e0e0e0' : '#333';
-        box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:500px;max-height:85vh;display:flex;flex-direction:column;position:relative;pointer-events:auto;`;
-        applyUIScale(box);
-        applySavedPosition(box);
-        applySavedScale(box);
-
+        box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:520px;max-height:85vh;display:flex;flex-direction:column;position:relative;pointer-events:auto;`;
+        
+        if (typeof applyUIScale === 'function') applyUIScale(box);
+        if (typeof applySavedPosition === 'function') applySavedPosition(box);
+        if (typeof applySavedScale === 'function') applySavedScale(box);
+    
+        // Title Row
         let titleRow = document.createElement('div');
         titleRow.style.cssText = "display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;cursor:move;";
         let title = document.createElement('h3');
         title.innerText = "✏️ Edit Device Notes";
         title.style.cssText = `margin:0;color:${isDark ? '#ffffff' : '#333'};font-size:16px;`;
         titleRow.appendChild(title);
-
+    
         let settingsBtn = document.createElement('button');
         settingsBtn.innerText = "⚙️ Settings";
         settingsBtn.className = 'onetrack-btn';
         settingsBtn.style.cssText = isDark ? "background:#2d2d2d;color:#e0e0e0;border:1px solid #444;padding:5px 10px;border-radius:4px;cursor:pointer;font-weight:bold;font-size:11px;" : "background:#f0f0f0;color:#333;border:1px solid #ccc;padding:5px 10px;border-radius:4px;cursor:pointer;font-weight:bold;font-size:11px;";
         settingsBtn.onclick = () => { ov.remove(); showAdvancedSettingsModal(); };
         titleRow.appendChild(settingsBtn);
-        makeDraggable(box, titleRow);
+        if (typeof makeDraggable === 'function') makeDraggable(box, titleRow);
         box.appendChild(titleRow);
-
+    
+        // Wrap Toggle Row
         let wrapRow = document.createElement('label');
         let rowBg = isDark ? '#2a2a2a' : '#f8f9fa';
         let rowBorder = isDark ? '#444' : '#e9ecef';
@@ -1843,10 +1846,12 @@
         wrapLabelText.innerText = 'Enable dynamic text wrapping for entries';
         wrapRow.appendChild(wrapLabelText);
         box.appendChild(wrapRow);
-
+    
+        // Scrollable Area
         let sa = document.createElement('div');
-        sa.style.cssText = "flex-grow:1;overflow-y:auto;margin-bottom:15px;padding-right:5px;max-height:360px;";
-
+        sa.style.cssText = "flex-grow:1;overflow-y:auto;margin-bottom:15px;padding-right:5px;max-height:340px;";
+    
+        // Submenu Action Buttons
         let navActionRow = document.createElement('div');
         navActionRow.style.cssText = "display:flex;gap:6px;margin-bottom:12px;";
         
@@ -1856,7 +1861,7 @@
         subMenuCompBtn.style.cssText = "flex:1;background:#780034;color:#fff;border:none;padding:6px;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;";
         subMenuCompBtn.onclick = () => { ov.remove(); showManageCompaniesModal(activeTheme); };
         navActionRow.appendChild(subMenuCompBtn);
-
+    
         let subMenuPhrasesBtn = document.createElement('button');
         subMenuPhrasesBtn.innerText = "💬 Edit Global Phrases";
         subMenuPhrasesBtn.className = 'onetrack-btn';
@@ -1864,38 +1869,59 @@
         subMenuPhrasesBtn.onclick = () => { ov.remove(); showManageGlobalPhrasesModal(activeTheme); };
         navActionRow.appendChild(subMenuPhrasesBtn);
         sa.appendChild(navActionRow);
-
+    
+        // Search Input for Phrases
+        let searchInput = document.createElement('input');
+        searchInput.type = 'text';
+        searchInput.placeholder = 'Search device notes...';
+        searchInput.style.cssText = `width:100%;padding:6px 8px;font-size:11px;background:${isDark ? '#2a2a2a' : '#fff'};color:${boxColor};border:1px solid ${isDark ? '#444' : '#ccc'};border-radius:4px;box-sizing:border-box;margin-bottom:8px;`;
+        sa.appendChild(searchInput);
+    
         let nl = document.createElement('h4');
         nl.innerText = `Device Specific Notes: ${dt} (supports {DATE} & {SERIAL})`;
         nl.style.cssText = `margin:0 0 6px 0;font-size:12px;color:${isDark ? '#cccccc' : '#444'};`;
         sa.appendChild(nl);
-
+    
+        // Notes Container
         let nc = document.createElement('div');
-        let ncBg = isDark ? '#2a2a2a' : '#fdfdfd';
         let ncBorder = isDark ? '#444' : '#ddd';
-        nc.style.cssText = `border:1px solid ${ncBorder};padding:8px;border-radius:4px;margin-bottom:12px;background:${ncBg};`;
-
-        function rnl() {
+        nc.style.cssText = `border:1px solid ${ncBorder};padding:8px;border-radius:4px;margin-bottom:12px;background:${isDark ? '#222' : '#fdfdfd'};display:flex;flex-direction:column;gap:6px;`;
+        sa.appendChild(nc);
+    
+        let draggedItemIndex = null;
+    
+        function renderNotes(filter = '') {
             nc.innerHTML = '';
-            if (ph.length === 0) {
-                let em = document.createElement('div');
-                em.innerText = "No specific notes configured for this device.";
-                em.style.cssText = "font-size:11px;color:#888;font-style:italic;padding:4px;";
-                nc.appendChild(em);
-                return;
-            }
-            ph.forEach((nt, i) => {
-                let r = document.createElement('div');
-                r.style.cssText = "display:flex;gap:6px;margin-bottom:6px;align-items:center;";
+            const lowerFilter = filter.toLowerCase();
+            let matchCount = 0;
+    
+            ph.forEach((nt, index) => {
+                if (lowerFilter && !nt.toLowerCase().includes(lowerFilter)) return;
+                matchCount++;
+    
+                let row = document.createElement('div');
+                const isDraggable = (filter === '');
+                row.draggable = isDraggable;
+                row.dataset.index = index;
+                
+                let rowBgColor = isDark ? '#2a2a2a' : '#f8f9fa';
+                let rowBorderColor = isDark ? '#3b3b3b' : '#e0e0e0';
+                row.style.cssText = `display:flex;gap:6px;align-items:center;background:${rowBgColor};padding:6px;border-radius:4px;border:1px solid ${rowBorderColor};transition:border-color 0.2s;`;
+    
+                // Left-aligned Drag Handle
+                let dragHandle = document.createElement('span');
+                dragHandle.textContent = '⋮⋮';
+                dragHandle.title = isDraggable ? 'Drag to reorder' : 'Clear search filter to reorder';
+                dragHandle.style.cssText = `color:${isDraggable ? '#8c959f' : '#444'};font-size:14px;cursor:${isDraggable ? 'grab' : 'not-allowed'};user-select:none;padding:0 2px;`;
+                row.appendChild(dragHandle);
+    
+                // Textarea Input
                 let inp = document.createElement('textarea');
                 inp.rows = wrapMode ? 2 : 1;
                 inp.className = 'onetrack-phrase-input';
                 inp.value = nt;
-                inp.style.cssText = `flex-grow:1; padding:5px; border:1px solid ${isDark ? '#555' : '#ccc'}; border-radius:3px; font-size:11px; font-family:sans-serif; resize:${wrapMode ? 'vertical' : 'none'}; height:${wrapMode ? 'auto' : '32px'};`;
+                inp.style.cssText = `flex-grow:1;padding:5px;border:1px solid ${isDark ? '#555' : '#ccc'};border-radius:3px;font-size:11px;font-family:sans-serif;resize:${wrapMode ? 'vertical' : 'none'};height:${wrapMode ? 'auto' : '32px'};background:${isDark ? '#1e1e1e' : '#fff'};color:${boxColor};`;
                 
-                r.appendChild(inp);
-                
-                // If wrapping is enabled, calculate the correct expanded height right away after it's in the DOM
                 if (wrapMode) {
                     setTimeout(() => {
                         inp.style.height = 'auto';
@@ -1908,37 +1934,98 @@
                         this.style.height = 'auto';
                         this.style.height = (this.scrollHeight) + 'px';
                     }
+                    ph[index] = this.value;
                 };
-                inp.onchange = (e) => ph[i] = e.target.value.trim();
-                r.appendChild(inp);
-                r.appendChild(inp);
-
+                inp.onchange = (e) => {
+                    ph[index] = e.target.value.trim();
+                };
+                row.appendChild(inp);
+    
+                // Delete Button
                 let db = document.createElement('button');
                 db.innerText = "X";
                 db.className = 'onetrack-btn';
                 db.style.cssText = "background:#d9534f;color:#fff;border:none;padding:5px 8px;border-radius:3px;cursor:pointer;font-size:11px;font-weight:bold;";
                 db.onclick = () => {
-                    ph.splice(i, 1);
-                    rnl();
+                    ph.splice(index, 1);
+                    renderNotes(searchInput.value);
                 };
-                r.appendChild(db);
-                nc.appendChild(r);
+                row.appendChild(db);
+    
+                // --- HTML5 Drag and Drop Event Handlers ---
+                if (isDraggable) {
+                    row.ondragstart = (e) => {
+                        draggedItemIndex = index;
+                        e.dataTransfer.effectAllowed = 'move';
+                        row.style.opacity = '0.4';
+                    };
+    
+                    row.ondragend = () => {
+                        draggedItemIndex = null;
+                        row.style.opacity = '1';
+                        Array.from(nc.children).forEach(child => {
+                            child.style.borderColor = rowBorderColor;
+                        });
+                    };
+    
+                    row.ondragover = (e) => {
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = 'move';
+                    };
+    
+                    row.ondragenter = () => {
+                        if (draggedItemIndex === null || draggedItemIndex === index) return;
+                        row.style.borderColor = '#007bff';
+                    };
+    
+                    row.ondragleave = () => {
+                        row.style.borderColor = rowBorderColor;
+                    };
+    
+                    row.ondrop = (e) => {
+                        e.preventDefault();
+                        row.style.borderColor = rowBorderColor;
+                        if (draggedItemIndex === null || draggedItemIndex === index) return;
+    
+                        const draggedItem = ph.splice(draggedItemIndex, 1)[0];
+                        ph.splice(index, 0, draggedItem);
+                        renderNotes(searchInput.value);
+                    };
+                }
+    
+                nc.appendChild(row);
             });
+    
+            if (matchCount === 0) {
+                let em = document.createElement('div');
+                em.innerText = filter ? "No matching notes found." : "No specific notes configured for this device.";
+                em.style.cssText = "font-size:11px;color:#888;font-style:italic;padding:4px;text-align:center;";
+                nc.appendChild(em);
+            }
         }
-        rnl();
-        sa.appendChild(nc);
 
+        renderNotes();
+    
+        searchInput.addEventListener('input', (e) => {
+            renderNotes(e.target.value);
+        });
+    
         let anb = document.createElement('button');
         anb.innerText = "+ Add Device Note";
         anb.className = 'onetrack-btn';
-        anb.style.cssText = isDark ? "background:#2d2d2d;color:#e0e0e0;border:1px solid #444;padding:5px;border-radius:4px;cursor:pointer;margin-bottom:8px;font-weight:bold;font-size:11px;width:100%;" : "background:#f0f0f0;color:#333;border:1px solid #ccc;padding:5px;border-radius:4px;cursor:pointer;margin-bottom:8px;font-weight:bold;font-size:11px;width:100%;";
-        anb.onclick = () => { ph.push(""); rnl(); };
+        anb.style.cssText = isDark ? "background:#2d2d2d;color:#e0e0e0;border:1px solid #444;padding:5px;border-radius:4px;cursor:pointer;margin-top:4px;margin-bottom:8px;font-weight:bold;font-size:11px;width:100%;" : "background:#f0f0f0;color:#333;border:1px solid #ccc;padding:5px;border-radius:4px;cursor:pointer;margin-top:4px;margin-bottom:8px;font-weight:bold;font-size:11px;width:100%;";
+        anb.onclick = () => { 
+            ph.push(""); 
+            searchInput.value = '';
+            renderNotes(); 
+        };
         sa.appendChild(anb);
         box.appendChild(sa);
-
+    
+        // Bottom Action Button Row
         let btnRow = document.createElement('div');
         btnRow.style.cssText = "display:flex;gap:8px;";
-
+    
         let sv = document.createElement('button');
         sv.innerText = "Save & Apply";
         sv.className = 'onetrack-btn';
@@ -1953,14 +2040,14 @@
             showMainModal(activeTheme);
         };
         btnRow.appendChild(sv);
-
+    
         let clBtn = document.createElement('button');
         clBtn.innerText = "Cancel";
         clBtn.className = 'onetrack-btn';
         clBtn.style.cssText = isDark ? "flex:1;padding:8px;background:#444;color:#e0e0e0;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;" : "flex:1;padding:8px;background:#e0e0e0;color:#333;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;";
         clBtn.onclick = () => { ov.remove(); showMainModal(activeTheme); };
         btnRow.appendChild(clBtn);
-
+    
         let manageDevicePhrasesBtn = document.createElement('button');
         manageDevicePhrasesBtn.innerText = "Edit Device Phrases";
         manageDevicePhrasesBtn.className = 'onetrack-btn';
@@ -1970,7 +2057,7 @@
             showManageDevicePhrasesModal(activeTheme);
         };
         btnRow.appendChild(manageDevicePhrasesBtn);
-
+    
         box.appendChild(btnRow);
         ov.appendChild(box);
         document.body.appendChild(ov);
