@@ -1324,8 +1324,20 @@
         let boxBg = isDark ? '#1e1e1e' : '#fff';
         let boxColor = isDark ? '#e0e0e0' : '#333';
     // Position it centered initially, but allow absolute drag freedom with pointer-events enabled on the box
-        box.style.cssText = `position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.25);width:420px;max-width:90vw;font-family:sans-serif;pointer-events:auto;cursor:default;`;
+        let savedPos = {};
+        try {
+            savedPos = JSON.parse(localStorage.getItem('device_phrases_modal_pos') || '{}');
+        } catch(e) {}
     
+        let initialStyle = `position:fixed;background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.25);width:420px;max-width:90vw;font-family:sans-serif;pointer-events:auto;cursor:default;`;
+        
+        if (savedPos.left !== undefined && savedPos.top !== undefined) {
+            initialStyle += `left:${savedPos.left}px;top:${savedPos.top}px;`;
+        } else {
+            initialStyle += `top:50%;left:50%;transform:translate(-50%,-50%);`;
+        }
+    
+        box.style.cssText = initialStyle;    
         // Add a draggable header/handle area so you can grab it
         box.innerHTML = `
             <div id="dp-drag-handle" style="cursor:move;padding-bottom:8px;margin-bottom:12px;border-bottom:1px solid ${isDark ? '#444' : '#eee'};">
@@ -1386,6 +1398,9 @@
             isDragging = false;
             document.removeEventListener('mousemove', onMouseMove);
             document.removeEventListener('mouseup', onMouseUp);
+            // Save final position coords to localStorage
+            const rect = box.getBoundingClientRect();
+            localStorage.setItem('device_phrases_modal_pos', JSON.stringify({ left: rect.left, top: rect.top }));
         }
         // -----------------------
     
@@ -1444,6 +1459,9 @@
     
         backBtn.addEventListener('click', () => {
             ov.remove();
+            if (typeof showEditModal === 'function') {
+                showEditModal(activeTheme);
+            }
         });
     }
     function showAdvancedSettingsModal() {
