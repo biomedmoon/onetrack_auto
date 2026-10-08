@@ -1329,7 +1329,7 @@
             savedPos = JSON.parse(localStorage.getItem('device_phrases_modal_pos') || '{}');
         } catch(e) {}
     
-        let initialStyle = `position:fixed;background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.25);width:460px;max-width:90vw;max-height:85vh;display:flex;flex-direction:column;font-family:sans-serif;pointer-events:auto;cursor:default;`;
+        let initialStyle = `position:fixed;background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.25);width:480px;max-width:90vw;max-height:85vh;display:flex;flex-direction:column;font-family:sans-serif;pointer-events:auto;cursor:default;`;
         
         if (savedPos.left !== undefined && savedPos.top !== undefined) {
             initialStyle += `left:${savedPos.left}px;top:${savedPos.top}px;`;
@@ -1353,7 +1353,7 @@
                 </div>
             </div>
             
-            <div id="dp-device-list-container" style="flex:1;overflow-y:auto;max-height:45vh;margin-bottom:12px;padding-right:4px;"></div>
+            <div id="dp-device-list-container" style="flex:1;overflow-y:auto;max-height:48vh;margin-bottom:12px;padding-right:4px;"></div>
     
             <div id="dp-status-msg" style="font-size:11px;margin-bottom:8px;height:14px;color:#28a745;text-align:center;"></div>
     
@@ -1365,7 +1365,7 @@
         ov.appendChild(box);
         document.body.appendChild(ov);
     
-        // Draggable logic
+        // Draggable logic with viewport boundary protection
         let isDragging = false;
         let startX, startY, initialLeft, initialTop;
         const handle = box.querySelector('#dp-drag-handle');
@@ -1387,8 +1387,19 @@
     
         function onMouseMove(e) {
             if (!isDragging) return;
-            box.style.left = (initialLeft + (e.clientX - startX)) + 'px';
-            box.style.top = (initialTop + (e.clientY - startY)) + 'px';
+            let newX = initialLeft + (e.clientX - startX);
+            let newY = initialTop + (e.clientY - startY);
+    
+            // Keep modal within visible window boundaries so it can't be dragged out of scope
+            const rect = box.getBoundingClientRect();
+            const maxX = window.innerWidth - rect.width - 20;
+            const maxY = window.innerHeight - rect.height - 20;
+    
+            newX = Math.max(10, Math.min(newX, maxX));
+            newY = Math.max(10, Math.min(newY, maxY));
+    
+            box.style.left = newX + 'px';
+            box.style.top = newY + 'px';
         }
     
         function onMouseUp() {
@@ -1421,7 +1432,6 @@
         function renderDeviceList() {
             const storedData = getStorageData();
             
-            // Filter out global placeholders like 'unknown device', '(Sub-Model)', or empty keys
             const devices = Object.keys(storedData).filter(name => {
                 const lower = name.toLowerCase();
                 return name.trim() !== '' && 
@@ -1437,7 +1447,7 @@
             }
     
             devices.forEach(deviceName => {
-                const phrases = Array.isArray(storedData[deviceName]) ? storedData[deviceName] : [];
+                let phrases = Array.isArray(storedData[deviceName]) ? [...storedData[deviceName]] : [];
     
                 let itemCard = document.createElement('div');
                 itemCard.style.cssText = `margin-bottom:6px;border:1px solid ${isDark ? '#444' : '#ddd'};border-radius:4px;background:${isDark ? '#252525' : '#fff'};overflow:hidden;`;
@@ -1452,13 +1462,84 @@
                 let cardBody = document.createElement('div');
                 cardBody.style.cssText = `display:none;padding:10px;border-top:1px solid ${isDark ? '#444' : '#ddd'};`;
     
-                let textarea = document.createElement('textarea');
-                textarea.rows = 5;
-                textarea.style.cssText = `width:100%;padding:6px;font-size:12px;box-sizing:border-box;margin-bottom:8px;background:${isDark ? '#1e1e1e' : '#fff'};color:${boxColor};border:1px solid ${isDark ? '#555' : '#ccc'};border-radius:4px;`;
-                textarea.value = phrases.join('\n');
+                // Phrases container (rendered as clean rows instead of a raw textarea)
+                let phrasesContainer = document.createElement('div');
+                phrasesContainer.style.cssText = 'display:flex;flex-direction:column;gap:6px;margin-bottom:10px;max-height:180px;overflow-y:auto;';
+    
+                function renderPhraseRows() {
+                    phrasesContainer.innerHTML = '';
+                    if (phrases.length === 0) {
+                        phrasesContainer.innerHTML = `<div style="font-size:11px;opacity:0.5;text-align:center;padding:6px;">No phrases added for this device yet.</div>`;
+                        return;
+                    }
+    
+                    phrases.forEach((phrase, index) => {
+                        let phraseRow = document.createElement('div');
+                        phraseRow.style.cssText = `display:flex;align-items:center;gap:6px;background:${isDark ? '#1e1e1e' : '#f8f9fa'};padding:4px 8px;border-radius:4px;border:1px solid ${isDark ? '#333' : '#e0e0e0'};`;
+    
+                        let input = document.createElement('input');
+                        input.type = 'text';
+                        input.value = phrase;
+                        input.style.cssText = `flex:1;background:transparent;border:none;color:${boxColor};font-size:12px;outline:none;`;
+                        
+                        // Update local array element on change
+                        input.addEventListener('input', () => {
+                            phrases[index] = input.value;
+                        });
+    
+                        let removeBtn = document.createElement('button');
+                        removeBtn.type = 'button';
+                        removeBtn.innerHTML = '&times;';
+                        removeBtn.title = 'Remove phrase';
+                        removeBtn.style.cssText = 'background:none;border:none;color:#dc3545;font-size:16px;cursor:pointer;padding:0 4px;font-weight:bold;';
+                        removeBtn.addEventListener('click', () => {
+                            phrases.splice(index, 1);
+                            renderPhraseRows();
+                        });
+    
+                        phraseRow.appendChild(input);
+                        phraseRow.appendChild(removeBtn);
+                        phrasesContainer.appendChild(phraseRow);
+                    });
+                }
+    
+                renderPhraseRows();
+    
+                // Add single phrase section inside the expanded accordion
+                let addPhraseRow = document.createElement('div');
+                addPhraseRow.style.cssText = 'display:flex;gap:6px;margin-bottom:10px;';
+                
+                let newPhraseInput = document.createElement('input');
+                newPhraseInput.type = 'text';
+                newPhraseInput.placeholder = 'Type new phrase...';
+                newPhraseInput.style.cssText = `flex:1;padding:5px;font-size:11px;box-sizing:border-box;background:${isDark ? '#1e1e1e' : '#fff'};color:${boxColor};border:1px solid ${isDark ? '#555' : '#ccc'};border-radius:4px;`;
+    
+                let addPhraseBtn = document.createElement('button');
+                addPhraseBtn.type = 'button';
+                addPhraseBtn.innerText = '+ Add Phrase';
+                addPhraseBtn.style.cssText = 'padding:5px 8px;background:#17a2b8;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;';
+    
+                addPhraseBtn.addEventListener('click', () => {
+                    const val = newPhraseInput.value.trim();
+                    if (val) {
+                        phrases.push(val);
+                        newPhraseInput.value = '';
+                        renderPhraseRows();
+                    }
+                });
+    
+                newPhraseInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        addPhraseBtn.click();
+                        e.preventDefault();
+                    }
+                });
+    
+                addPhraseRow.appendChild(newPhraseInput);
+                addPhraseRow.appendChild(addPhraseBtn);
     
                 let actionRow = document.createElement('div');
-                actionRow.style.cssText = 'display:flex;gap:6px;justify-content:flex-end;';
+                actionRow.style.cssText = 'display:flex;gap:6px;justify-content:flex-end;border-top:1px solid ' + (isDark ? '#333' : '#eee') + ';padding-top:8px;';
     
                 let saveItemBtn = document.createElement('button');
                 saveItemBtn.className = 'onetrack-btn';
@@ -1473,7 +1554,8 @@
                 actionRow.appendChild(deleteItemBtn);
                 actionRow.appendChild(saveItemBtn);
     
-                cardBody.appendChild(textarea);
+                cardBody.appendChild(phrasesContainer);
+                cardBody.appendChild(addPhraseRow);
                 cardBody.appendChild(actionRow);
     
                 itemCard.appendChild(cardHeader);
@@ -1487,13 +1569,10 @@
                 });
     
                 saveItemBtn.addEventListener('click', () => {
-                    const updatedList = textarea.value
-                        .split('\n')
-                        .map(p => p.trim())
-                        .filter(p => p.length > 0);
-    
+                    // Filter out empty items
+                    const cleanedPhrases = phrases.map(p => p.trim()).filter(p => p.length > 0);
                     let data = getStorageData();
-                    data[deviceName] = updatedList;
+                    data[deviceName] = cleanedPhrases;
                     saveStorageData(data);
     
                     statusMsg.style.color = '#28a745';
