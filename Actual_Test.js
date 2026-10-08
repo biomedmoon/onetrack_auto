@@ -1318,16 +1318,20 @@
     
         let ov = document.createElement('div');
         ov.id = 'device-phrases-modal';
-        ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:999999;display:flex;align-items:center;justify-content:center;';
-    
+        ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:transparent;z-index:999999;pointer-events:none;';
+
         let box = document.createElement('div');
         let boxBg = isDark ? '#1e1e1e' : '#fff';
         let boxColor = isDark ? '#e0e0e0' : '#333';
-        box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:420px;max-width:90vw;font-family:sans-serif;`;
+    // Position it centered initially, but allow absolute drag freedom with pointer-events enabled on the box
+        box.style.cssText = `position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.25);width:420px;max-width:90vw;font-family:sans-serif;pointer-events:auto;cursor:default;`;
     
+        // Add a draggable header/handle area so you can grab it
         box.innerHTML = `
-            <h3 style="margin-top:0;margin-bottom:8px;">Edit Device-Specific Phrases</h3>
-            <p style="font-size:12px;opacity:0.8;margin-bottom:12px;">Type a device name to load or set custom phrases without having the device on screen.</p>
+            <div id="dp-drag-handle" style="cursor:move;padding-bottom:8px;margin-bottom:12px;border-bottom:1px solid ${isDark ? '#444' : '#eee'};">
+                <h3 style="margin:0;font-size:16px;">Edit Device-Specific Phrases</h3>
+                <p style="font-size:11px;opacity:0.7;margin:4px 0 0 0;">Type a device name to load or set custom phrases offline.</p>
+            </div>
             
             <label style="display:block;font-size:12px;font-weight:bold;margin-bottom:4px;">Device Type / Model Name:</label>
             <input type="text" id="dp-device-input" placeholder="e.g., Solis VIP PharmGuard Pump" style="width:100%;padding:8px;margin-bottom:12px;box-sizing:border-box;background:${isDark ? '#2a2a2a' : '#fff'};color:${boxColor};border:1px solid ${isDark ? '#444' : '#ccc'};border-radius:4px;" />
@@ -1339,21 +1343,59 @@
     
             <div style="display:flex;gap:8px;">
                 <button id="dp-save-btn" class="onetrack-btn" style="flex:1;padding:8px;background:#28a745;color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:bold;">Save Phrases</button>
-                <button id="dp-back-btn" class="onetrack-btn" style="flex:1;padding:8px;background:${isDark ? '#444' : '#ccc'};color:${boxColor};border:none;border-radius:4px;cursor:pointer;">« Back</button>
+                <button id="dp-back-btn" class="onetrack-btn" style="flex:1;padding:8px;background:${isDark ? '#444' : '#ccc'};color:${boxColor};border:none;border-radius:4px;cursor:pointer;">Close</button>
             </div>
         `;
     
         ov.appendChild(box);
         document.body.appendChild(ov);
     
-        // Element references inside the modal
+        // --- DRAGGABLE LOGIC ---
+        let isDragging = false;
+        let startX, startY, initialLeft, initialTop;
+        const handle = box.querySelector('#dp-drag-handle');
+    
+        handle.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            startX = e.clientX;
+            startY = e.clientY;
+            
+            const rect = box.getBoundingClientRect();
+            // Clear out initial transform centering so pixel-based positioning takes over cleanly
+            box.style.transform = 'none';
+            box.style.left = rect.left + 'px';
+            box.style.top = rect.top + 'px';
+            
+            initialLeft = rect.left;
+            initialTop = rect.top;
+            
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+            e.preventDefault();
+        });
+    
+        function onMouseMove(e) {
+            if (!isDragging) return;
+            const dx = e.clientX - startX;
+            const dy = e.clientY - startY;
+            box.style.left = (initialLeft + dx) + 'px';
+            box.style.top = (initialTop + dy) + 'px';
+        }
+    
+        function onMouseUp() {
+            isDragging = false;
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+        }
+        // -----------------------
+    
+        // Element references & storage listeners
         const deviceInput = box.querySelector('#dp-device-input');
         const phrasesTextarea = box.querySelector('#dp-phrases-textarea');
         const saveBtn = box.querySelector('#dp-save-btn');
         const backBtn = box.querySelector('#dp-back-btn');
         const statusMsg = box.querySelector('#dp-status-msg');
     
-        // Helper to fetch current storage map (using typical key name or matching script conventions)
         const getStorageData = () => {
             try {
                 return JSON.parse(localStorage.getItem('device_preset_notes') || '{}');
@@ -1362,7 +1404,6 @@
             }
         };
     
-        // LISTENER 1: Load existing phrases when typing/leaving the device input field
         deviceInput.addEventListener('blur', () => {
             const deviceName = deviceInput.value.trim();
             if (!deviceName) return;
@@ -1371,15 +1412,14 @@
             if (storedData[deviceName]) {
                 const val = storedData[deviceName];
                 phrasesTextarea.value = Array.isArray(val) ? val.join('\n') : val;
-                statusMsg.textContent = `Loaded existing phrases for "${deviceName}"`;
+                statusMsg.textContent = `Loaded phrases for "${deviceName}"`;
             } else {
                 phrasesTextarea.value = '';
-                statusMsg.textContent = 'No custom phrases found for this model yet.';
+                statusMsg.textContent = 'No custom phrases found yet.';
             }
             setTimeout(() => { statusMsg.textContent = ''; }, 3000);
         });
     
-        // LISTENER 2: Save custom phrases to localStorage on click
         saveBtn.addEventListener('click', () => {
             const deviceName = deviceInput.value.trim();
             if (!deviceName) {
@@ -1395,7 +1435,6 @@
     
             let storedData = getStorageData();
             storedData[deviceName] = phrasesList;
-            
             localStorage.setItem('device_preset_notes', JSON.stringify(storedData));
     
             statusMsg.style.color = '#28a745';
@@ -1403,16 +1442,8 @@
             setTimeout(() => { statusMsg.textContent = ''; }, 2500);
         });
     
-        // LISTENER 3: Return button (closes or cycles back to main settings menu if desired)
         backBtn.addEventListener('click', () => {
             ov.remove();
-            // If you want it to return back to your edit/settings modal, call your main modal opener here:
-            // if (typeof showEditModal === 'function') showEditModal(activeTheme);
-        });
-    
-        // Close modal if clicking outside the inner box
-        ov.addEventListener('click', (e) => {
-            if (e.target === ov) ov.remove();
         });
     }
     function showAdvancedSettingsModal() {
