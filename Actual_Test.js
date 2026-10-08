@@ -1309,7 +1309,112 @@
         ov.appendChild(box);
         document.body.appendChild(ov);
     }
-
+    function showManageDevicePhrasesModal(passedTheme) {
+        let activeTheme = passedTheme || document.getElementById('preset-notes-modal')?.getAttribute('data-theme') || 'light';
+        let isDark = activeTheme === 'dark';
+    
+        let ex = document.getElementById('device-phrases-modal');
+        if (ex) ex.remove();
+    
+        let ov = document.createElement('div');
+        ov.id = 'device-phrases-modal';
+        ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:999999;display:flex;align-items:center;justify-content:center;';
+    
+        let box = document.createElement('div');
+        let boxBg = isDark ? '#1e1e1e' : '#fff';
+        let boxColor = isDark ? '#e0e0e0' : '#333';
+        box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:420px;max-width:90vw;font-family:sans-serif;`;
+    
+        box.innerHTML = `
+            <h3 style="margin-top:0;margin-bottom:8px;">Edit Device-Specific Phrases</h3>
+            <p style="font-size:12px;opacity:0.8;margin-bottom:12px;">Type a device name to load or set custom phrases without having the device on screen.</p>
+            
+            <label style="display:block;font-size:12px;font-weight:bold;margin-bottom:4px;">Device Type / Model Name:</label>
+            <input type="text" id="dp-device-input" placeholder="e.g., Solis VIP PharmGuard Pump" style="width:100%;padding:8px;margin-bottom:12px;box-sizing:border-box;background:${isDark ? '#2a2a2a' : '#fff'};color:${boxColor};border:1px solid ${isDark ? '#444' : '#ccc'};border-radius:4px;" />
+            
+            <label style="display:block;font-size:12px;font-weight:bold;margin-bottom:4px;">Custom Phrases (one per line):</label>
+            <textarea id="dp-phrases-textarea" rows="7" placeholder="Initial inspection passed&#10;Battery checked" style="width:100%;padding:8px;margin-bottom:12px;box-sizing:border-box;background:${isDark ? '#2a2a2a' : '#fff'};color:${boxColor};border:1px solid ${isDark ? '#444' : '#ccc'};border-radius:4px;"></textarea>
+            
+            <div id="dp-status-msg" style="font-size:11px;margin-bottom:10px;height:14px;color:#28a745;"></div>
+    
+            <div style="display:flex;gap:8px;">
+                <button id="dp-save-btn" class="onetrack-btn" style="flex:1;padding:8px;background:#28a745;color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:bold;">Save Phrases</button>
+                <button id="dp-back-btn" class="onetrack-btn" style="flex:1;padding:8px;background:${isDark ? '#444' : '#ccc'};color:${boxColor};border:none;border-radius:4px;cursor:pointer;">« Back</button>
+            </div>
+        `;
+    
+        ov.appendChild(box);
+        document.body.appendChild(ov);
+    
+        // Element references inside the modal
+        const deviceInput = box.querySelector('#dp-device-input');
+        const phrasesTextarea = box.querySelector('#dp-phrases-textarea');
+        const saveBtn = box.querySelector('#dp-save-btn');
+        const backBtn = box.querySelector('#dp-back-btn');
+        const statusMsg = box.querySelector('#dp-status-msg');
+    
+        // Helper to fetch current storage map (using typical key name or matching script conventions)
+        const getStorageData = () => {
+            try {
+                return JSON.parse(localStorage.getItem('device_preset_notes') || '{}');
+            } catch (e) {
+                return {};
+            }
+        };
+    
+        // LISTENER 1: Load existing phrases when typing/leaving the device input field
+        deviceInput.addEventListener('blur', () => {
+            const deviceName = deviceInput.value.trim();
+            if (!deviceName) return;
+    
+            const storedData = getStorageData();
+            if (storedData[deviceName]) {
+                const val = storedData[deviceName];
+                phrasesTextarea.value = Array.isArray(val) ? val.join('\n') : val;
+                statusMsg.textContent = `Loaded existing phrases for "${deviceName}"`;
+            } else {
+                phrasesTextarea.value = '';
+                statusMsg.textContent = 'No custom phrases found for this model yet.';
+            }
+            setTimeout(() => { statusMsg.textContent = ''; }, 3000);
+        });
+    
+        // LISTENER 2: Save custom phrases to localStorage on click
+        saveBtn.addEventListener('click', () => {
+            const deviceName = deviceInput.value.trim();
+            if (!deviceName) {
+                alert('Please enter a Device Type / Model Name first.');
+                deviceInput.focus();
+                return;
+            }
+    
+            const phrasesList = phrasesTextarea.value
+                .split('\n')
+                .map(p => p.trim())
+                .filter(p => p.length > 0);
+    
+            let storedData = getStorageData();
+            storedData[deviceName] = phrasesList;
+            
+            localStorage.setItem('device_preset_notes', JSON.stringify(storedData));
+    
+            statusMsg.style.color = '#28a745';
+            statusMsg.textContent = `Successfully saved phrases for "${deviceName}"!`;
+            setTimeout(() => { statusMsg.textContent = ''; }, 2500);
+        });
+    
+        // LISTENER 3: Return button (closes or cycles back to main settings menu if desired)
+        backBtn.addEventListener('click', () => {
+            ov.remove();
+            // If you want it to return back to your edit/settings modal, call your main modal opener here:
+            // if (typeof showEditModal === 'function') showEditModal(activeTheme);
+        });
+    
+        // Close modal if clicking outside the inner box
+        ov.addEventListener('click', (e) => {
+            if (e.target === ov) ov.remove();
+        });
+    }
     function showAdvancedSettingsModal() {
         let activeTheme = document.getElementById('preset-notes-modal')?.getAttribute('data-theme') || localStorage.getItem('onetrack_theme') || 'light';
         let isDark = activeTheme === 'dark';
@@ -1641,6 +1746,16 @@
         clBtn.style.cssText = isDark ? "flex:1;padding:8px;background:#444;color:#e0e0e0;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;" : "flex:1;padding:8px;background:#e0e0e0;color:#333;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;";
         clBtn.onclick = () => { ov.remove(); showMainModal(activeTheme); };
         btnRow.appendChild(clBtn);
+
+        let manageDevicePhrasesBtn = document.createElement('button');
+        manageDevicePhrasesBtn.innerText = "Edit Device Phrases";
+        manageDevicePhrasesBtn.className = 'onetrack-btn';
+        manageDevicePhrasesBtn.style.cssText = `flex:1;padding:8px;background:#17a2b8;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;`;
+        manageDevicePhrasesBtn.onclick = () => {
+            ov.remove();
+            showManageDevicePhrasesModal(activeTheme);
+        };
+        btnRow.appendChild(manageDevicePhrasesBtn);
 
         box.appendChild(btnRow);
         ov.appendChild(box);
