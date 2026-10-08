@@ -1329,7 +1329,7 @@
             savedPos = JSON.parse(localStorage.getItem('device_phrases_modal_pos') || '{}');
         } catch(e) {}
     
-        let initialStyle = `position:fixed;background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.25);width:480px;max-width:90vw;max-height:85vh;display:flex;flex-direction:column;font-family:sans-serif;pointer-events:auto;cursor:default;`;
+        let initialStyle = `position:fixed;background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.25);width:500px;max-width:90vw;max-height:85vh;display:flex;flex-direction:column;font-family:sans-serif;pointer-events:auto;cursor:default;`;
         
         if (savedPos.left !== undefined && savedPos.top !== undefined) {
             initialStyle += `left:${savedPos.left}px;top:${savedPos.top}px;`;
@@ -1390,7 +1390,6 @@
             let newX = initialLeft + (e.clientX - startX);
             let newY = initialTop + (e.clientY - startY);
     
-            // Keep modal within visible window boundaries so it can't be dragged out of scope
             const rect = box.getBoundingClientRect();
             const maxX = window.innerWidth - rect.width - 20;
             const maxY = window.innerHeight - rect.height - 20;
@@ -1432,12 +1431,13 @@
         function renderDeviceList() {
             const storedData = getStorageData();
             
+            // Filter out placeholders and sort alphabetically (case-insensitive)
             const devices = Object.keys(storedData).filter(name => {
                 const lower = name.toLowerCase();
                 return name.trim() !== '' && 
                        !lower.includes('unknown') && 
                        !lower.includes('sub-model');
-            });
+            }).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'accent', numeric: true }));
     
             listContainer.innerHTML = '';
     
@@ -1462,9 +1462,9 @@
                 let cardBody = document.createElement('div');
                 cardBody.style.cssText = `display:none;padding:10px;border-top:1px solid ${isDark ? '#444' : '#ddd'};`;
     
-                // Phrases container (rendered as clean rows instead of a raw textarea)
+                // Phrases container (stacked full-width block layout to prevent clipping)
                 let phrasesContainer = document.createElement('div');
-                phrasesContainer.style.cssText = 'display:flex;flex-direction:column;gap:6px;margin-bottom:10px;max-height:180px;overflow-y:auto;';
+                phrasesContainer.style.cssText = 'display:flex;flex-direction:column;gap:8px;margin-bottom:10px;max-height:220px;overflow-y:auto;padding-right:2px;';
     
                 function renderPhraseRows() {
                     phrasesContainer.innerHTML = '';
@@ -1474,50 +1474,51 @@
                     }
     
                     phrases.forEach((phrase, index) => {
-                        let phraseRow = document.createElement('div');
-                        phraseRow.style.cssText = `display:flex;align-items:center;gap:6px;background:${isDark ? '#1e1e1e' : '#f8f9fa'};padding:4px 8px;border-radius:4px;border:1px solid ${isDark ? '#333' : '#e0e0e0'};`;
+                        let phraseBlock = document.createElement('div');
+                        phraseBlock.style.cssText = `display:flex;flex-direction:column;gap:4px;background:${isDark ? '#1e1e1e' : '#f8f9fa'};padding:8px;border-radius:4px;border:1px solid ${isDark ? '#333' : '#e0e0e0'};`;
     
-                        let input = document.createElement('input');
-                        input.type = 'text';
-                        input.value = phrase;
-                        input.style.cssText = `flex:1;background:transparent;border:none;color:${boxColor};font-size:12px;outline:none;`;
+                        let textarea = document.createElement('textarea');
+                        textarea.rows = 2; // multi-line support so long items don't get cut off
+                        textarea.value = phrase;
+                        textarea.style.cssText = `width:100%;background:${isDark ? '#252525' : '#fff'};border:1px solid ${isDark ? '#444' : '#ccc'};color:${boxColor};font-size:12px;padding:6px;box-sizing:border-box;border-radius:3px;resize:vertical;font-family:inherit;`;
                         
-                        // Update local array element on change
-                        input.addEventListener('input', () => {
-                            phrases[index] = input.value;
+                        textarea.addEventListener('input', () => {
+                            phrases[index] = textarea.value;
                         });
+    
+                        let rowBottom = document.createElement('div');
+                        rowBottom.style.cssText = 'display:flex;justify-content:flex-end;';
     
                         let removeBtn = document.createElement('button');
                         removeBtn.type = 'button';
-                        removeBtn.innerHTML = '&times;';
-                        removeBtn.title = 'Remove phrase';
-                        removeBtn.style.cssText = 'background:none;border:none;color:#dc3545;font-size:16px;cursor:pointer;padding:0 4px;font-weight:bold;';
+                        removeBtn.innerHTML = '&times; Remove';
+                        removeBtn.style.cssText = 'background:none;border:none;color:#dc3545;font-size:11px;cursor:pointer;padding:0;font-weight:bold;';
                         removeBtn.addEventListener('click', () => {
                             phrases.splice(index, 1);
                             renderPhraseRows();
                         });
     
-                        phraseRow.appendChild(input);
-                        phraseRow.appendChild(removeBtn);
-                        phrasesContainer.appendChild(phraseRow);
+                        rowBottom.appendChild(removeBtn);
+                        phraseBlock.appendChild(textarea);
+                        phraseBlock.appendChild(rowBottom);
+                        phrasesContainer.appendChild(phraseBlock);
                     });
                 }
     
                 renderPhraseRows();
     
-                // Add single phrase section inside the expanded accordion
                 let addPhraseRow = document.createElement('div');
                 addPhraseRow.style.cssText = 'display:flex;gap:6px;margin-bottom:10px;';
                 
                 let newPhraseInput = document.createElement('input');
                 newPhraseInput.type = 'text';
                 newPhraseInput.placeholder = 'Type new phrase...';
-                newPhraseInput.style.cssText = `flex:1;padding:5px;font-size:11px;box-sizing:border-box;background:${isDark ? '#1e1e1e' : '#fff'};color:${boxColor};border:1px solid ${isDark ? '#555' : '#ccc'};border-radius:4px;`;
+                newPhraseInput.style.cssText = `flex:1;padding:6px;font-size:11px;box-sizing:border-box;background:${isDark ? '#1e1e1e' : '#fff'};color:${boxColor};border:1px solid ${isDark ? '#555' : '#ccc'};border-radius:4px;`;
     
                 let addPhraseBtn = document.createElement('button');
                 addPhraseBtn.type = 'button';
                 addPhraseBtn.innerText = '+ Add Phrase';
-                addPhraseBtn.style.cssText = 'padding:5px 8px;background:#17a2b8;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;';
+                addPhraseBtn.style.cssText = 'padding:6px 10px;background:#17a2b8;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;';
     
                 addPhraseBtn.addEventListener('click', () => {
                     const val = newPhraseInput.value.trim();
@@ -1569,7 +1570,6 @@
                 });
     
                 saveItemBtn.addEventListener('click', () => {
-                    // Filter out empty items
                     const cleanedPhrases = phrases.map(p => p.trim()).filter(p => p.length > 0);
                     let data = getStorageData();
                     data[deviceName] = cleanedPhrases;
