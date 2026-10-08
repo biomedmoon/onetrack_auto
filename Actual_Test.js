@@ -1319,17 +1319,18 @@
         let ov = document.createElement('div');
         ov.id = 'device-phrases-modal';
         ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:transparent;z-index:999999;pointer-events:none;';
-
+    
         let box = document.createElement('div');
         let boxBg = isDark ? '#1e1e1e' : '#fff';
         let boxColor = isDark ? '#e0e0e0' : '#333';
-    // Position it centered initially, but allow absolute drag freedom with pointer-events enabled on the box
+        
+        // Retrieve last saved position from localStorage, or default to center
         let savedPos = {};
         try {
             savedPos = JSON.parse(localStorage.getItem('device_phrases_modal_pos') || '{}');
         } catch(e) {}
     
-        let initialStyle = `position:fixed;background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.25);width:420px;max-width:90vw;font-family:sans-serif;pointer-events:auto;cursor:default;`;
+        let initialStyle = `position:fixed;background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.25);width:460px;max-width:90vw;max-height:85vh;display:flex;flex-direction:column;font-family:sans-serif;pointer-events:auto;cursor:default;`;
         
         if (savedPos.left !== undefined && savedPos.top !== undefined) {
             initialStyle += `left:${savedPos.left}px;top:${savedPos.top}px;`;
@@ -1337,32 +1338,39 @@
             initialStyle += `top:50%;left:50%;transform:translate(-50%,-50%);`;
         }
     
-        box.style.cssText = initialStyle;    
-        // Add a draggable header/handle area so you can grab it
+        box.style.cssText = initialStyle;
+    
         box.innerHTML = `
             <div id="dp-drag-handle" style="cursor:move;padding-bottom:8px;margin-bottom:12px;border-bottom:1px solid ${isDark ? '#444' : '#eee'};">
-                <h3 style="margin:0;font-size:16px;">Edit Device-Specific Phrases</h3>
-                <p style="font-size:11px;opacity:0.7;margin:4px 0 0 0;">Type a device name to load or set custom phrases offline.</p>
+                <h3 style="margin:0;font-size:16px;">Device Phrase Catalog</h3>
+                <p style="font-size:11px;opacity:0.7;margin:4px 0 0 0;">Expand a device to edit phrases, or add a new device profile below.</p>
+            </div>
+    
+            <!-- Add New Device Section -->
+            <div style="margin-bottom:12px;padding:8px;background:${isDark ? '#2a2a2a' : '#f9f9f9'};border-radius:4px;border:1px solid ${isDark ? '#444' : '#ddd'};">
+                <label style="display:block;font-size:11px;font-weight:bold;margin-bottom:4px;">Add New Device Model:</label>
+                <div style="display:flex;gap:6px;">
+                    <input type="text" id="dp-new-device-input" placeholder="e.g., Alaris Pump Model 8015" style="flex:1;padding:6px;font-size:12px;box-sizing:border-box;background:${isDark ? '#1e1e1e' : '#fff'};color:${boxColor};border:1px solid ${isDark ? '#555' : '#ccc'};border-radius:4px;" />
+                    <button id="dp-add-device-btn" class="onetrack-btn" style="padding:6px 10px;background:#007bff;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;">Add</button>
+                </div>
             </div>
             
-            <label style="display:block;font-size:12px;font-weight:bold;margin-bottom:4px;">Device Type / Model Name:</label>
-            <input type="text" id="dp-device-input" placeholder="e.g., Solis VIP PharmGuard Pump" style="width:100%;padding:8px;margin-bottom:12px;box-sizing:border-box;background:${isDark ? '#2a2a2a' : '#fff'};color:${boxColor};border:1px solid ${isDark ? '#444' : '#ccc'};border-radius:4px;" />
-            
-            <label style="display:block;font-size:12px;font-weight:bold;margin-bottom:4px;">Custom Phrases (one per line):</label>
-            <textarea id="dp-phrases-textarea" rows="7" placeholder="Initial inspection passed&#10;Battery checked" style="width:100%;padding:8px;margin-bottom:12px;box-sizing:border-box;background:${isDark ? '#2a2a2a' : '#fff'};color:${boxColor};border:1px solid ${isDark ? '#444' : '#ccc'};border-radius:4px;"></textarea>
-            
-            <div id="dp-status-msg" style="font-size:11px;margin-bottom:10px;height:14px;color:#28a745;"></div>
+            <!-- Collapsible List Container -->
+            <div id="dp-device-list-container" style="flex:1;overflow-y:auto;max-height:45vh;margin-bottom:12px;padding-right:4px;">
+                <!-- Rendered dynamically -->
+            </div>
     
-            <div style="display:flex;gap:8px;">
-                <button id="dp-save-btn" class="onetrack-btn" style="flex:1;padding:8px;background:#28a745;color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:bold;">Save Phrases</button>
-                <button id="dp-back-btn" class="onetrack-btn" style="flex:1;padding:8px;background:${isDark ? '#444' : '#ccc'};color:${boxColor};border:none;border-radius:4px;cursor:pointer;">Close</button>
+            <div id="dp-status-msg" style="font-size:11px;margin-bottom:8px;height:14px;color:#28a745;text-align:center;"></div>
+    
+            <div style="display:flex;gap:8px;margin-top:auto;">
+                <button id="dp-back-btn" class="onetrack-btn" style="width:100%;padding:8px;background:${isDark ? '#444' : '#ccc'};color:${boxColor};border:none;border-radius:4px;cursor:pointer;font-weight:bold;">« Back to Settings</button>
             </div>
         `;
     
         ov.appendChild(box);
         document.body.appendChild(ov);
     
-        // --- DRAGGABLE LOGIC ---
+        // --- DRAGGABLE & POSITION PERSISTENCE LOGIC ---
         let isDragging = false;
         let startX, startY, initialLeft, initialTop;
         const handle = box.querySelector('#dp-drag-handle');
@@ -1373,7 +1381,6 @@
             startY = e.clientY;
             
             const rect = box.getBoundingClientRect();
-            // Clear out initial transform centering so pixel-based positioning takes over cleanly
             box.style.transform = 'none';
             box.style.left = rect.left + 'px';
             box.style.top = rect.top + 'px';
@@ -1395,21 +1402,21 @@
         }
     
         function onMouseUp() {
+            if (!isDragging) return;
             isDragging = false;
             document.removeEventListener('mousemove', onMouseMove);
             document.removeEventListener('mouseup', onMouseUp);
-            // Save final position coords to localStorage
+    
             const rect = box.getBoundingClientRect();
             localStorage.setItem('device_phrases_modal_pos', JSON.stringify({ left: rect.left, top: rect.top }));
         }
-        // -----------------------
+        // ----------------------------------------------
     
-        // Element references & storage listeners
-        const deviceInput = box.querySelector('#dp-device-input');
-        const phrasesTextarea = box.querySelector('#dp-phrases-textarea');
-        const saveBtn = box.querySelector('#dp-save-btn');
-        const backBtn = box.querySelector('#dp-back-btn');
+        const listContainer = box.querySelector('#dp-device-list-container');
+        const newDeviceInput = box.querySelector('#dp-new-device-input');
+        const addDeviceBtn = box.querySelector('#dp-add-device-btn');
         const statusMsg = box.querySelector('#dp-status-msg');
+        const backBtn = box.querySelector('#dp-back-btn');
     
         const getStorageData = () => {
             try {
@@ -1419,44 +1426,140 @@
             }
         };
     
-        deviceInput.addEventListener('blur', () => {
-            const deviceName = deviceInput.value.trim();
-            if (!deviceName) return;
+        const saveStorageData = (data) => {
+            localStorage.setItem('device_preset_notes', JSON.stringify(data));
+        };
     
+        // Render the collapsible list of all stored devices and their phrases
+        function renderDeviceList() {
             const storedData = getStorageData();
-            if (storedData[deviceName]) {
-                const val = storedData[deviceName];
-                phrasesTextarea.value = Array.isArray(val) ? val.join('\n') : val;
-                statusMsg.textContent = `Loaded phrases for "${deviceName}"`;
-            } else {
-                phrasesTextarea.value = '';
-                statusMsg.textContent = 'No custom phrases found yet.';
-            }
-            setTimeout(() => { statusMsg.textContent = ''; }, 3000);
-        });
+            const devices = Object.keys(storedData);
     
-        saveBtn.addEventListener('click', () => {
-            const deviceName = deviceInput.value.trim();
-            if (!deviceName) {
-                alert('Please enter a Device Type / Model Name first.');
-                deviceInput.focus();
+            listContainer.innerHTML = '';
+    
+            if (devices.length === 0) {
+                listContainer.innerHTML = `<p style="font-size:12px;opacity:0.6;text-align:center;padding:15px;">No custom devices stored yet.</p>`;
                 return;
             }
     
-            const phrasesList = phrasesTextarea.value
-                .split('\n')
-                .map(p => p.trim())
-                .filter(p => p.length > 0);
+            devices.forEach(deviceName => {
+                const phrases = Array.isArray(storedData[deviceName]) ? storedData[deviceName] : [];
     
-            let storedData = getStorageData();
-            storedData[deviceName] = phrasesList;
-            localStorage.setItem('device_preset_notes', JSON.stringify(storedData));
+                // Accordion wrapper item
+                let itemCard = document.createElement('div');
+                itemCard.style.cssText = `margin-bottom:6px;border:1px solid ${isDark ? '#444' : '#ddd'};border-radius:4px;background:${isDark ? '#252525' : '#fff'};overflow:hidden;`;
     
+                // Accordion header (Click to expand/collapse)
+                let cardHeader = document.createElement('div');
+                cardHeader.style.cssText = `padding:8px 10px;background:${isDark ? '#2f2f2f' : '#f1f1f1'};cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-weight:bold;font-size:12px;`;
+                cardHeader.innerHTML = `
+                    <span>${deviceName} <span style="font-weight:normal;opacity:0.6;font-size:11px;">(${phrases.length} phrases)</span></span>
+                    <span style="font-size:10px;">▼</span>
+                `;
+    
+                // Accordion collapsible content body
+                let cardBody = document.createElement('div');
+                cardBody.style.cssText = `display:none;padding:10px;border-top:1px solid ${isDark ? '#444' : '#ddd'};`;
+    
+                // Textarea for editing phrases (one per line)
+                let textarea = document.createElement('textarea');
+                textarea.rows = 5;
+                textarea.style.cssText = `width:100%;padding:6px;font-size:12px;box-sizing:border-box;margin-bottom:8px;background:${isDark ? '#1e1e1e' : '#fff'};color:${boxColor};border:1px solid ${isDark ? '#555' : '#ccc'};border-radius:4px;`;
+                textarea.value = phrases.join('\n');
+    
+                // Action buttons row (Save changes & Delete device)
+                let actionRow = document.createElement('div');
+                actionRow.style.cssText = 'display:flex;gap:6px;justify-content:flex-end;';
+    
+                let saveItemBtn = document.createElement('button');
+                saveItemBtn.className = 'onetrack-btn';
+                saveItemBtn.innerText = 'Save Changes';
+                saveItemBtn.style.cssText = 'padding:5px 10px;background:#28a745;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;';
+                
+                let deleteItemBtn = document.createElement('button');
+                deleteItemBtn.className = 'onetrack-btn';
+                deleteItemBtn.innerText = 'Delete Device';
+                deleteItemBtn.style.cssText = 'padding:5px 10px;background:#dc3545;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;';
+    
+                actionRow.appendChild(deleteItemBtn);
+                actionRow.appendChild(saveItemBtn);
+    
+                cardBody.appendChild(textarea);
+                cardBody.appendChild(actionRow);
+    
+                itemCard.appendChild(cardHeader);
+                itemCard.appendChild(cardBody);
+                listContainer.appendChild(itemCard);
+    
+                // Toggle expansion behavior
+                cardHeader.addEventListener('click', () => {
+                    const isOpen = cardBody.style.display === 'block';
+                    cardBody.style.display = isOpen ? 'none' : 'block';
+                    cardHeader.querySelector('span:last-child').textContent = isOpen ? '▼' : '▲';
+                });
+    
+                // Save individual device edits
+                saveItemBtn.addEventListener('click', () => {
+                    const updatedList = textarea.value
+                        .split('\n')
+                        .map(p => p.trim())
+                        .filter(p => p.length > 0);
+    
+                    let data = getStorageData();
+                    data[deviceName] = updatedList;
+                    saveStorageData(data);
+    
+                    statusMsg.style.color = '#28a745';
+                    statusMsg.textContent = `Updated phrases for "${deviceName}"!`;
+                    setTimeout(() => { statusMsg.textContent = ''; }, 2500);
+                    renderDeviceList();
+                });
+    
+                // Delete entire device entry from storage
+                deleteItemBtn.addEventListener('click', () => {
+                    if (confirm(`Are you sure you want to delete "${deviceName}" and all its saved phrases?`)) {
+                        let data = getStorageData();
+                        delete data[deviceName];
+                        saveStorageData(data);
+    
+                        statusMsg.style.color = '#dc3545';
+                        statusMsg.textContent = `Deleted device "${deviceName}".`;
+                        setTimeout(() => { statusMsg.textContent = ''; }, 2500);
+                        renderDeviceList();
+                    }
+                });
+            });
+        }
+    
+        // Add brand new device profile handler
+        addDeviceBtn.addEventListener('click', () => {
+            const newName = newDeviceInput.value.trim();
+            if (!newName) {
+                alert('Please enter a valid device model name.');
+                newDeviceInput.focus();
+                return;
+            }
+    
+            let data = getStorageData();
+            if (data[newName]) {
+                alert('A profile for this device already exists in storage.');
+                return;
+            }
+    
+            data[newName] = []; // initialize with empty phrase array
+            saveStorageData(data);
+    
+            newDeviceInput.value = '';
             statusMsg.style.color = '#28a745';
-            statusMsg.textContent = `Successfully saved phrases for "${deviceName}"!`;
+            statusMsg.textContent = `Added new device profile "${newName}"!`;
             setTimeout(() => { statusMsg.textContent = ''; }, 2500);
+            renderDeviceList();
         });
     
+        // Initial population call
+        renderDeviceList();
+    
+        // Return button triggers closing this modal and reopening main menu
         backBtn.addEventListener('click', () => {
             ov.remove();
             if (typeof showEditModal === 'function') {
