@@ -1324,7 +1324,6 @@
         let boxBg = isDark ? '#1e1e1e' : '#fff';
         let boxColor = isDark ? '#e0e0e0' : '#333';
         
-        // Retrieve last saved position from localStorage, or default to center
         let savedPos = {};
         try {
             savedPos = JSON.parse(localStorage.getItem('device_phrases_modal_pos') || '{}');
@@ -1343,10 +1342,9 @@
         box.innerHTML = `
             <div id="dp-drag-handle" style="cursor:move;padding-bottom:8px;margin-bottom:12px;border-bottom:1px solid ${isDark ? '#444' : '#eee'};">
                 <h3 style="margin:0;font-size:16px;">Device Phrase Catalog</h3>
-                <p style="font-size:11px;opacity:0.7;margin:4px 0 0 0;">Expand a device to edit phrases, or add a new device profile below.</p>
+                <p style="font-size:11px;opacity:0.7;margin:4px 0 0 0;">Manage specific device model phrases offline.</p>
             </div>
     
-            <!-- Add New Device Section -->
             <div style="margin-bottom:12px;padding:8px;background:${isDark ? '#2a2a2a' : '#f9f9f9'};border-radius:4px;border:1px solid ${isDark ? '#444' : '#ddd'};">
                 <label style="display:block;font-size:11px;font-weight:bold;margin-bottom:4px;">Add New Device Model:</label>
                 <div style="display:flex;gap:6px;">
@@ -1355,10 +1353,7 @@
                 </div>
             </div>
             
-            <!-- Collapsible List Container -->
-            <div id="dp-device-list-container" style="flex:1;overflow-y:auto;max-height:45vh;margin-bottom:12px;padding-right:4px;">
-                <!-- Rendered dynamically -->
-            </div>
+            <div id="dp-device-list-container" style="flex:1;overflow-y:auto;max-height:45vh;margin-bottom:12px;padding-right:4px;"></div>
     
             <div id="dp-status-msg" style="font-size:11px;margin-bottom:8px;height:14px;color:#28a745;text-align:center;"></div>
     
@@ -1370,7 +1365,7 @@
         ov.appendChild(box);
         document.body.appendChild(ov);
     
-        // --- DRAGGABLE & POSITION PERSISTENCE LOGIC ---
+        // Draggable logic
         let isDragging = false;
         let startX, startY, initialLeft, initialTop;
         const handle = box.querySelector('#dp-drag-handle');
@@ -1379,15 +1374,12 @@
             isDragging = true;
             startX = e.clientX;
             startY = e.clientY;
-            
             const rect = box.getBoundingClientRect();
             box.style.transform = 'none';
             box.style.left = rect.left + 'px';
             box.style.top = rect.top + 'px';
-            
             initialLeft = rect.left;
             initialTop = rect.top;
-            
             document.addEventListener('mousemove', onMouseMove);
             document.addEventListener('mouseup', onMouseUp);
             e.preventDefault();
@@ -1395,10 +1387,8 @@
     
         function onMouseMove(e) {
             if (!isDragging) return;
-            const dx = e.clientX - startX;
-            const dy = e.clientY - startY;
-            box.style.left = (initialLeft + dx) + 'px';
-            box.style.top = (initialTop + dy) + 'px';
+            box.style.left = (initialLeft + (e.clientX - startX)) + 'px';
+            box.style.top = (initialTop + (e.clientY - startY)) + 'px';
         }
     
         function onMouseUp() {
@@ -1406,11 +1396,9 @@
             isDragging = false;
             document.removeEventListener('mousemove', onMouseMove);
             document.removeEventListener('mouseup', onMouseUp);
-    
             const rect = box.getBoundingClientRect();
             localStorage.setItem('device_phrases_modal_pos', JSON.stringify({ left: rect.left, top: rect.top }));
         }
-        // ----------------------------------------------
     
         const listContainer = box.querySelector('#dp-device-list-container');
         const newDeviceInput = box.querySelector('#dp-new-device-input');
@@ -1430,26 +1418,30 @@
             localStorage.setItem('device_preset_notes', JSON.stringify(data));
         };
     
-        // Render the collapsible list of all stored devices and their phrases
         function renderDeviceList() {
             const storedData = getStorageData();
-            const devices = Object.keys(storedData);
+            
+            // Filter out global placeholders like 'unknown device', '(Sub-Model)', or empty keys
+            const devices = Object.keys(storedData).filter(name => {
+                const lower = name.toLowerCase();
+                return name.trim() !== '' && 
+                       !lower.includes('unknown') && 
+                       !lower.includes('sub-model');
+            });
     
             listContainer.innerHTML = '';
     
             if (devices.length === 0) {
-                listContainer.innerHTML = `<p style="font-size:12px;opacity:0.6;text-align:center;padding:15px;">No custom devices stored yet.</p>`;
+                listContainer.innerHTML = `<p style="font-size:12px;opacity:0.6;text-align:center;padding:15px;">No custom specific devices stored yet.</p>`;
                 return;
             }
     
             devices.forEach(deviceName => {
                 const phrases = Array.isArray(storedData[deviceName]) ? storedData[deviceName] : [];
     
-                // Accordion wrapper item
                 let itemCard = document.createElement('div');
                 itemCard.style.cssText = `margin-bottom:6px;border:1px solid ${isDark ? '#444' : '#ddd'};border-radius:4px;background:${isDark ? '#252525' : '#fff'};overflow:hidden;`;
     
-                // Accordion header (Click to expand/collapse)
                 let cardHeader = document.createElement('div');
                 cardHeader.style.cssText = `padding:8px 10px;background:${isDark ? '#2f2f2f' : '#f1f1f1'};cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-weight:bold;font-size:12px;`;
                 cardHeader.innerHTML = `
@@ -1457,17 +1449,14 @@
                     <span style="font-size:10px;">▼</span>
                 `;
     
-                // Accordion collapsible content body
                 let cardBody = document.createElement('div');
                 cardBody.style.cssText = `display:none;padding:10px;border-top:1px solid ${isDark ? '#444' : '#ddd'};`;
     
-                // Textarea for editing phrases (one per line)
                 let textarea = document.createElement('textarea');
                 textarea.rows = 5;
                 textarea.style.cssText = `width:100%;padding:6px;font-size:12px;box-sizing:border-box;margin-bottom:8px;background:${isDark ? '#1e1e1e' : '#fff'};color:${boxColor};border:1px solid ${isDark ? '#555' : '#ccc'};border-radius:4px;`;
                 textarea.value = phrases.join('\n');
     
-                // Action buttons row (Save changes & Delete device)
                 let actionRow = document.createElement('div');
                 actionRow.style.cssText = 'display:flex;gap:6px;justify-content:flex-end;';
     
@@ -1491,14 +1480,12 @@
                 itemCard.appendChild(cardBody);
                 listContainer.appendChild(itemCard);
     
-                // Toggle expansion behavior
                 cardHeader.addEventListener('click', () => {
                     const isOpen = cardBody.style.display === 'block';
                     cardBody.style.display = isOpen ? 'none' : 'block';
                     cardHeader.querySelector('span:last-child').textContent = isOpen ? '▼' : '▲';
                 });
     
-                // Save individual device edits
                 saveItemBtn.addEventListener('click', () => {
                     const updatedList = textarea.value
                         .split('\n')
@@ -1515,7 +1502,6 @@
                     renderDeviceList();
                 });
     
-                // Delete entire device entry from storage
                 deleteItemBtn.addEventListener('click', () => {
                     if (confirm(`Are you sure you want to delete "${deviceName}" and all its saved phrases?`)) {
                         let data = getStorageData();
@@ -1531,7 +1517,6 @@
             });
         }
     
-        // Add brand new device profile handler
         addDeviceBtn.addEventListener('click', () => {
             const newName = newDeviceInput.value.trim();
             if (!newName) {
@@ -1546,7 +1531,7 @@
                 return;
             }
     
-            data[newName] = []; // initialize with empty phrase array
+            data[newName] = [];
             saveStorageData(data);
     
             newDeviceInput.value = '';
@@ -1556,10 +1541,8 @@
             renderDeviceList();
         });
     
-        // Initial population call
         renderDeviceList();
     
-        // Return button triggers closing this modal and reopening main menu
         backBtn.addEventListener('click', () => {
             ov.remove();
             if (typeof showEditModal === 'function') {
