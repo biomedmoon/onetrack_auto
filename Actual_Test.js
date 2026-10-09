@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         OneTrack Automation & Helper - Actual_Test
 // @namespace    http://tampermonkey.net/
-// @version      1.3.4
+// @version      1.3.5
 // @description  Automates workflows, UI enhancements, hotkeys, and persistent settings.
 // @author       jekosol
 // @match        *://*/*
@@ -23,7 +23,7 @@
             localStorage.setItem(key, val);
         };
     }
-    const CURRENT_VERSION = '1.3.4';
+    const CURRENT_VERSION = '1.3.5';
     // --- ENVIRONMENT AUTO-DETECTION ---
     const isTestEnv = typeof GM_info !== 'undefined' && GM_info && GM_info.script && GM_info.script.name.includes('Test');
     const CONFIG = {
@@ -304,7 +304,7 @@
 
     const DEFAULT_CLIENT_MAPPING = {
         "CORAM": ["Shana Brown", "Amy Kwong"],
-        "CVS": ["William Maturo"],
+        "CVS": ["Andrew Tajc"],
         "OPTUM": ["Janey Mechler", "Heather LeClair"],
         "AmeriMed": ["David Rolph"],
         "NELC": ["Alexsis Gauthier", "Sheryl Guyer", "Lauren Lynch"],
