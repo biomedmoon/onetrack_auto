@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         OneTrack Automation & Helper - Actual_Test
 // @namespace    http://tampermonkey.net/
-// @version      1.3.4
+// @version      1.3.5
 // @description  Automates workflows, UI enhancements, hotkeys, and persistent settings.
 // @author       jekosol
 // @match        *://*/*
@@ -40,7 +40,7 @@
         "Added JSON Settings Export and Import backup functionality.",
         "Shifted Company/Client Mapping into a separate collapsible sub-menu.",
         "Added dedicated Global Common Phrases editor accessible from any device screen.",
-        "Added OEM Parts support for Infinity Enteral devices."
+        "Added UI enhancement for common device phrases"
     ];
 
     // 1. Inject clean theme styles (Backdrop made fully transparent / non-dimming)
@@ -1310,7 +1310,326 @@
         ov.appendChild(box);
         document.body.appendChild(ov);
     }
-
+    function showManageDevicePhrasesModal(passedTheme) {
+        let activeTheme = passedTheme || document.getElementById('preset-notes-modal')?.getAttribute('data-theme') || 'light';
+        let isDark = activeTheme === 'dark';
+    
+        let ex = document.getElementById('device-phrases-modal');
+        if (ex) ex.remove();
+    
+        let ov = document.createElement('div');
+        ov.id = 'device-phrases-modal';
+        ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:transparent;z-index:999999;pointer-events:none;';
+    
+        let box = document.createElement('div');
+        let boxBg = isDark ? '#1e1e1e' : '#fff';
+        let boxColor = isDark ? '#e0e0e0' : '#333';
+        
+        let savedPos = {};
+        try {
+            savedPos = JSON.parse(localStorage.getItem('device_phrases_modal_pos') || '{}');
+        } catch(e) {}
+    
+        let initialStyle = `position:fixed;background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.25);width:500px;max-width:90vw;max-height:85vh;display:flex;flex-direction:column;font-family:sans-serif;pointer-events:auto;cursor:default;`;
+        
+        if (savedPos.left !== undefined && savedPos.top !== undefined) {
+            initialStyle += `left:${savedPos.left}px;top:${savedPos.top}px;`;
+        } else {
+            initialStyle += `top:50%;left:50%;transform:translate(-50%,-50%);`;
+        }
+    
+        box.style.cssText = initialStyle;
+    
+        box.innerHTML = `
+            <div id="dp-drag-handle" style="cursor:move;padding-bottom:8px;margin-bottom:12px;border-bottom:1px solid ${isDark ? '#444' : '#eee'};">
+                <h3 style="margin:0;font-size:16px;">Device Phrase Catalog</h3>
+                <p style="font-size:11px;opacity:0.7;margin:4px 0 0 0;">Manage specific device model phrases offline.</p>
+            </div>
+    
+            <div style="margin-bottom:12px;padding:8px;background:${isDark ? '#2a2a2a' : '#f9f9f9'};border-radius:4px;border:1px solid ${isDark ? '#444' : '#ddd'};">
+                <label style="display:block;font-size:11px;font-weight:bold;margin-bottom:4px;">Add New Device Model:</label>
+                <div style="display:flex;gap:6px;">
+                    <input type="text" id="dp-new-device-input" placeholder="e.g., Alaris Pump Model 8015" style="flex:1;padding:6px;font-size:12px;box-sizing:border-box;background:${isDark ? '#1e1e1e' : '#fff'};color:${boxColor};border:1px solid ${isDark ? '#555' : '#ccc'};border-radius:4px;" />
+                    <button id="dp-add-device-btn" class="onetrack-btn" style="padding:6px 10px;background:#007bff;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;">Add</button>
+                </div>
+            </div>
+            
+            <div id="dp-device-list-container" style="flex:1;overflow-y:auto;max-height:48vh;margin-bottom:12px;padding-right:4px;"></div>
+    
+            <div id="dp-status-msg" style="font-size:11px;margin-bottom:8px;height:14px;color:#28a745;text-align:center;"></div>
+    
+            <div style="display:flex;gap:8px;margin-top:auto;">
+                <button id="dp-back-btn" class="onetrack-btn" style="width:100%;padding:8px;background:${isDark ? '#444' : '#ccc'};color:${boxColor};border:none;border-radius:4px;cursor:pointer;font-weight:bold;">« Back to Settings</button>
+            </div>
+        `;
+    
+        ov.appendChild(box);
+        document.body.appendChild(ov);
+    
+        // Draggable logic with viewport boundary protection
+        let isDragging = false;
+        let startX, startY, initialLeft, initialTop;
+        const handle = box.querySelector('#dp-drag-handle');
+    
+        handle.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            startX = e.clientX;
+            startY = e.clientY;
+            const rect = box.getBoundingClientRect();
+            box.style.transform = 'none';
+            box.style.left = rect.left + 'px';
+            box.style.top = rect.top + 'px';
+            initialLeft = rect.left;
+            initialTop = rect.top;
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+            e.preventDefault();
+        });
+    
+        function onMouseMove(e) {
+            if (!isDragging) return;
+            let newX = initialLeft + (e.clientX - startX);
+            let newY = initialTop + (e.clientY - startY);
+    
+            const rect = box.getBoundingClientRect();
+            const maxX = window.innerWidth - rect.width - 20;
+            const maxY = window.innerHeight - rect.height - 20;
+    
+            newX = Math.max(10, Math.min(newX, maxX));
+            newY = Math.max(10, Math.min(newY, maxY));
+    
+            box.style.left = newX + 'px';
+            box.style.top = newY + 'px';
+        }
+    
+        function onMouseUp() {
+            if (!isDragging) return;
+            isDragging = false;
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+            const rect = box.getBoundingClientRect();
+            localStorage.setItem('device_phrases_modal_pos', JSON.stringify({ left: rect.left, top: rect.top }));
+        }
+    
+        const listContainer = box.querySelector('#dp-device-list-container');
+        const newDeviceInput = box.querySelector('#dp-new-device-input');
+        const addDeviceBtn = box.querySelector('#dp-add-device-btn');
+        const statusMsg = box.querySelector('#dp-status-msg');
+        const backBtn = box.querySelector('#dp-back-btn');
+    
+        const getStorageData = () => {
+            try {
+                return JSON.parse(localStorage.getItem('device_preset_notes') || '{}');
+            } catch (e) {
+                return {};
+            }
+        };
+    
+        const saveStorageData = (data) => {
+            localStorage.setItem('device_preset_notes', JSON.stringify(data));
+        };
+    
+        function renderDeviceList() {
+            const storedData = getStorageData();
+            
+            // Filter out placeholders and sort alphabetically (case-insensitive)
+            const devices = Object.keys(storedData).filter(name => {
+                const lower = name.toLowerCase();
+                return name.trim() !== '' && 
+                       !lower.includes('unknown') && 
+                       !lower.includes('sub-model');
+            }).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'accent', numeric: true }));
+    
+            listContainer.innerHTML = '';
+    
+            if (devices.length === 0) {
+                listContainer.innerHTML = `<p style="font-size:12px;opacity:0.6;text-align:center;padding:15px;">No custom specific devices stored yet.</p>`;
+                return;
+            }
+    
+            devices.forEach(deviceName => {
+                let phrases = Array.isArray(storedData[deviceName]) ? [...storedData[deviceName]] : [];
+    
+                let itemCard = document.createElement('div');
+                itemCard.style.cssText = `margin-bottom:6px;border:1px solid ${isDark ? '#444' : '#ddd'};border-radius:4px;background:${isDark ? '#252525' : '#fff'};overflow:hidden;`;
+    
+                let cardHeader = document.createElement('div');
+                cardHeader.style.cssText = `padding:8px 10px;background:${isDark ? '#2f2f2f' : '#f1f1f1'};cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-weight:bold;font-size:12px;`;
+                cardHeader.innerHTML = `
+                    <span>${deviceName} <span style="font-weight:normal;opacity:0.6;font-size:11px;">(${phrases.length} phrases)</span></span>
+                    <span style="font-size:10px;">▼</span>
+                `;
+    
+                let cardBody = document.createElement('div');
+                cardBody.style.cssText = `display:none;padding:10px;border-top:1px solid ${isDark ? '#444' : '#ddd'};`;
+    
+                // Phrases container (stacked full-width block layout to prevent clipping)
+                let phrasesContainer = document.createElement('div');
+                phrasesContainer.style.cssText = 'display:flex;flex-direction:column;gap:8px;margin-bottom:10px;max-height:220px;overflow-y:auto;padding-right:2px;';
+    
+                function renderPhraseRows() {
+                    phrasesContainer.innerHTML = '';
+                    if (phrases.length === 0) {
+                        phrasesContainer.innerHTML = `<div style="font-size:11px;opacity:0.5;text-align:center;padding:6px;">No phrases added for this device yet.</div>`;
+                        return;
+                    }
+    
+                    phrases.forEach((phrase, index) => {
+                        let phraseBlock = document.createElement('div');
+                        phraseBlock.style.cssText = `display:flex;flex-direction:column;gap:4px;background:${isDark ? '#1e1e1e' : '#f8f9fa'};padding:8px;border-radius:4px;border:1px solid ${isDark ? '#333' : '#e0e0e0'};`;
+    
+                        let textarea = document.createElement('textarea');
+                        textarea.rows = 2; // multi-line support so long items don't get cut off
+                        textarea.value = phrase;
+                        textarea.style.cssText = `width:100%;background:${isDark ? '#252525' : '#fff'};border:1px solid ${isDark ? '#444' : '#ccc'};color:${boxColor};font-size:12px;padding:6px;box-sizing:border-box;border-radius:3px;resize:vertical;font-family:inherit;`;
+                        
+                        textarea.addEventListener('input', () => {
+                            phrases[index] = textarea.value;
+                        });
+    
+                        let rowBottom = document.createElement('div');
+                        rowBottom.style.cssText = 'display:flex;justify-content:flex-end;';
+    
+                        let removeBtn = document.createElement('button');
+                        removeBtn.type = 'button';
+                        removeBtn.innerHTML = '&times; Remove';
+                        removeBtn.style.cssText = 'background:none;border:none;color:#dc3545;font-size:11px;cursor:pointer;padding:0;font-weight:bold;';
+                        removeBtn.addEventListener('click', () => {
+                            phrases.splice(index, 1);
+                            renderPhraseRows();
+                        });
+    
+                        rowBottom.appendChild(removeBtn);
+                        phraseBlock.appendChild(textarea);
+                        phraseBlock.appendChild(rowBottom);
+                        phrasesContainer.appendChild(phraseBlock);
+                    });
+                }
+    
+                renderPhraseRows();
+    
+                let addPhraseRow = document.createElement('div');
+                addPhraseRow.style.cssText = 'display:flex;gap:6px;margin-bottom:10px;';
+                
+                let newPhraseInput = document.createElement('input');
+                newPhraseInput.type = 'text';
+                newPhraseInput.placeholder = 'Type new phrase...';
+                newPhraseInput.style.cssText = `flex:1;padding:6px;font-size:11px;box-sizing:border-box;background:${isDark ? '#1e1e1e' : '#fff'};color:${boxColor};border:1px solid ${isDark ? '#555' : '#ccc'};border-radius:4px;`;
+    
+                let addPhraseBtn = document.createElement('button');
+                addPhraseBtn.type = 'button';
+                addPhraseBtn.innerText = '+ Add Phrase';
+                addPhraseBtn.style.cssText = 'padding:6px 10px;background:#17a2b8;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;';
+    
+                addPhraseBtn.addEventListener('click', () => {
+                    const val = newPhraseInput.value.trim();
+                    if (val) {
+                        phrases.push(val);
+                        newPhraseInput.value = '';
+                        renderPhraseRows();
+                    }
+                });
+    
+                newPhraseInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        addPhraseBtn.click();
+                        e.preventDefault();
+                    }
+                });
+    
+                addPhraseRow.appendChild(newPhraseInput);
+                addPhraseRow.appendChild(addPhraseBtn);
+    
+                let actionRow = document.createElement('div');
+                actionRow.style.cssText = 'display:flex;gap:6px;justify-content:flex-end;border-top:1px solid ' + (isDark ? '#333' : '#eee') + ';padding-top:8px;';
+    
+                let saveItemBtn = document.createElement('button');
+                saveItemBtn.className = 'onetrack-btn';
+                saveItemBtn.innerText = 'Save Changes';
+                saveItemBtn.style.cssText = 'padding:5px 10px;background:#28a745;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;';
+                
+                let deleteItemBtn = document.createElement('button');
+                deleteItemBtn.className = 'onetrack-btn';
+                deleteItemBtn.innerText = 'Delete Device';
+                deleteItemBtn.style.cssText = 'padding:5px 10px;background:#dc3545;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;';
+    
+                actionRow.appendChild(deleteItemBtn);
+                actionRow.appendChild(saveItemBtn);
+    
+                cardBody.appendChild(phrasesContainer);
+                cardBody.appendChild(addPhraseRow);
+                cardBody.appendChild(actionRow);
+    
+                itemCard.appendChild(cardHeader);
+                itemCard.appendChild(cardBody);
+                listContainer.appendChild(itemCard);
+    
+                cardHeader.addEventListener('click', () => {
+                    const isOpen = cardBody.style.display === 'block';
+                    cardBody.style.display = isOpen ? 'none' : 'block';
+                    cardHeader.querySelector('span:last-child').textContent = isOpen ? '▼' : '▲';
+                });
+    
+                saveItemBtn.addEventListener('click', () => {
+                    const cleanedPhrases = phrases.map(p => p.trim()).filter(p => p.length > 0);
+                    let data = getStorageData();
+                    data[deviceName] = cleanedPhrases;
+                    saveStorageData(data);
+    
+                    statusMsg.style.color = '#28a745';
+                    statusMsg.textContent = `Updated phrases for "${deviceName}"!`;
+                    setTimeout(() => { statusMsg.textContent = ''; }, 2500);
+                    renderDeviceList();
+                });
+    
+                deleteItemBtn.addEventListener('click', () => {
+                    if (confirm(`Are you sure you want to delete "${deviceName}" and all its saved phrases?`)) {
+                        let data = getStorageData();
+                        delete data[deviceName];
+                        saveStorageData(data);
+    
+                        statusMsg.style.color = '#dc3545';
+                        statusMsg.textContent = `Deleted device "${deviceName}".`;
+                        setTimeout(() => { statusMsg.textContent = ''; }, 2500);
+                        renderDeviceList();
+                    }
+                });
+            });
+        }
+    
+        addDeviceBtn.addEventListener('click', () => {
+            const newName = newDeviceInput.value.trim();
+            if (!newName) {
+                alert('Please enter a valid device model name.');
+                newDeviceInput.focus();
+                return;
+            }
+    
+            let data = getStorageData();
+            if (data[newName]) {
+                alert('A profile for this device already exists in storage.');
+                return;
+            }
+    
+            data[newName] = [];
+            saveStorageData(data);
+    
+            newDeviceInput.value = '';
+            statusMsg.style.color = '#28a745';
+            statusMsg.textContent = `Added new device profile "${newName}"!`;
+            setTimeout(() => { statusMsg.textContent = ''; }, 2500);
+            renderDeviceList();
+        });
+    
+        renderDeviceList();
+    
+        backBtn.addEventListener('click', () => {
+            ov.remove();
+            if (typeof showEditModal === 'function') {
+                showEditModal(activeTheme);
+            }
+        });
+    }
     function showAdvancedSettingsModal() {
         let activeTheme = document.getElementById('preset-notes-modal')?.getAttribute('data-theme') || localStorage.getItem('onetrack_theme') || 'light';
         let isDark = activeTheme === 'dark';
@@ -1462,40 +1781,43 @@
         let dt = getDeviceType(), ph = [...getPhrasesForDevice(dt)];
         let activeTheme = passedTheme || document.getElementById('preset-notes-modal')?.getAttribute('data-theme') || localStorage.getItem('onetrack_theme') || 'light';
         let isDark = activeTheme === 'dark';
-
+    
         let ex = document.getElementById('preset-notes-modal');
         if (ex) ex.remove();
-
+    
         let ov = document.createElement('div');
         ov.id = 'preset-notes-modal';
         ov.setAttribute('data-theme', activeTheme);
         ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:transparent;z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;pointer-events:none;';
-
+    
         let box = document.createElement('div');
         box.className = 'onetrack-modal' + (compactMode ? ' onetrack-compact-mode' : '');
         let boxBg = isDark ? '#1e1e1e' : '#fff';
         let boxColor = isDark ? '#e0e0e0' : '#333';
-        box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:500px;max-height:85vh;display:flex;flex-direction:column;position:relative;pointer-events:auto;`;
-        applyUIScale(box);
-        applySavedPosition(box);
-        applySavedScale(box);
-
+        box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:520px;max-height:85vh;display:flex;flex-direction:column;position:relative;pointer-events:auto;`;
+        
+        if (typeof applyUIScale === 'function') applyUIScale(box);
+        if (typeof applySavedPosition === 'function') applySavedPosition(box);
+        if (typeof applySavedScale === 'function') applySavedScale(box);
+    
+        // Title Row
         let titleRow = document.createElement('div');
         titleRow.style.cssText = "display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;cursor:move;";
         let title = document.createElement('h3');
         title.innerText = "✏️ Edit Device Notes";
         title.style.cssText = `margin:0;color:${isDark ? '#ffffff' : '#333'};font-size:16px;`;
         titleRow.appendChild(title);
-
+    
         let settingsBtn = document.createElement('button');
         settingsBtn.innerText = "⚙️ Settings";
         settingsBtn.className = 'onetrack-btn';
         settingsBtn.style.cssText = isDark ? "background:#2d2d2d;color:#e0e0e0;border:1px solid #444;padding:5px 10px;border-radius:4px;cursor:pointer;font-weight:bold;font-size:11px;" : "background:#f0f0f0;color:#333;border:1px solid #ccc;padding:5px 10px;border-radius:4px;cursor:pointer;font-weight:bold;font-size:11px;";
         settingsBtn.onclick = () => { ov.remove(); showAdvancedSettingsModal(); };
         titleRow.appendChild(settingsBtn);
-        makeDraggable(box, titleRow);
+        if (typeof makeDraggable === 'function') makeDraggable(box, titleRow);
         box.appendChild(titleRow);
-
+    
+        // Wrap Toggle Row
         let wrapRow = document.createElement('label');
         let rowBg = isDark ? '#2a2a2a' : '#f8f9fa';
         let rowBorder = isDark ? '#444' : '#e9ecef';
@@ -1525,10 +1847,12 @@
         wrapLabelText.innerText = 'Enable dynamic text wrapping for entries';
         wrapRow.appendChild(wrapLabelText);
         box.appendChild(wrapRow);
-
+    
+        // Scrollable Area
         let sa = document.createElement('div');
-        sa.style.cssText = "flex-grow:1;overflow-y:auto;margin-bottom:15px;padding-right:5px;max-height:360px;";
-
+        sa.style.cssText = "flex-grow:1;overflow-y:auto;margin-bottom:15px;padding-right:5px;max-height:340px;";
+    
+        // Submenu Action Buttons
         let navActionRow = document.createElement('div');
         navActionRow.style.cssText = "display:flex;gap:6px;margin-bottom:12px;";
         
@@ -1538,7 +1862,7 @@
         subMenuCompBtn.style.cssText = "flex:1;background:#780034;color:#fff;border:none;padding:6px;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;";
         subMenuCompBtn.onclick = () => { ov.remove(); showManageCompaniesModal(activeTheme); };
         navActionRow.appendChild(subMenuCompBtn);
-
+    
         let subMenuPhrasesBtn = document.createElement('button');
         subMenuPhrasesBtn.innerText = "💬 Edit Global Phrases";
         subMenuPhrasesBtn.className = 'onetrack-btn';
@@ -1546,38 +1870,59 @@
         subMenuPhrasesBtn.onclick = () => { ov.remove(); showManageGlobalPhrasesModal(activeTheme); };
         navActionRow.appendChild(subMenuPhrasesBtn);
         sa.appendChild(navActionRow);
-
+    
+        // Search Input for Phrases
+        let searchInput = document.createElement('input');
+        searchInput.type = 'text';
+        searchInput.placeholder = 'Search device notes...';
+        searchInput.style.cssText = `width:100%;padding:6px 8px;font-size:11px;background:${isDark ? '#2a2a2a' : '#fff'};color:${boxColor};border:1px solid ${isDark ? '#444' : '#ccc'};border-radius:4px;box-sizing:border-box;margin-bottom:8px;`;
+        sa.appendChild(searchInput);
+    
         let nl = document.createElement('h4');
         nl.innerText = `Device Specific Notes: ${dt} (supports {DATE} & {SERIAL})`;
         nl.style.cssText = `margin:0 0 6px 0;font-size:12px;color:${isDark ? '#cccccc' : '#444'};`;
         sa.appendChild(nl);
-
+    
+        // Notes Container
         let nc = document.createElement('div');
-        let ncBg = isDark ? '#2a2a2a' : '#fdfdfd';
         let ncBorder = isDark ? '#444' : '#ddd';
-        nc.style.cssText = `border:1px solid ${ncBorder};padding:8px;border-radius:4px;margin-bottom:12px;background:${ncBg};`;
-
-        function rnl() {
+        nc.style.cssText = `border:1px solid ${ncBorder};padding:8px;border-radius:4px;margin-bottom:12px;background:${isDark ? '#222' : '#fdfdfd'};display:flex;flex-direction:column;gap:6px;`;
+        sa.appendChild(nc);
+    
+        let draggedItemIndex = null;
+    
+        function renderNotes(filter = '') {
             nc.innerHTML = '';
-            if (ph.length === 0) {
-                let em = document.createElement('div');
-                em.innerText = "No specific notes configured for this device.";
-                em.style.cssText = "font-size:11px;color:#888;font-style:italic;padding:4px;";
-                nc.appendChild(em);
-                return;
-            }
-            ph.forEach((nt, i) => {
-                let r = document.createElement('div');
-                r.style.cssText = "display:flex;gap:6px;margin-bottom:6px;align-items:center;";
+            const lowerFilter = filter.toLowerCase();
+            let matchCount = 0;
+    
+            ph.forEach((nt, index) => {
+                if (lowerFilter && !nt.toLowerCase().includes(lowerFilter)) return;
+                matchCount++;
+    
+                let row = document.createElement('div');
+                const isDraggable = (filter === '');
+                row.draggable = isDraggable;
+                row.dataset.index = index;
+                
+                let rowBgColor = isDark ? '#2a2a2a' : '#f8f9fa';
+                let rowBorderColor = isDark ? '#3b3b3b' : '#e0e0e0';
+                row.style.cssText = `display:flex;gap:6px;align-items:center;background:${rowBgColor};padding:6px;border-radius:4px;border:1px solid ${rowBorderColor};transition:border-color 0.2s;`;
+    
+                // Left-aligned Drag Handle
+                let dragHandle = document.createElement('span');
+                dragHandle.textContent = '⋮⋮';
+                dragHandle.title = isDraggable ? 'Drag to reorder' : 'Clear search filter to reorder';
+                dragHandle.style.cssText = `color:${isDraggable ? '#8c959f' : '#444'};font-size:14px;cursor:${isDraggable ? 'grab' : 'not-allowed'};user-select:none;padding:0 2px;`;
+                row.appendChild(dragHandle);
+    
+                // Textarea Input
                 let inp = document.createElement('textarea');
                 inp.rows = wrapMode ? 2 : 1;
                 inp.className = 'onetrack-phrase-input';
                 inp.value = nt;
-                inp.style.cssText = `flex-grow:1; padding:5px; border:1px solid ${isDark ? '#555' : '#ccc'}; border-radius:3px; font-size:11px; font-family:sans-serif; resize:${wrapMode ? 'vertical' : 'none'}; height:${wrapMode ? 'auto' : '32px'};`;
+                inp.style.cssText = `flex-grow:1;padding:5px;border:1px solid ${isDark ? '#555' : '#ccc'};border-radius:3px;font-size:11px;font-family:sans-serif;resize:${wrapMode ? 'vertical' : 'none'};height:${wrapMode ? 'auto' : '32px'};background:${isDark ? '#1e1e1e' : '#fff'};color:${boxColor};`;
                 
-                r.appendChild(inp);
-                
-                // If wrapping is enabled, calculate the correct expanded height right away after it's in the DOM
                 if (wrapMode) {
                     setTimeout(() => {
                         inp.style.height = 'auto';
@@ -1590,37 +1935,98 @@
                         this.style.height = 'auto';
                         this.style.height = (this.scrollHeight) + 'px';
                     }
+                    ph[index] = this.value;
                 };
-                inp.onchange = (e) => ph[i] = e.target.value.trim();
-                r.appendChild(inp);
-                r.appendChild(inp);
-
+                inp.onchange = (e) => {
+                    ph[index] = e.target.value.trim();
+                };
+                row.appendChild(inp);
+    
+                // Delete Button
                 let db = document.createElement('button');
                 db.innerText = "X";
                 db.className = 'onetrack-btn';
                 db.style.cssText = "background:#d9534f;color:#fff;border:none;padding:5px 8px;border-radius:3px;cursor:pointer;font-size:11px;font-weight:bold;";
                 db.onclick = () => {
-                    ph.splice(i, 1);
-                    rnl();
+                    ph.splice(index, 1);
+                    renderNotes(searchInput.value);
                 };
-                r.appendChild(db);
-                nc.appendChild(r);
+                row.appendChild(db);
+    
+                // --- HTML5 Drag and Drop Event Handlers ---
+                if (isDraggable) {
+                    row.ondragstart = (e) => {
+                        draggedItemIndex = index;
+                        e.dataTransfer.effectAllowed = 'move';
+                        row.style.opacity = '0.4';
+                    };
+    
+                    row.ondragend = () => {
+                        draggedItemIndex = null;
+                        row.style.opacity = '1';
+                        Array.from(nc.children).forEach(child => {
+                            child.style.borderColor = rowBorderColor;
+                        });
+                    };
+    
+                    row.ondragover = (e) => {
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = 'move';
+                    };
+    
+                    row.ondragenter = () => {
+                        if (draggedItemIndex === null || draggedItemIndex === index) return;
+                        row.style.borderColor = '#007bff';
+                    };
+    
+                    row.ondragleave = () => {
+                        row.style.borderColor = rowBorderColor;
+                    };
+    
+                    row.ondrop = (e) => {
+                        e.preventDefault();
+                        row.style.borderColor = rowBorderColor;
+                        if (draggedItemIndex === null || draggedItemIndex === index) return;
+    
+                        const draggedItem = ph.splice(draggedItemIndex, 1)[0];
+                        ph.splice(index, 0, draggedItem);
+                        renderNotes(searchInput.value);
+                    };
+                }
+    
+                nc.appendChild(row);
             });
+    
+            if (matchCount === 0) {
+                let em = document.createElement('div');
+                em.innerText = filter ? "No matching notes found." : "No specific notes configured for this device.";
+                em.style.cssText = "font-size:11px;color:#888;font-style:italic;padding:4px;text-align:center;";
+                nc.appendChild(em);
+            }
         }
-        rnl();
-        sa.appendChild(nc);
 
+        renderNotes();
+    
+        searchInput.addEventListener('input', (e) => {
+            renderNotes(e.target.value);
+        });
+    
         let anb = document.createElement('button');
         anb.innerText = "+ Add Device Note";
         anb.className = 'onetrack-btn';
-        anb.style.cssText = isDark ? "background:#2d2d2d;color:#e0e0e0;border:1px solid #444;padding:5px;border-radius:4px;cursor:pointer;margin-bottom:8px;font-weight:bold;font-size:11px;width:100%;" : "background:#f0f0f0;color:#333;border:1px solid #ccc;padding:5px;border-radius:4px;cursor:pointer;margin-bottom:8px;font-weight:bold;font-size:11px;width:100%;";
-        anb.onclick = () => { ph.push(""); rnl(); };
+        anb.style.cssText = isDark ? "background:#2d2d2d;color:#e0e0e0;border:1px solid #444;padding:5px;border-radius:4px;cursor:pointer;margin-top:4px;margin-bottom:8px;font-weight:bold;font-size:11px;width:100%;" : "background:#f0f0f0;color:#333;border:1px solid #ccc;padding:5px;border-radius:4px;cursor:pointer;margin-top:4px;margin-bottom:8px;font-weight:bold;font-size:11px;width:100%;";
+        anb.onclick = () => { 
+            ph.push(""); 
+            searchInput.value = '';
+            renderNotes(); 
+        };
         sa.appendChild(anb);
         box.appendChild(sa);
-
+    
+        // Bottom Action Button Row
         let btnRow = document.createElement('div');
         btnRow.style.cssText = "display:flex;gap:8px;";
-
+    
         let sv = document.createElement('button');
         sv.innerText = "Save & Apply";
         sv.className = 'onetrack-btn';
@@ -1635,14 +2041,24 @@
             showMainModal(activeTheme);
         };
         btnRow.appendChild(sv);
-
+    
         let clBtn = document.createElement('button');
         clBtn.innerText = "Cancel";
         clBtn.className = 'onetrack-btn';
         clBtn.style.cssText = isDark ? "flex:1;padding:8px;background:#444;color:#e0e0e0;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;" : "flex:1;padding:8px;background:#e0e0e0;color:#333;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;";
         clBtn.onclick = () => { ov.remove(); showMainModal(activeTheme); };
         btnRow.appendChild(clBtn);
-
+    
+        let manageDevicePhrasesBtn = document.createElement('button');
+        manageDevicePhrasesBtn.innerText = "Edit Device Phrases";
+        manageDevicePhrasesBtn.className = 'onetrack-btn';
+        manageDevicePhrasesBtn.style.cssText = `flex:1;padding:8px;background:#17a2b8;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;`;
+        manageDevicePhrasesBtn.onclick = () => {
+            ov.remove();
+            showManageDevicePhrasesModal(activeTheme);
+        };
+        btnRow.appendChild(manageDevicePhrasesBtn);
+    
         box.appendChild(btnRow);
         ov.appendChild(box);
         document.body.appendChild(ov);
