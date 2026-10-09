@@ -145,13 +145,13 @@
         }
     }
 
-    let currentTheme = localStorage.getItem('onetrack_theme') || 'auto';
+    let Theme = localStorage.getItem('onetrack_theme') || 'auto';
     let customHotkey = localStorage.getItem(CONFIG.storagePrefix + 'custom_hotkey') || CONFIG.hotkey;
     let compactMode = localStorage.getItem('onetrack_compact') === 'true';
     let keepOpenMode = localStorage.getItem('onetrack_keep_open') === 'true';
     let wrapMode = localStorage.getItem('onetrack_wrap_mode') === 'true';
 
-    applyTheme(currentTheme);
+    applyTheme(Theme);
 
     let themeStyleTag = document.getElementById('onetrack-theme-variables');
     if (!themeStyleTag) {
@@ -219,8 +219,8 @@
             element.style.top = (element.offsetTop - pos2) + "px";
             element.style.left = (element.offsetLeft - pos1) + "px";
             element.style.position = 'fixed';
-            let currentScale = getUIScale();
-            element.style.transform = currentScale !== 1.0 ? `scale(${currentScale})` : 'none';
+            let Scale = getUIScale();
+            element.style.transform = Scale !== 1.0 ? `scale(${Scale})` : 'none';
         };
         const targetHandle = handle || element;
         targetHandle.onmousedown = dragMouseDown;
@@ -305,7 +305,7 @@
 
     const DEFAULT_CLIENT_MAPPING = {
         "CORAM": ["Shana Brown", "Amy Kwong"],
-        "CVS": ["William Maturo"],
+        "CVS": ["Andrew Tajc"],
         "OPTUM": ["Janey Mechler", "Heather LeClair"],
         "AmeriMed": ["David Rolph"],
         "NELC": ["Alexsis Gauthier", "Sheryl Guyer", "Lauren Lynch"],
