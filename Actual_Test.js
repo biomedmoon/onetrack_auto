@@ -680,8 +680,8 @@
         cont.style.cssText = 'overflow-y:auto;flex:1;padding-right:5px;margin-bottom:12px;';
         let tds = new Date().toLocaleDateString('en-US', {month:'2-digit', day:'2-digit', year:'numeric'});
 
-        if (/curlin\s*6000/i.test(dt)) {
-            let curlinPdfBtn = document.createElement('button');
+        if (/\s*6000/i.test(dt)) {
+            let PdfBtn = document.createElement('button');
             curlinPdfBtn.innerText = '⚡ Curlin Invoice PDF Text Extract';
             curlinPdfBtn.className = 'onetrack-btn';
             curlinPdfBtn.style.cssText = 'display:block;width:100%;padding:8px 10px;margin:4px 0;background:#e2f0cb;color:#2b542c;border:1px solid #b5d89c;border-radius:4px;cursor:pointer;font-size:12px;text-align:left;font-weight:bold;line-height:1.4;';
@@ -1008,7 +1008,7 @@
                 if (lineUpper.includes("SECTION TOTAL")) continue;
                 if (skipKeywords.some(k => lineUpper.includes(k))) continue;
                 if (line.includes("@") || line.startsWith("$") || /^\d+\.\d+$/.test(line) || line.startsWith("†")) continue;
-                if (line.includes(":")) continue;
+                //if (line.includes(":")) continue;
     
                 if (/^\d+([-\b].*)?$/.test(line)) continue;
                 if (/^T\d+/.test(lineUpper)) continue;
