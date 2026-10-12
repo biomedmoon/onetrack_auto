@@ -936,7 +936,6 @@
         }
     
         // 2. Extract Material Details via robust multi-line boundary matching
-        // Look for lines starting with item numbers/codes under material details and extract the trailing description
         let lines = fullText.split("\n").map(l => l.trim()).filter(l => l.length > 0);
         let inMaterials = false;
     
@@ -957,13 +956,10 @@
             if (inMaterials) {
                 if (lineUpper.includes("SECTION TOTAL") || lineUpper.includes("ITEM NUMBER") || lineUpper.includes("OP")) continue;
     
-                // Match lines that look like a material row (e.g., "10   340-1003   Billable ... REAR CASE ASSY")
-                // We want to pull out the description part which is usually all caps at the end of the line
-                let partsMatch = line.match(/\b(?:340-\d+|360-\d+|\d{5})\b.*?((?:REAR CASE ASSY|LENS LCD.*?|MOTOR AND WORM GEARASSEMBLY|[A-Z\s]{4,}))$/i);
+                let partsMatch = line.match(/\b(?:340-\d+|350-\d+|360-\d+|59933|66419|C12-\d+|C14-\d+|\d{5})\b.*?((?:REAR CASE ASSY|LENS LCD.*?|MOTOR AND WORM GEARASSEMBLY|[A-Z\s]{4,}))$/i);
                 
                 if (partsMatch) {
                     let desc = partsMatch[1].trim();
-                    // Clean up any trailing garbage words if caught
                     desc = desc.replace(/\b(BILLABLE|REGREPR)\b/gi, '').trim();
                     
                     if (desc.length > 3) {
@@ -978,11 +974,47 @@
             }
         }
     
-        // Fallback if specific line regex misses, use direct keyword scans on the text block
+        // 3. Comprehensive Moog Medical Part Number Fallback Map (Curlin & Infinity Family)
         if (materials.length === 0) {
-            if (fullText.includes("340-1003")) materials.push("Rear Case Assembly");
-            if (fullText.includes("360-0016")) materials.push("Lens LCD 6000 CMS Large Screen");
-            if (fullText.includes("59933")) materials.push("Motor and Worm Gear Assembly");
+            const moogParts = {
+                "340-0049": "Mech Seal",
+                "340-0055": "Pump Mechanism Assembly",
+                "340-0057": "Sub-Assembly w/o Motor",
+                "340-0070": "Bezel with Overmold",
+                "340-1003": "Rear Case Assembly",
+                "350-2011": "Keypad w/o Overlay",
+                "360-0016": "LCD Lens",
+                "360-0022": "Battery Ejector",
+                "360-1004": "Battery Door",
+                "360-0091": "Battery Door",
+                "360-2004-00": "PCB Assembly",
+                "360-2009": "Keypad Overlay",
+                "59933": "Motor & Worm Gear Assembly",
+                "66419": "Front Case Sub Assembly",
+                "C12-02001": "BT2",
+                "C12-04002": "BT3",
+                "C14-05003": "LCD Module",
+                "58553": "LCD Module",
+                "25771-001": "Backlight Diffuser",
+                "25795-001": "LCD Display",
+                "26503-001": "Battery Assembly",
+                "26542-001": "Infinity II Pump Cover",
+                "80786-001": "Infinity II Pump Cover",
+                "27696-001": "Infinity Bottom Housing",
+                "28270-001": "Infinity Motor",
+                "84239": "Infinity Motor",
+                "28483-001": "Rotor Assembly",
+                "42611": "Canon Motor",
+                "43763-101": "Infinity II PCB Assembly",
+                "56717-001": "Top Housing",
+                "80782-001": "Top Housing"
+            };
+    
+            for (let [partNum, partName] of Object.entries(moogParts)) {
+                if (fullText.includes(partNum) && !materials.includes(partName)) {
+                    materials.push(partName);
+                }
+            }
         }
     
         let materialsStr = materials.length > 0 ? materials.join(", ") : "None";
