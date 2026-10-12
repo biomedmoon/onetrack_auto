@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         OneTrack Automation & Helper - Actual_Test
+// @name         OneTrack Automation & Helper
 // @namespace    http://tampermonkey.net/
-// @version      1.3.5
+// @version      1.3.6
 // @description  Automates workflows, UI enhancements, hotkeys, and persistent settings.
 // @author       jekosol
 // @match        *://*/*
@@ -39,8 +39,7 @@
         "Introduced UI Compact Mode preferences.",
         "Added JSON Settings Export and Import backup functionality.",
         "Shifted Company/Client Mapping into a separate collapsible sub-menu.",
-        "Added dedicated Global Common Phrases editor accessible from any device screen.",
-        "Added UI enhancement for common device phrases"
+        "Added dedicated Global Common Phrases editor accessible from any device screen."
     ];
 
     // 1. Inject clean theme styles (Backdrop made fully transparent / non-dimming)
@@ -113,7 +112,7 @@
             word-break: break-word !important;
             height: auto !important;
             min-height: 32px;
-            resize: vertical;
+            resize: ical;
         }
     `;
     document.head.appendChild(themeStyles);
@@ -145,13 +144,13 @@
         }
     }
 
-    let Theme = localStorage.getItem('onetrack_theme') || 'auto';
+    let currentTheme = localStorage.getItem('onetrack_theme') || 'auto';
     let customHotkey = localStorage.getItem(CONFIG.storagePrefix + 'custom_hotkey') || CONFIG.hotkey;
     let compactMode = localStorage.getItem('onetrack_compact') === 'true';
     let keepOpenMode = localStorage.getItem('onetrack_keep_open') === 'true';
     let wrapMode = localStorage.getItem('onetrack_wrap_mode') === 'true';
 
-    applyTheme(Theme);
+    applyTheme(currentTheme);
 
     let themeStyleTag = document.getElementById('onetrack-theme-variables');
     if (!themeStyleTag) {
@@ -219,8 +218,8 @@
             element.style.top = (element.offsetTop - pos2) + "px";
             element.style.left = (element.offsetLeft - pos1) + "px";
             element.style.position = 'fixed';
-            let Scale = getUIScale();
-            element.style.transform = Scale !== 1.0 ? `scale(${Scale})` : 'none';
+            let currentScale = getUIScale();
+            element.style.transform = currentScale !== 1.0 ? `scale(${currentScale})` : 'none';
         };
         const targetHandle = handle || element;
         targetHandle.onmousedown = dragMouseDown;
@@ -681,6 +680,23 @@
         cont.style.cssText = 'overflow-y:auto;flex:1;padding-right:5px;margin-bottom:12px;';
         let tds = new Date().toLocaleDateString('en-US', {month:'2-digit', day:'2-digit', year:'numeric'});
 
+        if (/\s*(6000|infinity)/i.test(dt)) {
+            let curlinPdfBtn = document.createElement('button');
+            curlinPdfBtn.innerText = '⚡ Moog Invoice PDF Text Extract';
+            curlinPdfBtn.className = 'onetrack-btn';
+            curlinPdfBtn.style.cssText = 'display:block;width:100%;padding:8px 10px;margin:4px 0;background:#e2f0cb;color:#2b542c;border:1px solid #b5d89c;border-radius:4px;cursor:pointer;font-size:12px;text-align:left;font-weight:bold;line-height:1.4;';
+            curlinPdfBtn.onclick = () => {
+                console.log("Button clicked, attempting to open upload modal...");
+                ov.remove();
+                try {
+                    showCurlinUploadModal(activeTheme);
+                } catch (err) {
+                    console.error("Caught error opening upload modal:", err);
+                }
+            };
+            cont.appendChild(curlinPdfBtn);
+        }
+
         if (/enteralite\s*infinity/i.test(dt)) {
             let infBtn = document.createElement('button');
             infBtn.innerText = '⚡ Infinity Flat Rate Repair Calculation';
@@ -914,6 +930,252 @@
         ov.appendChild(box);
         document.body.appendChild(ov);
     }
+    function processInvoiceTextToFindings(fullText) {
+        let invoiceTotal = "N/A";
+        let materials = [];
+    
+        // 1. Extract Invoice Total
+        let totalMatch = fullText.match(/Invoice Total:\s*(\$[\d,]+\.\d{2}|\d+\.\d{2})/i);
+        if (totalMatch) {
+            invoiceTotal = totalMatch[1];
+        }
+    
+        // 2. Extract Material Details via robust multi-line boundary matching
+        let lines = fullText.split("\n").map(l => l.trim()).filter(l => l.length > 0);
+        let inMaterials = false;
+    
+        for (let line of lines) {
+            let lineUpper = line.toUpperCase();
+    
+            if (lineUpper.includes("MATERIAL DETAILS")) {
+                inMaterials = true;
+                continue;
+            }
+    
+            // Stop collecting when reaching the next section
+            if (inMaterials && (lineUpper.includes("LABOR AMOUNT") || lineUpper.includes("MISC. CHARGES") || lineUpper.includes("INVOICE TOTAL") || lineUpper.includes("INVESTIGATION FINDINGS"))) {
+                inMaterials = false;
+                break;
+            }
+    
+            if (inMaterials) {
+                if (lineUpper.includes("SECTION TOTAL") || lineUpper.includes("ITEM NUMBER") || lineUpper.includes("OP")) continue;
+    
+                let partsMatch = line.match(/\b(?:340-\d+|350-\d+|360-\d+|59933|66419|C12-\d+|C14-\d+|\d{5})\b.*?((?:REAR CASE ASSY|LENS LCD.*?|MOTOR AND WORM GEARASSEMBLY|[A-Z\s]{4,}))$/i);
+                
+                if (partsMatch) {
+                    let desc = partsMatch[1].trim();
+                    desc = desc.replace(/\b(BILLABLE|REGREPR)\b/gi, '').trim();
+                    
+                    if (desc.length > 3) {
+                        let formattedDesc = desc.toLowerCase().replace(/(^\w{1})|(\s+\w{1})/g, l => l.toUpperCase());
+                        formattedDesc = formattedDesc.replace(/\bLcd\b/g, 'LCD').replace(/\bCms\b/g, 'CMS').replace(/\bAssy\b/g, 'Assembly');
+                        
+                        if (!materials.includes(formattedDesc)) {
+                            materials.push(formattedDesc);
+                        }
+                    }
+                }
+            }
+        }
+    
+        // 3. Comprehensive Moog Medical Part Number Fallback Map (Curlin & Infinity Family)
+        if (materials.length === 0) {
+            const moogParts = {
+                "340-0049": "Mech Seal",
+                "340-0055": "Pump Mechanism Assembly",
+                "340-0057": "Sub-Assembly w/o Motor",
+                "340-0070": "Bezel with Overmold",
+                "340-1003": "Rear Case Assembly",
+                "350-2011": "Keypad w/o Overlay",
+                "360-0016": "LCD Lens",
+                "360-0022": "Battery Ejector",
+                "360-1004": "Battery Door",
+                "360-0091": "Battery Door",
+                "360-2004-00": "PCB Assembly",
+                "360-2009": "Keypad Overlay",
+                "59933": "Motor & Worm Gear Assembly",
+                "66419": "Front Case Sub Assembly",
+                "C12-02001": "BT2",
+                "C12-04002": "BT3",
+                "C14-05003": "LCD Module",
+                "58553": "LCD Module",
+                "25771-001": "Backlight Diffuser",
+                "25795-001": "LCD Display",
+                "26503-001": "Battery Assembly",
+                "26542-001": "Infinity II Pump Cover",
+                "80786-001": "Infinity II Pump Cover",
+                "27696-001": "Infinity Bottom Housing",
+                "28270-001": "Infinity Motor",
+                "84239": "Infinity Motor",
+                "28483-001": "Rotor Assembly",
+                "42611": "Canon Motor",
+                "43763-101": "Infinity II PCB Assembly",
+                "56717-001": "Top Housing",
+                "80782-001": "Top Housing"
+            };
+    
+            for (let [partNum, partName] of Object.entries(moogParts)) {
+                if (fullText.includes(partNum) && !materials.includes(partName)) {
+                    materials.push(partName);
+                }
+            }
+        }
+    
+        let materialsStr = materials.length > 0 ? materials.join(", ") : "None";
+    
+        return (
+            `Manufacturer findings, per Moog Medical the following will need replaced: ${materialsStr}.\n` +
+            `The Invoice Total for this repair is ${invoiceTotal}.`
+        );
+    }
+
+    async function extractTextFromPDFFile(file) {
+        if (!window.pdfjsLib) {
+            await new Promise((resolve, reject) => {
+                let script = document.createElement('script');
+                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+                script.onload = () => {
+                    window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+                    resolve();
+                };
+                script.onerror = reject;
+                document.head.appendChild(script);
+            });
+        }
+    
+        let arrayBuffer = await file.arrayBuffer();
+        let loadingTask = window.pdfjsLib.getDocument({ data: arrayBuffer });
+        let pdfDoc = await loadingTask.promise;
+        let fullText = '';
+    
+        for (let i = 1; i <= pdfDoc.numPages; i++) {
+            let page = await pdfDoc.getPage(i);
+            let textContent = await page.getTextContent();
+            let pageText = textContent.items.map(item => item.str).join(' ');
+            fullText += pageText + '\n';
+        }
+    
+        return fullText;
+    }
+function showCurlinUploadModal(passedTheme) {
+    try {
+        let activeTheme = passedTheme || document.getElementById('preset-notes-modal')?.getAttribute('data-theme') || 'light';
+        let isDark = activeTheme === 'dark';
+        let ex = document.getElementById('preset-notes-modal');
+        if (ex) ex.remove();
+        
+        let ov = document.createElement('div');
+        ov.id = 'preset-notes-modal';
+        ov.setAttribute('data-theme', activeTheme);
+        ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:transparent;z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;pointer-events:none;';
+        
+        let box = document.createElement('div');
+        box.className = 'onetrack-modal' + (compactMode ? ' onetrack-compact-mode' : '');
+        let boxBg = isDark ? '#1e1e1e' : '#fff';
+        let boxColor = isDark ? '#e0e0e0' : '#333';
+        box.style.cssText = `background: ${boxBg};color: ${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:420px;display:flex;flex-direction:column;position:relative;pointer-events:auto;`;
+        
+        applyUIScale(box);
+        applySavedPosition(box);
+        applySavedScale(box);
+        
+        let h = document.createElement('h3');
+        h.innerText = 'Moog Invoice Text Import';
+        h.style.cssText = `margin-top:0;margin-bottom:12px;font-size:16px;color: ${isDark ? '#fff' : '#222'};text-align:center;cursor:move;`;
+        makeDraggable(box, h);
+        box.appendChild(h);
+
+        let dropZone = document.createElement('div');
+        dropZone.style.cssText = `border: 2px dashed ${isDark ? '#555' : '#ccc'}; border-radius: 6px; padding: 24px; text-align: center; margin-bottom: 12px; background: ${isDark ? '#252525' : '#fafafa'}; color: ${isDark ? '#aaa' : '#666'}; font-size: 12px; cursor: pointer;`;
+        dropZone.innerHTML = '<b>Drag & Drop Invoice PDF or Text data here</b><br><span style="font-size:10px;opacity:0.8;">or paste invoice text below</span>';
+        
+        // Explicitly block default actions on both dragover and drop
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+        });
+    
+        dropZone.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            let dt = e.dataTransfer;
+            let files = dt.files;
+            if (files && files.length > 0) {
+                let file = files[0];
+                if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
+                    dropZone.innerHTML = '<b>Reading PDF file... Please wait.</b>';
+                    try {
+                        let extractedText = await extractTextFromPDFFile(file);
+                        textArea.value = extractedText;
+                        dropZone.innerHTML = '<b>✓ PDF Loaded Successfully!</b><br><span style="font-size:10px;opacity:0.8;">Review text below or click process.</span>';
+                    } catch (err) {
+                        console.error("PDF extraction error:", err);
+                        dropZone.innerHTML = '<b>❌ Error reading PDF file.</b><br><span style="font-size:10px;color:#dc3545;">Try pasting text manually below.</span>';
+                    }
+                } else {
+                    let reader = new FileReader();
+                    reader.onload = function(evt) {
+                        textArea.value = evt.target.result;
+                        dropZone.innerHTML = '<b>✓ Text File Loaded!</b>';
+                    };
+                    reader.readAsText(file);
+                }
+            }
+        });
+    
+        box.appendChild(dropZone);
+
+        let textArea = document.createElement('textarea');
+        textArea.placeholder = 'Or paste invoice text content here...';
+        textArea.style.cssText = `width: 100%; height: 120px; padding: 8px; box-sizing: border-box; border: 1px solid ${isDark ? '#444' : '#ccc'}; border-radius: 4px; background: ${isDark ? '#2a2a2a' : '#fff'}; color: ${isDark ? '#fff' : '#000'}; font-size: 11px; font-family: monospace; margin-bottom: 12px; resize: vertical;`;
+        box.appendChild(textArea);
+
+        let submitBtn = document.createElement('button');
+        submitBtn.innerText = 'Process & Copy Findings';
+        submitBtn.className = 'onetrack-btn';
+        submitBtn.style.cssText = 'width:100%;padding:8px;background:#2b542c;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;margin-bottom:6px;';
+        submitBtn.onclick = () => {
+            let rawText = textArea.value.trim();
+            if (!rawText) {
+                alert('Please paste or provide invoice text first.');
+                return;
+            }
+            let result = processInvoiceTextToFindings(rawText);
+            addHistoryItem(result);
+            processTextSelection(result);
+            ov.remove();
+        };
+        box.appendChild(submitBtn);
+
+        let buttonRow = document.createElement('div');
+        buttonRow.style.cssText = 'display:flex;gap:6px;width:100%;';
+
+        let backBtn = document.createElement('button');
+        backBtn.innerText = '← Back';
+        backBtn.className = 'onetrack-btn';
+        backBtn.style.cssText = 'flex:1;padding:8px;background:#f1f3f5;color:#333;border:1px solid #ced4da;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;';
+        backBtn.onclick = () => {
+            ov.remove();
+            showMainModal(activeTheme);
+        };
+        buttonRow.appendChild(backBtn);
+
+        let closeBtn = document.createElement('button');
+        closeBtn.innerText = 'Cancel';
+        closeBtn.className = 'onetrack-btn';
+        closeBtn.style.cssText = 'flex:1;padding:8px;background:#6c757d;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;';
+        closeBtn.onclick = () => ov.remove();
+        buttonRow.appendChild(closeBtn);
+
+        box.appendChild(buttonRow);
+        ov.appendChild(box);
+        document.body.appendChild(ov);
+    } catch (e) {
+        console.error("CRITICAL ERROR inside showCurlinUploadModal:", e);
+    }
+}
     function showInfinityPartsModal(passedTheme) {
         let activeTheme = passedTheme || document.getElementById('preset-notes-modal')?.getAttribute('data-theme') || 'light';
         let isDark = activeTheme === 'dark';
