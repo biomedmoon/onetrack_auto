@@ -686,8 +686,13 @@
             curlinPdfBtn.className = 'onetrack-btn';
             curlinPdfBtn.style.cssText = 'display:block;width:100%;padding:8px 10px;margin:4px 0;background:#e2f0cb;color:#2b542c;border:1px solid #b5d89c;border-radius:4px;cursor:pointer;font-size:12px;text-align:left;font-weight:bold;line-height:1.4;';
             curlinPdfBtn.onclick = () => {
-                ov.remove(); // Close the current modal
-                showCurlinUploadModal(activeTheme); // Open the import/drop modal
+                console.log("Button clicked, attempting to open upload modal...");
+                ov.remove();
+                try {
+                    showCurlinUploadModal(activeTheme);
+                } catch (err) {
+                    console.error("Caught error opening upload modal:", err);
+                }
             };
             cont.appendChild(curlinPdfBtn);
         }
