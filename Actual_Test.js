@@ -1061,9 +1061,29 @@
         box.appendChild(h);
     
         let dropZone = document.createElement('div');
-        dropZone.style.cssText = `border: 2px dashed ${isDark ? '#555' : '#ccc'}; border-radius: 6px; padding: 24px; text-align: center; margin-bottom: 12px; background: ${isDark ? '#252525' : '#fafafa'}; color: ${isDark ? '#aaa' : '#666'}; font-size: 12px; cursor: pointer;`;
-        dropZone.innerHTML = '<b>Drag & Drop Invoice Text / PDF data here</b><br><span style="font-size:10px;opacity:0.8;">or paste invoice text below</span>';
-        box.appendChild(dropZone);
+         dropZone.style.cssText = `border: 2px dashed ${isDark ? '#555' : '#ccc'}; border-radius: 6px; padding: 24px; text-align: center; margin-bottom: 12px; background: ${isDark ? '#252525' : '#fafafa'}; color: ${isDark ? '#aaa' : '#666'}; font-size: 12px; cursor: pointer;`;
+         dropZone.innerHTML = '<b>Drag & Drop Invoice Text data here</b><br><span style="font-size:10px;opacity:0.8;">or paste invoice text below</span>';
+            
+         // Add these event listeners here:
+         dropZone.addEventListener('dragover', (e) => {
+             e.preventDefault();
+             e.stopPropagation();
+         });
+            
+         dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            let files = e.dataTransfer.files;
+            if (files && files.length > 0) {
+                 let reader = new FileReader();
+                 reader.onload = function(event) {
+                     textArea.value = event.target.result;
+                 };
+                reader.readAsText(files[0]);
+             }
+         });
+        
+       box.appendChild(dropZone);
     
         let textArea = document.createElement('textarea');
         textArea.placeholder = 'Or paste invoice text content here...';
