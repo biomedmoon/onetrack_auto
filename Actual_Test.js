@@ -682,7 +682,7 @@
 
         if (/\s*6000/i.test(dt)) {
             let curlinPdfBtn = document.createElement('button');
-            curlinPdfBtn.innerText = '⚡ Curlin Invoice PDF Text Extract';
+            curlinPdfBtn.innerText = '⚡ Moog Invoice PDF Text Extract';
             curlinPdfBtn.className = 'onetrack-btn';
             curlinPdfBtn.style.cssText = 'display:block;width:100%;padding:8px 10px;margin:4px 0;background:#e2f0cb;color:#2b542c;border:1px solid #b5d89c;border-radius:4px;cursor:pointer;font-size:12px;text-align:left;font-weight:bold;line-height:1.4;';
             curlinPdfBtn.onclick = () => {
@@ -1075,7 +1075,7 @@
         applySavedScale(box);
         
         let h = document.createElement('h3');
-        h.innerText = 'Curlin Invoice Text Import';
+        h.innerText = 'Moog Invoice Text Import';
         h.style.cssText = `margin-top:0;margin-bottom:12px;font-size:16px;color: ${isDark ? '#fff' : '#222'};text-align:center;cursor:move;`;
         makeDraggable(box, h);
         box.appendChild(h);
