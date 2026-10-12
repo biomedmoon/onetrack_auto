@@ -680,6 +680,22 @@
         cont.style.cssText = 'overflow-y:auto;flex:1;padding-right:5px;margin-bottom:12px;';
         let tds = new Date().toLocaleDateString('en-US', {month:'2-digit', day:'2-digit', year:'numeric'});
 
+        if (/curlin\s*6000/i.test(dt)) {
+            let curlinPdfBtn = document.createElement('button');
+            curlinPdfBtn.innerText = '⚡ Curlin Invoice PDF Text Extract';
+            curlinPdfBtn.className = 'onetrack-btn';
+            curlinPdfBtn.style.cssText = 'display:block;width:100%;padding:8px 10px;margin:4px 0;background:#e2f0cb;color:#2b542c;border:1px solid #b5d89c;border-radius:4px;cursor:pointer;font-size:12px;text-align:left;font-weight:bold;line-height:1.4;';
+            curlinPdfBtn.onclick = () => {
+                // Call your text extraction/processing logic here
+                let findings = processInvoiceTextToFindings(); 
+                if (findings) {
+                    addHistoryItem(findings);
+                    processTextSelection(findings);
+                }
+            };
+            cont.appendChild(curlinPdfBtn);
+        }
+
         if (/enteralite\s*infinity/i.test(dt)) {
             let infBtn = document.createElement('button');
             infBtn.innerText = '⚡ Infinity Flat Rate Repair Calculation';
@@ -910,6 +926,178 @@
         bBtn.onclick = () => ap.includes('declined') ? showDeclineActionModal(activeTheme) : showMainModal(activeTheme);
         box.appendChild(bBtn);
 
+        ov.appendChild(box);
+        document.body.appendChild(ov);
+    }
+    function processInvoiceTextToFindings(fullText) {
+        // 1. Custom Title Case & PDF Stream Cleanup
+        function customTitleCase(text) {
+            text = text.replace(/([a-z])([A-Z])/g, '$1 $2');
+            text = text.replace(/([A-Za-z])(sub-assembly)/gi, '$1 $2');
+            text = text.toLowerCase();
+    
+            const replacements = {
+                "\\bassy\\b": "Assembly",
+                "\\bgearassembly\\b": "Gear Assembly",
+                "\\blcd\\b": "LCD",
+                "\\bcms\\b": "CMS",
+                "\\bpcb\\b": "PCB",
+                "\\bbt2\\b": "BT2",
+                "\\bbt3\\b": "BT3",
+                "\\bw/o\\b": "W/o",
+                "\\bls\\b": "LS"
+            };
+    
+            for (let [pattern, replacement] of Object.entries(replacements)) {
+                let regex = new RegExp(pattern, 'i');
+                text = text.replace(regex, replacement);
+            }
+    
+            const lowercaseWords = new Set(["a", "an", "the", "and", "but", "or", "for", "nor", "on", "at", "to", "by", "from", "of", "in", "with"]);
+            const acronyms = new Set(["LCD", "CMS", "PCB", "BT2", "BT3", "LS"]);
+    
+            let words = text.split(/\s+/);
+            let formattedWords = words.map((word, i) => {
+                if (acronyms.has(word)) return word;
+                if (lowercaseWords.has(word.toLowerCase()) && i !== 0) return word.toLowerCase();
+                return word.charAt(0).toUpperCase() + word.slice(1);
+            });
+    
+            return formattedWords.join(" ");
+        }
+    
+        let invoiceTotal = "N/A";
+        let materials = [];
+    
+        // 2. Extract Invoice Total
+        let totalMatch = fullText.match(/Invoice Total:\s*(\$[\d,]+\.\d{2}|\d+\.\d{2})/i);
+        if (totalMatch) {
+            invoiceTotal = totalMatch[1];
+        }
+    
+        // 3. Line-by-line parsing
+        let lines = fullText.split("\n").map(l => l.trim()).filter(l => l.length > 0);
+        let inMaterials = false;
+    
+        const skipKeywords = [
+            "MATERIAL DETAILS", "OP", "ITEM NUMBER", "CHARGE", "WORK CODE",
+            "QTY", "UNIT PRICE", "COVERED", "LINE TOTAL", "BILLABLE", "REGREPR", 
+            "SVC TYPE", "WARRANTY EXP", "HELP US REDUCE", "GO PAPERLESS", 
+            "MINNEAPOLIS", "MOOG MEDICAL", "CONTINUED", "SERVICE CALL QUOTE", 
+            "CALL ID", "CONTACT PERSON", "PHONE", "STATUS", "TERMS", "DESC", 
+            "PO NUMBER", "REFERENCE", "RETURN TO", "CALLER", "QUEUE", "TAXABLE", 
+            "PAGE", "REV ", "LINDBERGH", "MOON TOWNSHIP", "DANVILLE",
+            "MISC. CHARGES", "TYPE CODE", "CODE DESCRIPTION", "INVESTIGATION FINDINGS"
+        ];
+    
+        const stopKeywords = [
+            "LABOR AMOUNT", "MISC CHARGES", "MISC. CHARGES", "CAUSE", 
+            "RESOLUTION", "INVOICE TOTAL", "INVESTIGATION FINDINGS"
+        ];
+    
+        for (let line of lines) {
+            let lineUpper = line.toUpperCase();
+    
+            if (lineUpper.includes("MATERIAL DETAILS")) {
+                inMaterials = true;
+                continue;
+            }
+    
+            if (inMaterials && stopKeywords.some(stop => lineUpper.includes(stop))) {
+                inMaterials = false;
+                break;
+            }
+    
+            if (inMaterials) {
+                if (lineUpper.includes("SECTION TOTAL")) continue;
+                if (skipKeywords.some(k => lineUpper.includes(k))) continue;
+                if (line.includes("@") || line.startsWith("$") \vert{}\vert{} /^\d+\.\d+$/.test(line) || line.startsWith("†")) continue;
+                if (line.includes(":")) continue;
+    
+                if (/^\d+([-\b].*)?$/.test(line)) continue;
+                if (/^T\d+/.test(lineUpper)) continue;
+                if (/^[A-Z]\d{6}/.test(lineUpper)) continue;
+                if (/\b(P\.?O\.?\s*BOX|BOX\s*\d+|\d{5}(-\d{4})?)\b/.test(lineUpper)) continue;
+                if (/\b(SVC ONLY|MCKESSON)\b/.test(lineUpper)) continue;
+    
+                if (/[a-zA-Z]/.test(line)) {
+                    let formatted = customTitleCase(line);
+                    if (!materials.includes(formatted)) {
+                        materials.push(formatted);
+                    }
+                }
+            }
+        }
+    
+        let materialsStr = materials.length > 0 ? materials.join(", ") : "None";
+    
+        return (
+            `Manufacturer findings, per Moog Medical the following will need replaced: ${materialsStr}.\n` +
+            `The Invoice Total for this repair is ${invoiceTotal}.`
+        );
+    }
+    
+    function showCurlinUploadModal(passedTheme) {
+        let activeTheme = passedTheme || document.getElementById('preset-notes-modal')?.getAttribute('data-theme') || 'light';
+        let isDark = activeTheme === 'dark';
+        let ex = document.getElementById('preset-notes-modal');
+        if (ex) ex.remove();
+        
+        let ov = document.createElement('div');
+        ov.id = 'preset-notes-modal';
+        ov.setAttribute('data-theme', activeTheme);
+        ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:transparent;z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;pointer-events:none;';
+        
+        let box = document.createElement('div');
+        box.className = 'onetrack-modal' + (compactMode ? ' onetrack-compact-mode' : '');
+        let boxBg = isDark ? '#1e1e1e' : '#fff';
+        let boxColor = isDark ? '#e0e0e0' : '#333';
+        box.style.cssText = `background: ${boxBg};color: ${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:420px;display:flex;flex-direction:column;position:relative;pointer-events:auto;`;
+        
+        applyUIScale(box);
+        applySavedPosition(box);
+        applySavedScale(box);
+        
+        let h = document.exitFullscreen ? document.createElement('h3') : document.createElement('h3');
+        h.innerText = 'Curlin Invoice Text Import';
+        h.style.cssText = `margin-top:0;margin-bottom:12px;font-size:16px;color: ${isDark ? '#fff' : '#222'};text-align:center;cursor:move;`;
+        makeDraggable(box, h);
+        box.appendChild(h);
+    
+        let dropZone = document.createElement('div');
+        dropZone.style.cssText = `border: 2px dashed ${isDark ? '#555' : '#ccc'}; border-radius: 6px; padding: 24px; text-align: center; margin-bottom: 12px; background: ${isDark ? '#252525' : '#fafafa'}; color: ${isDark ? '#aaa' : '#666'}; font-size: 12px; cursor: pointer;`;
+        dropZone.innerHTML = '<b>Drag & Drop Invoice Text / PDF data here</b><br><span style="font-size:10px;opacity:0.8;">or paste invoice text below</span>';
+        box.appendChild(dropZone);
+    
+        let textArea = document.createElement('textarea');
+        textArea.placeholder = 'Or paste invoice text content here...';
+        textArea.style.cssText = `width: 100%; height: 120px; padding: 8px; box-sizing: border-box; border: 1px solid ${isDark ? '#444' : '#ccc'}; border-radius: 4px; background: ${isDark ? '#2a2a2a' : '#fff'}; color: ${isDark ? '#fff' : '#000'}; font-size: 11px; font-family: monospace; margin-bottom: 12px; resize: vertical;`;
+        box.appendChild(textArea);
+    
+        let submitBtn = document.createElement('button');
+        submitBtn.innerText = 'Process & Copy Findings';
+        submitBtn.className = 'onetrack-btn';
+        submitBtn.style.cssText = 'width:100%;padding:8px;background:#2b542c;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;margin-bottom:6px;';
+        submitBtn.onclick = () => {
+            let rawText = textArea.value.trim();
+            if (!rawText) {
+                alert('Please paste or provide invoice text first.');
+                return;
+            }
+            let result = processInvoiceTextToFindings(rawText);
+            addHistoryItem(result);
+            processTextSelection(result);
+            ov.remove();
+        };
+        box.appendChild(submitBtn);
+        
+        let closeBtn = document.createElement('button');
+        closeBtn.innerText = 'Cancel';
+        closeBtn.className = 'onetrack-btn';
+        closeBtn.style.cssText = 'width:100%;padding:8px;background:#6c757d;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;';
+        closeBtn.onclick = () => ov.remove();
+        box.appendChild(closeBtn);
+        
         ov.appendChild(box);
         document.body.appendChild(ov);
     }
