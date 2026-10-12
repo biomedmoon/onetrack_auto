@@ -1058,7 +1058,7 @@
         applySavedPosition(box);
         applySavedScale(box);
         
-        let h = document.exitFullscreen ? document.createElement('h3') : document.createElement('h3');
+        let h = document.createElement('h3');
         h.innerText = 'Curlin Invoice Text Import';
         h.style.cssText = `margin-top:0;margin-bottom:12px;font-size:16px;color: ${isDark ? '#fff' : '#222'};text-align:center;cursor:move;`;
         makeDraggable(box, h);
