@@ -1087,45 +1087,45 @@ function showCurlinUploadModal(passedTheme) {
         box.appendChild(h);
 
         let dropZone = document.createElement('div');
-            dropZone.style.cssText = `border: 2px dashed ${isDark ? '#555' : '#ccc'}; border-radius: 6px; padding: 24px; text-align: center; margin-bottom: 12px; background: ${isDark ? '#252525' : '#fafafa'}; color: ${isDark ? '#aaa' : '#666'}; font-size: 12px; cursor: pointer;`;
-            dropZone.innerHTML = '<b>Drag & Drop Invoice PDF or Text data here</b><br><span style="font-size:10px;opacity:0.8;">or paste invoice text below</span>';
+        dropZone.style.cssText = `border: 2px dashed ${isDark ? '#555' : '#ccc'}; border-radius: 6px; padding: 24px; text-align: center; margin-bottom: 12px; background: ${isDark ? '#252525' : '#fafafa'}; color: ${isDark ? '#aaa' : '#666'}; font-size: 12px; cursor: pointer;`;
+        dropZone.innerHTML = '<b>Drag & Drop Invoice PDF or Text data here</b><br><span style="font-size:10px;opacity:0.8;">or paste invoice text below</span>';
+        
+        // Explicitly block default actions on both dragover and drop
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+        });
+    
+        dropZone.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
             
-            // Prevent browser default file opening behavior
-            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-                dropZone.addEventListener(eventName, (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                }, false);
-            });
-        
-            // Handle dropped PDF or text files
-            dropZone.addEventListener('drop', async (e) => {
-                let dt = e.dataTransfer;
-                let files = dt.files;
-                if (files && files.length > 0) {
-                    let file = files[0];
-                    if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
-                        dropZone.innerHTML = '<b>Reading PDF file... Please wait.</b>';
-                        try {
-                            let extractedText = await extractTextFromPDFFile(file);
-                            textArea.value = extractedText;
-                            dropZone.innerHTML = '<b>✓ PDF Loaded Successfully!</b><br><span style="font-size:10px;opacity:0.8;">Review text below or click process.</span>';
-                        } catch (err) {
-                            console.error("PDF extraction error:", err);
-                            dropZone.innerHTML = '<b>❌ Error reading PDF file.</b><br><span style="font-size:10px;color:#dc3545;">Try pasting text manually below.</span>';
-                        }
-                    } else {
-                        let reader = new FileReader();
-                        reader.onload = function(evt) {
-                            textArea.value = evt.target.result;
-                            dropZone.innerHTML = '<b>✓ Text File Loaded!</b>';
-                        };
-                        reader.readAsText(file);
+            let dt = e.dataTransfer;
+            let files = dt.files;
+            if (files && files.length > 0) {
+                let file = files[0];
+                if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
+                    dropZone.innerHTML = '<b>Reading PDF file... Please wait.</b>';
+                    try {
+                        let extractedText = await extractTextFromPDFFile(file);
+                        textArea.value = extractedText;
+                        dropZone.innerHTML = '<b>✓ PDF Loaded Successfully!</b><br><span style="font-size:10px;opacity:0.8;">Review text below or click process.</span>';
+                    } catch (err) {
+                        console.error("PDF extraction error:", err);
+                        dropZone.innerHTML = '<b>❌ Error reading PDF file.</b><br><span style="font-size:10px;color:#dc3545;">Try pasting text manually below.</span>';
                     }
+                } else {
+                    let reader = new FileReader();
+                    reader.onload = function(evt) {
+                        textArea.value = evt.target.result;
+                        dropZone.innerHTML = '<b>✓ Text File Loaded!</b>';
+                    };
+                    reader.readAsText(file);
                 }
-            });
-        
-            box.appendChild(dropZone);
+            }
+        });
+    
+        box.appendChild(dropZone);
 
         let textArea = document.createElement('textarea');
         textArea.placeholder = 'Or paste invoice text content here...';
