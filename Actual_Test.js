@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         OneTrack Automation & Helper - Actual_Test
 // @namespace    http://tampermonkey.net/
-// @version      1.3.5
+// @version      1.3.6
 // @description  Automates workflows, UI enhancements, hotkeys, and persistent settings.
 // @author       jekosol
 // @match        *://*/*
