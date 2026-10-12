@@ -680,7 +680,7 @@
         cont.style.cssText = 'overflow-y:auto;flex:1;padding-right:5px;margin-bottom:12px;';
         let tds = new Date().toLocaleDateString('en-US', {month:'2-digit', day:'2-digit', year:'numeric'});
 
-        if (/\s*6000/i.test(dt)) {
+        if (/\s*(6000|infinity)/i.test(dt)) {
             let curlinPdfBtn = document.createElement('button');
             curlinPdfBtn.innerText = '⚡ Moog Invoice PDF Text Extract';
             curlinPdfBtn.className = 'onetrack-btn';
@@ -1140,15 +1140,28 @@
         };
         box.appendChild(submitBtn);
         
+        // Bottom action row container for Back and Cancel buttons side-by-side
+        let buttonRow = document.createElement('div');
+        buttonRow.style.cssText = 'display:flex;gap:6px;width:100%;';
+    
+        let backBtn = document.createElement('button');
+        backBtn.innerText = '← Back';
+        backBtn.className = 'onetrack-btn';
+        backBtn.style.cssText = 'flex:1;padding:8px;background:#f1f3f5;color:#333;border:1px solid #ced4da;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;';
+        backBtn.onclick = () => {
+            ov.remove();
+            showMainModal(activeTheme);
+        };
+        buttonRow.appendChild(backBtn);
+    
         let closeBtn = document.createElement('button');
         closeBtn.innerText = 'Cancel';
         closeBtn.className = 'onetrack-btn';
-        closeBtn.style.cssText = 'width:100%;padding:8px;background:#6c757d;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;';
+        closeBtn.style.cssText = 'flex:1;padding:8px;background:#6c757d;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;';
         closeBtn.onclick = () => ov.remove();
-        box.appendChild(closeBtn);
-        
-        ov.appendChild(box);
-        document.body.appendChild(ov);
+        buttonRow.appendChild(closeBtn);
+    
+        box.appendChild(buttonRow);
     }
     function showInfinityPartsModal(passedTheme) {
         let activeTheme = passedTheme || document.getElementById('preset-notes-modal')?.getAttribute('data-theme') || 'light';
