@@ -1032,7 +1032,35 @@
             `The Invoice Total for this repair is ${invoiceTotal}.`
         );
     }
+
+    async function extractTextFromPDFFile(file) {
+        if (!window.pdfjsLib) {
+            await new Promise((resolve, reject) => {
+                let script = document.createElement('script');
+                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+                script.onload = () => {
+                    window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+                    resolve();
+                };
+                script.onerror = reject;
+                document.head.appendChild(script);
+            });
+        }
     
+        let arrayBuffer = await file.arrayBuffer();
+        let loadingTask = window.pdfjsLib.getDocument({ data: arrayBuffer });
+        let pdfDoc = await loadingTask.promise;
+        let fullText = '';
+    
+        for (let i = 1; i <= pdfDoc.numPages; i++) {
+            let page = await pdfDoc.getPage(i);
+            let textContent = await page.getTextContent();
+            let pageText = textContent.items.map(item => item.str).join(' ');
+            fullText += pageText + '\n';
+        }
+    
+        return fullText;
+    }
     function showCurlinUploadModal(passedTheme) {
         let activeTheme = passedTheme || document.getElementById('preset-notes-modal')?.getAttribute('data-theme') || 'light';
         let isDark = activeTheme === 'dark';
@@ -1070,18 +1098,31 @@
              e.stopPropagation();
          });
             
-         dropZone.addEventListener('drop', (e) => {
+        dropZone.addEventListener('drop', async (e) => {
             e.preventDefault();
             e.stopPropagation();
             let files = e.dataTransfer.files;
             if (files && files.length > 0) {
-                 let reader = new FileReader();
-                 reader.onload = function(event) {
-                     textArea.value = event.target.result;
-                 };
-                reader.readAsText(files[0]);
-             }
-         });
+                let file = files[0];
+                textArea.value = "Extracting text from PDF...";
+                try {
+                    if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+                        let extractedText = await extractTextFromPDFFile(file);
+                        textArea.value = extractedText;
+                    } else {
+                        let reader = new FileReader();
+                        reader.onload = function(event) {
+                            textArea.value = event.target.result;
+                        };
+                        reader.readAsText(file);
+                    }
+                } catch (err) {
+                    console.error("PDF Extraction Error:", err);
+                    textArea.value = "";
+                    alert("Failed to parse PDF text. Please copy/paste the text manually.");
+                }
+            }
+        });
         
        box.appendChild(dropZone);
     
