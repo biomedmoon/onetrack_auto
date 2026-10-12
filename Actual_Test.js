@@ -926,102 +926,28 @@
         document.body.appendChild(ov);
     }
     function processInvoiceTextToFindings(fullText) {
-        // 1. Custom Title Case & PDF Stream Cleanup
-        function customTitleCase(text) {
-            text = text.replace(/([a-z])([A-Z])/g, '$1 $2');
-            text = text.replace(/([A-Za-z])(sub-assembly)/gi, '$1 $2');
-            text = text.toLowerCase();
-    
-            const replacements = {
-                "\\bassy\\b": "Assembly",
-                "\\bgearassembly\\b": "Gear Assembly",
-                "\\blcd\\b": "LCD",
-                "\\bcms\\b": "CMS",
-                "\\bpcb\\b": "PCB",
-                "\\bbt2\\b": "BT2",
-                "\\bbt3\\b": "BT3",
-                "\\bw/o\\b": "W/o",
-                "\\bls\\b": "LS"
-            };
-    
-            for (let [pattern, replacement] of Object.entries(replacements)) {
-                let regex = new RegExp(pattern, 'i');
-                text = text.replace(regex, replacement);
-            }
-    
-            const lowercaseWords = new Set(["a", "an", "the", "and", "but", "or", "for", "nor", "on", "at", "to", "by", "from", "of", "in", "with"]);
-            const acronyms = new Set(["LCD", "CMS", "PCB", "BT2", "BT3", "LS"]);
-    
-            let words = text.split(/\s+/);
-            let formattedWords = words.map((word, i) => {
-                if (acronyms.has(word)) return word;
-                if (lowercaseWords.has(word.toLowerCase()) && i !== 0) return word.toLowerCase();
-                return word.charAt(0).toUpperCase() + word.slice(1);
-            });
-    
-            return formattedWords.join(" ");
-        }
-    
         let invoiceTotal = "N/A";
         let materials = [];
     
-        // 2. Extract Invoice Total
+        // 1. Extract Invoice Total
         let totalMatch = fullText.match(/Invoice Total:\s*(\$[\d,]+\.\d{2}|\d+\.\d{2})/i);
         if (totalMatch) {
             invoiceTotal = totalMatch[1];
         }
     
-        // 3. Line-by-line parsing
-        let lines = fullText.split("\n").map(l => l.trim()).filter(l => l.length > 0);
-        let inMaterials = false;
-    
-        const skipKeywords = [
-            "MATERIAL DETAILS", "OP", "ITEM NUMBER", "CHARGE", "WORK CODE",
-            "QTY", "UNIT PRICE", "COVERED", "LINE TOTAL", "BILLABLE", "REGREPR", 
-            "SVC TYPE", "WARRANTY EXP", "HELP US REDUCE", "GO PAPERLESS", 
-            "MINNEAPOLIS", "MOOG MEDICAL", "CONTINUED", "SERVICE CALL QUOTE", 
-            "CALL ID", "CONTACT PERSON", "PHONE", "STATUS", "TERMS", "DESC", 
-            "PO NUMBER", "REFERENCE", "RETURN TO", "CALLER", "QUEUE", "TAXABLE", 
-            "PAGE", "REV ", "LINDBERGH", "MOON TOWNSHIP", "DANVILLE",
-            "MISC. CHARGES", "TYPE CODE", "CODE DESCRIPTION", "INVESTIGATION FINDINGS"
-        ];
-    
-        const stopKeywords = [
-            "LABOR AMOUNT", "MISC CHARGES", "MISC. CHARGES", "CAUSE", 
-            "RESOLUTION", "INVOICE TOTAL", "INVESTIGATION FINDINGS"
-        ];
-    
-        for (let line of lines) {
-            let lineUpper = line.toUpperCase();
-    
-            if (lineUpper.includes("MATERIAL DETAILS")) {
-                inMaterials = true;
-                continue;
-            }
-    
-            if (inMaterials && stopKeywords.some(stop => lineUpper.includes(stop))) {
-                inMaterials = false;
-                break;
-            }
-    
-            if (inMaterials) {
-                if (lineUpper.includes("SECTION TOTAL")) continue;
-                if (skipKeywords.some(k => lineUpper.includes(k))) continue;
-                if (line.includes("@") || line.startsWith("$") || /^\d+\.\d+$/.test(line) || line.startsWith("†")) continue;
-                //if (line.includes(":")) continue;
-    
-                if (/^\d+([-\b].*)?$/.test(line)) continue;
-                if (/^T\d+/.test(lineUpper)) continue;
-                if (/^[A-Z]\d{6}/.test(lineUpper)) continue;
-                if (/\b(P\.?O\.?\s*BOX|BOX\s*\d+|\d{5}(-\d{4})?)\b/.test(lineUpper)) continue;
-                if (/\b(SVC ONLY|MCKESSON)\b/.test(lineUpper)) continue;
-    
-                if (/[a-zA-Z]/.test(line)) {
-                    let formatted = customTitleCase(line);
-                    if (!materials.includes(formatted)) {
-                        materials.push(formatted);
-                    }
-                }
+        // 2. Extract Material Details via Regex pattern matching
+        // Matches lines with item numbers, billable tags, and captures the final description text
+        let materialRegex = /\d+\s+[A-Z0-9-]+\s+Billable\s+REGREPR\s+[\d.]+\s+\$[\d.]+\s+\$[\d.]+\s+\$[\d.]+\s+([A-Z0-9\s-]+)/g;
+        let match;
+        
+        while ((match = materialRegex.exec(fullText)) !== null) {
+            let desc = match[1].trim();
+            if (desc && !materials.includes(desc)) {
+                // Title case the description nicely
+                let formattedDesc = desc.toLowerCase().replace(/(^\w{1})|(\s+\w{1})/g, l => l.toUpperCase());
+                // Keep standard acronyms capitalized correctly
+                formattedDesc = formattedDesc.replace(/\bLcd\b/g, 'LCD').replace(/\bCms\b/g, 'CMS').replace(/\bAssy\b/g, 'Assembly');
+                materials.push(formattedDesc);
             }
         }
     
