@@ -1058,7 +1058,8 @@
     
         return fullText;
     }
-    function showCurlinUploadModal(passedTheme) {
+function showCurlinUploadModal(passedTheme) {
+    try {
         let activeTheme = passedTheme || document.getElementById('preset-notes-modal')?.getAttribute('data-theme') || 'light';
         let isDark = activeTheme === 'dark';
         let ex = document.getElementById('preset-notes-modal');
@@ -1084,50 +1085,17 @@
         h.style.cssText = `margin-top:0;margin-bottom:12px;font-size:16px;color: ${isDark ? '#fff' : '#222'};text-align:center;cursor:move;`;
         makeDraggable(box, h);
         box.appendChild(h);
-    
+
         let dropZone = document.createElement('div');
-         dropZone.style.cssText = `border: 2px dashed ${isDark ? '#555' : '#ccc'}; border-radius: 6px; padding: 24px; text-align: center; margin-bottom: 12px; background: ${isDark ? '#252525' : '#fafafa'}; color: ${isDark ? '#aaa' : '#666'}; font-size: 12px; cursor: pointer;`;
-         dropZone.innerHTML = '<b>Drag & Drop Invoice Text data here</b><br><span style="font-size:10px;opacity:0.8;">or paste invoice text below</span>';
-            
-         // Add these event listeners here:
-         dropZone.addEventListener('dragover', (e) => {
-             e.preventDefault();
-             e.stopPropagation();
-         });
-            
-        dropZone.addEventListener('drop', async (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            let files = e.dataTransfer.files;
-            if (files && files.length > 0) {
-                let file = files[0];
-                textArea.value = "Extracting text from PDF...";
-                try {
-                    if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
-                        let extractedText = await extractTextFromPDFFile(file);
-                        textArea.value = extractedText;
-                    } else {
-                        let reader = new FileReader();
-                        reader.onload = function(event) {
-                            textArea.value = event.target.result;
-                        };
-                        reader.readAsText(file);
-                    }
-                } catch (err) {
-                    console.error("PDF Extraction Error:", err);
-                    textArea.value = "";
-                    alert("Failed to parse PDF text. Please copy/paste the text manually.");
-                }
-            }
-        });
-        
-       box.appendChild(dropZone);
-    
+        dropZone.style.cssText = `border: 2px dashed ${isDark ? '#555' : '#ccc'}; border-radius: 6px; padding: 24px; text-align: center; margin-bottom: 12px; background: ${isDark ? '#252525' : '#fafafa'}; color: ${isDark ? '#aaa' : '#666'}; font-size: 12px; cursor: pointer;`;
+        dropZone.innerHTML = '<b>Drag & Drop Invoice Text data here</b><br><span style="font-size:10px;opacity:0.8;">or paste invoice text below</span>';
+        box.appendChild(dropZone);
+
         let textArea = document.createElement('textarea');
         textArea.placeholder = 'Or paste invoice text content here...';
         textArea.style.cssText = `width: 100%; height: 120px; padding: 8px; box-sizing: border-box; border: 1px solid ${isDark ? '#444' : '#ccc'}; border-radius: 4px; background: ${isDark ? '#2a2a2a' : '#fff'}; color: ${isDark ? '#fff' : '#000'}; font-size: 11px; font-family: monospace; margin-bottom: 12px; resize: vertical;`;
         box.appendChild(textArea);
-    
+
         let submitBtn = document.createElement('button');
         submitBtn.innerText = 'Process & Copy Findings';
         submitBtn.className = 'onetrack-btn';
@@ -1144,11 +1112,10 @@
             ov.remove();
         };
         box.appendChild(submitBtn);
-        
-        // Bottom action row container for Back and Cancel buttons side-by-side
+
         let buttonRow = document.createElement('div');
         buttonRow.style.cssText = 'display:flex;gap:6px;width:100%;';
-    
+
         let backBtn = document.createElement('button');
         backBtn.innerText = '← Back';
         backBtn.className = 'onetrack-btn';
@@ -1158,16 +1125,21 @@
             showMainModal(activeTheme);
         };
         buttonRow.appendChild(backBtn);
-    
+
         let closeBtn = document.createElement('button');
         closeBtn.innerText = 'Cancel';
         closeBtn.className = 'onetrack-btn';
         closeBtn.style.cssText = 'flex:1;padding:8px;background:#6c757d;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;';
         closeBtn.onclick = () => ov.remove();
         buttonRow.appendChild(closeBtn);
-    
+
         box.appendChild(buttonRow);
+        ov.appendChild(box);
+        document.body.appendChild(ov);
+    } catch (e) {
+        console.error("CRITICAL ERROR inside showCurlinUploadModal:", e);
     }
+}
     function showInfinityPartsModal(passedTheme) {
         let activeTheme = passedTheme || document.getElementById('preset-notes-modal')?.getAttribute('data-theme') || 'light';
         let isDark = activeTheme === 'dark';
