@@ -498,7 +498,7 @@
 
     function calculateInfinityFlatRateFindings() {
         let pageText = document.body.innerText;
-        let match = pageText.match(/Serial Number\D*([4569]\d{8})/i) || pageText.match(/\b([569]\d{8})\b/);
+        let match = pageText.match(/Serial Number\D*([4569]\d{8})/i) || pageText.match(/\b([4569]\d{8})\b/);
         if (!match) {
             alert("Could not detect a valid 9-digit Infinity serial number on this page.");
             return null;
