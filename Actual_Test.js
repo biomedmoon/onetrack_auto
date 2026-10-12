@@ -1008,7 +1008,7 @@
                 if (lineUpper.includes("SECTION TOTAL")) continue;
                 if (skipKeywords.some(k => lineUpper.includes(k))) continue;
                 if (line.includes("@") || line.startsWith("$") || /^\d+\.\d+$/.test(line) || line.startsWith("†")) continue;
-                if (line.includes(":")) continue;
+                //if (line.includes(":")) continue;
     
                 if (/^\d+([-\b].*)?$/.test(line)) continue;
                 if (/^T\d+/.test(lineUpper)) continue;
