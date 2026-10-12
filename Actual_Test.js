@@ -686,12 +686,8 @@
             curlinPdfBtn.className = 'onetrack-btn';
             curlinPdfBtn.style.cssText = 'display:block;width:100%;padding:8px 10px;margin:4px 0;background:#e2f0cb;color:#2b542c;border:1px solid #b5d89c;border-radius:4px;cursor:pointer;font-size:12px;text-align:left;font-weight:bold;line-height:1.4;';
             curlinPdfBtn.onclick = () => {
-                // Call your text extraction/processing logic here
-                let findings = processInvoiceTextToFindings(); 
-                if (findings) {
-                    addHistoryItem(findings);
-                    processTextSelection(findings);
-                }
+                ov.remove(); // Close the current modal
+                showCurlinUploadModal(activeTheme); // Open the import/drop modal
             };
             cont.appendChild(curlinPdfBtn);
         }
