@@ -23,7 +23,7 @@
             localStorage.setItem(key, val);
         };
     }
-    const CURRENT_VERSION = '1.3.5';
+    const CURRENT_VERSION = '1.3.6';
     // --- ENVIRONMENT AUTO-DETECTION ---
     const isTestEnv = typeof GM_info !== 'undefined' && GM_info && GM_info.script && GM_info.script.name.includes('Test');
     const CONFIG = {
@@ -498,7 +498,7 @@
 
     function calculateInfinityFlatRateFindings() {
         let pageText = document.body.innerText;
-        let match = pageText.match(/Serial Number\D*([569]\d{8})/i) || pageText.match(/\b([569]\d{8})\b/);
+        let match = pageText.match(/Serial Number\D*([4569]\d{8})/i) || pageText.match(/\b([569]\d{8})\b/);
         if (!match) {
             alert("Could not detect a valid 9-digit Infinity serial number on this page.");
             return null;
