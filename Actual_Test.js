@@ -2340,6 +2340,6 @@ function showCurlinUploadModal(passedTheme) {
     });
 
     checkWhatsNew();
-    //showMainModal();
+    showMainModal();
 
 })();
