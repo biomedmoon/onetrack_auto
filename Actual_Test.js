@@ -1968,28 +1968,27 @@ function showCurlinUploadModal(passedTheme) {
             let webhookUrl = "https://defaultda67ef1bca594db29a8caa8d94617a.16.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/25/workflows/7e09ec03536d41e49c205a13b589c631/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=QJwQDrdWZ1oEV9z_h-oaZ4qoWUpFOs-LajftqiZ0-PI";
     
             // Structured cleanly for Power Automate HTTP request triggers
-            GM_xmlhttpRequest({
-                method: "POST",
-                url: webhookUrl,
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                data: JSON.stringify({
-                    text: `[OneTrack Feedback]\nCategory: ${feedbackPayload.category}\nDevice: ${feedbackPayload.device}\nMessage: ${feedbackPayload.message}\nTime: ${feedbackPayload.timestamp}`
-                }),
-                onload: function(response) {
-                    if (response.status >= 200 && response.status < 300) {
-                        showToast("✓ Feedback sent successfully!");
-                    } else {
-                        console.error("Webhook error response:", response.status, response.responseText);
-                        showToast("⚠️ Failed to send feedback (Status: " + response.status + ")");
-                    }
-                },
-                onerror: function(error) {
-                    console.error("Network error sending feedback:", error);
-                    showToast("❌ Network error connecting to webhook.");
-                }
-            });
+            fetch(webhookUrl, {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify({
+                            text: `[OneTrack Feedback]\nCategory: ${feedbackPayload.category}\nDevice: ${feedbackPayload.device}\nMessage: ${feedbackPayload.message}\nTime: ${feedbackPayload.timestamp}`
+                        })
+                    })
+                    .then(response => {
+                        if (response.ok) {
+                            showToast("✓ Feedback sent successfully!");
+                        } else {
+                            console.error("Webhook error response:", response.status);
+                            showToast("⚠️ Failed to send feedback (Status: " + response.status + ")");
+                        }
+                    })
+                    .catch(error => {
+                        console.error("Network error sending feedback:", error);
+                        showToast("❌ Network error connecting to webhook.");
+                    });
     
             ov.remove();
             showAdvancedSettingsModal();
