@@ -1923,23 +1923,20 @@ function showCurlinUploadModal(passedTheme) {
         desc.style.cssText = `font-size:11px;color:${isDark ? '#aaa' : '#666'};margin-top:0;margin-bottom:12px;text-align:center;`;
         box.appendChild(desc);
     
-        // Wrapper for dropdown to keep everything neatly contained as one box
+        // Wrapper for dropdown
         let selectWrapper = document.createElement('div');
         selectWrapper.style.cssText = "position:relative;margin-bottom:10px;width:100%;";
         
         let categorySelect = document.createElement('select');
         categorySelect.className = 'onetrack-btn';
         categorySelect.innerHTML = '<option value="Feature Request">💡 Feature Request</option><option value="Bug Report">🐛 Bug Report</option><option value="General Feedback">⭐ General Feedback</option>';
-        // Added right padding (35px) so the text never collides with the arrow icon
-        categorySelect.style.cssText = `width:100%;padding:8px 35px 8px 10px;border-radius:4px;background:${isDark ? '#2a2a2a' : '#fff'};color:${boxColor};border:1px solid ${isDark ? '#555' : '#ccc'};font-size:12px;appearance:none;-webkit-appearance:none;-moz-appearance:none;cursor:pointer;box-sizing:border-box;`;
+        
+        // Using a clean SVG arrow data URI baked directly into the background
+        let svgArrow = encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="${isDark ? '#aaa' : '#666'}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>`);
+        
+        categorySelect.style.cssText = `width:100%;padding:8px 32px 8px 10px;border-radius:4px;background:${isDark ? '#2a2a2a' : '#fff'} url("data:image/svg+xml;utf8,${svgArrow}") no-repeat right 10px center;color:${boxColor};border:1px solid ${isDark ? '#555' : '#ccc'};font-size:12px;appearance:none;-webkit-appearance:none;-moz-appearance:none;cursor:pointer;box-sizing:border-box;`;
+        
         selectWrapper.appendChild(categorySelect);
-    
-        // Positioned neatly right inside the border of the input field
-        let arrowIcon = document.createElement('span');
-        arrowIcon.innerHTML = "▼";
-        arrowIcon.style.cssText = `position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:10px;color:${isDark ? '#aaa' : '#666'};pointer-events:none;`;
-        selectWrapper.appendChild(arrowIcon);
-    
         box.appendChild(selectWrapper);
         
         let textarea = document.createElement('textarea');
