@@ -1923,24 +1923,25 @@ function showCurlinUploadModal(passedTheme) {
         desc.style.cssText = `font-size:11px;color:${isDark ? '#aaa' : '#666'};margin-top:0;margin-bottom:12px;text-align:center;`;
         box.appendChild(desc);
     
-        // Wrapper for dropdown to style the custom arrow cleanly
+        // Wrapper for dropdown to keep everything neatly contained as one box
         let selectWrapper = document.createElement('div');
-        selectWrapper.style.cssText = "position:relative;margin-bottom:10px;width:100%;display:flex;align-items:center;";
+        selectWrapper.style.cssText = "position:relative;margin-bottom:10px;width:100%;";
         
         let categorySelect = document.createElement('select');
         categorySelect.className = 'onetrack-btn';
         categorySelect.innerHTML = '<option value="Feature Request">💡 Feature Request</option><option value="Bug Report">🐛 Bug Report</option><option value="General Feedback">⭐ General Feedback</option>';
-        categorySelect.style.cssText = `width:100%;padding:8px 35px 8px 10px;border-radius:4px;background:${isDark ? '#2a2a2a' : '#fff'};color:${boxColor};border:1px solid ${isDark ? '#555' : '#ccc'};font-size:12px;appearance:none;-webkit-appearance:none;-moz-appearance:none;cursor:pointer;`;
+        // Added right padding (35px) so the text never collides with the arrow icon
+        categorySelect.style.cssText = `width:100%;padding:8px 35px 8px 10px;border-radius:4px;background:${isDark ? '#2a2a2a' : '#fff'};color:${boxColor};border:1px solid ${isDark ? '#555' : '#ccc'};font-size:12px;appearance:none;-webkit-appearance:none;-moz-appearance:none;cursor:pointer;box-sizing:border-box;`;
         selectWrapper.appendChild(categorySelect);
     
-        // Make the dropdown arrow stand out inside a dedicated pill/box on the right
+        // Positioned neatly right inside the border of the input field
         let arrowIcon = document.createElement('span');
         arrowIcon.innerHTML = "▼";
-        arrowIcon.style.cssText = `position:absolute;right:1px;top:1px;bottom:1px;width:30px;background:${isDark ? '#333' : '#eee'};border-left:1px solid ${isDark ? '#555' : '#ccc'};border-top-right-radius:3px;border-bottom-right-radius:3px;display:flex;align-items:center;justify-content:center;font-size:9px;color:${isDark ? '#ccc' : '#555'};pointer-events:none;`;
+        arrowIcon.style.cssText = `position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:10px;color:${isDark ? '#aaa' : '#666'};pointer-events:none;`;
         selectWrapper.appendChild(arrowIcon);
     
         box.appendChild(selectWrapper);
-    
+        
         let textarea = document.createElement('textarea');
         textarea.placeholder = "Type your feedback here...";
         textarea.style.cssText = `width:100%;height:110px;padding:8px;box-sizing:border-box;border:1px solid ${isDark ? '#444' : '#ccc'};border-radius:4px;background:${isDark ? '#2a2a2a' : '#fff'};color:${boxColor};font-size:12px;margin-bottom:12px;resize:vertical;font-family:inherit;`;
