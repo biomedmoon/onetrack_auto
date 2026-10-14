@@ -1925,18 +1925,18 @@ function showCurlinUploadModal(passedTheme) {
     
         // Wrapper for dropdown to style the custom arrow cleanly
         let selectWrapper = document.createElement('div');
-        selectWrapper.style.cssText = "position:relative;margin-bottom:10px;width:100%;";
+        selectWrapper.style.cssText = "position:relative;margin-bottom:10px;width:100%;display:flex;align-items:center;";
         
         let categorySelect = document.createElement('select');
         categorySelect.className = 'onetrack-btn';
         categorySelect.innerHTML = '<option value="Feature Request">💡 Feature Request</option><option value="Bug Report">🐛 Bug Report</option><option value="General Feedback">⭐ General Feedback</option>';
-        categorySelect.style.cssText = `width:100%;padding:8px 30px 8px 10px;border-radius:4px;background:${isDark ? '#2a2a2a' : '#fff'};color:${boxColor};border:1px solid ${isDark ? '#555' : '#ccc'};font-size:12px;appearance:none;-webkit-appearance:none;-moz-appearance:none;cursor:pointer;`;
+        categorySelect.style.cssText = `width:100%;padding:8px 35px 8px 10px;border-radius:4px;background:${isDark ? '#2a2a2a' : '#fff'};color:${boxColor};border:1px solid ${isDark ? '#555' : '#ccc'};font-size:12px;appearance:none;-webkit-appearance:none;-moz-appearance:none;cursor:pointer;`;
         selectWrapper.appendChild(categorySelect);
     
-        // Custom dropdown arrow icon
+        // Make the dropdown arrow stand out inside a dedicated pill/box on the right
         let arrowIcon = document.createElement('span');
         arrowIcon.innerHTML = "▼";
-        arrowIcon.style.cssText = `position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:10px;color:${isDark ? '#aaa' : '#666'};pointer-events:none;`;
+        arrowIcon.style.cssText = `position:absolute;right:1px;top:1px;bottom:1px;width:30px;background:${isDark ? '#333' : '#eee'};border-left:1px solid ${isDark ? '#555' : '#ccc'};border-top-right-radius:3px;border-bottom-right-radius:3px;display:flex;align-items:center;justify-content:center;font-size:9px;color:${isDark ? '#ccc' : '#555'};pointer-events:none;`;
         selectWrapper.appendChild(arrowIcon);
     
         box.appendChild(selectWrapper);
