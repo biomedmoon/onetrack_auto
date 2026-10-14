@@ -1,10 +1,11 @@
 // ==UserScript==
-// @name         OneTrack Automation & Helper
+// @name         OneTrack Automation & Helper - Actual_Findings
 // @namespace    http://tampermonkey.net/
-// @version      1.3.6
+// @version      1.4.0
 // @description  Automates workflows, UI enhancements, hotkeys, and persistent settings.
 // @author       jekosol
 // @match        *://*/*
+// @grant        GM_xmlhttpRequest
 // @grant        GM_getValue
 // @grant        GM_setValue
 // ==/UserScript==
@@ -23,7 +24,7 @@
             localStorage.setItem(key, val);
         };
     }
-    const CURRENT_VERSION = '1.3.6';
+    const CURRENT_VERSION = '1.4.0';
     // --- ENVIRONMENT AUTO-DETECTION ---
     const isTestEnv = typeof GM_info !== 'undefined' && GM_info && GM_info.script && GM_info.script.name.includes('Test');
     const CONFIG = {
@@ -33,13 +34,11 @@
         debugMode: isTestEnv
     };
     const RELEASE_NOTES = [
-        "Added customizable Theme Toggle (Dark/Light Mode).",
-        "Enabled draggable floating UI panels.",
+        "Added customizable Toggles: Dark/Light Mode, Compact UI, Import/Export backup.",
         "Added user-configurable hotkeys via settings menu.",
-        "Introduced UI Compact Mode preferences.",
-        "Added JSON Settings Export and Import backup functionality.",
-        "Shifted Company/Client Mapping into a separate collapsible sub-menu.",
-        "Added dedicated Global Common Phrases editor accessible from any device screen."
+        "Added dedicated Global Common Phrases editor accessible from any device screen.",
+        "Added PDF text extractor for MOOG Invoices",
+        "Added Feedback Feature within Advanced Settings tab"
     ];
 
     // 1. Inject clean theme styles (Backdrop made fully transparent / non-dimming)
@@ -1892,6 +1891,119 @@ function showCurlinUploadModal(passedTheme) {
             }
         });
     }
+    function showFeedbackModal(passedTheme) {
+        let activeTheme = passedTheme || document.getElementById('preset-notes-modal')?.getAttribute('data-theme') || 'light';
+        let isDark = activeTheme === 'dark';
+        let ex = document.getElementById('preset-notes-modal');
+        if (ex) ex.remove();
+    
+        let ov = document.createElement('div');
+        ov.id = 'preset-notes-modal';
+        ov.setAttribute('data-theme', activeTheme);
+        ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:transparent;z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;pointer-events:none;';
+    
+        let box = document.createElement('div');
+        box.className = 'onetrack-modal' + (compactMode ? ' onetrack-compact-mode' : '');
+        let boxBg = isDark ? '#1e1e1e' : '#fff';
+        let boxColor = isDark ? '#e0e0e0' : '#333';
+        box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:440px;display:flex;flex-direction:column;position:relative;pointer-events:auto;`;
+        
+        if (typeof applyUIScale === 'function') applyUIScale(box);
+        if (typeof applySavedPosition === 'function') applySavedPosition(box);
+    
+        let title = document.createElement('h3');
+        title.innerText = "💬 Submit Feedback & Feature Requests";
+        title.style.cssText = `margin-top:0;margin-bottom:10px;font-size:15px;color:${isDark ? '#fff' : '#222'};text-align:center;`;
+        box.appendChild(title);
+    
+        let desc = document.createElement('p');
+        desc.innerText = "Have an idea or spotted a bug? Send it directly here without leaving OneTrack.";
+        desc.style.cssText = `font-size:11px;color:${isDark ? '#aaa' : '#666'};margin-top:0;margin-bottom:12px;text-align:center;`;
+        box.appendChild(desc);
+    
+        // Wrapper for dropdown
+        let selectWrapper = document.createElement('div');
+        selectWrapper.style.cssText = "position:relative;margin-bottom:10px;width:100%;";
+        
+        let categorySelect = document.createElement('select');
+        categorySelect.className = 'onetrack-btn';
+        categorySelect.innerHTML = '<option value="Feature Request">💡 Feature Request</option><option value="Bug Report">🐛 Bug Report</option><option value="General Feedback">⭐ General Feedback</option>';
+        
+        // Using a clean SVG arrow data URI baked directly into the background
+        let svgArrow = encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="${isDark ? '#aaa' : '#666'}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>`);
+        
+        categorySelect.style.cssText = `width:100%;padding:8px 32px 8px 10px;border-radius:4px;background:${isDark ? '#2a2a2a' : '#fff'} url("data:image/svg+xml;utf8,${svgArrow}") no-repeat right 10px center;color:${boxColor};border:1px solid ${isDark ? '#555' : '#ccc'};font-size:12px;appearance:none;-webkit-appearance:none;-moz-appearance:none;cursor:pointer;box-sizing:border-box;`;
+        
+        selectWrapper.appendChild(categorySelect);
+        box.appendChild(selectWrapper);
+        
+        let textarea = document.createElement('textarea');
+        textarea.placeholder = "Type your feedback here...";
+        textarea.style.cssText = `width:100%;height:110px;padding:8px;box-sizing:border-box;border:1px solid ${isDark ? '#444' : '#ccc'};border-radius:4px;background:${isDark ? '#2a2a2a' : '#fff'};color:${boxColor};font-size:12px;margin-bottom:12px;resize:vertical;font-family:inherit;`;
+        box.appendChild(textarea);
+    
+        let submitBtn = document.createElement('button');
+        submitBtn.innerText = "Send Feedback";
+        submitBtn.className = 'onetrack-btn';
+        submitBtn.style.cssText = "width:100%;padding:9px;background:#28a745;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;margin-bottom:8px;";
+        submitBtn.onclick = () => {
+            let text = textarea.value.trim();
+            if (!text) {
+                alert("Please enter some feedback first.");
+                return;
+            }
+            
+            let feedbackPayload = {
+                category: categorySelect.value,
+                device: typeof getDeviceType === 'function' ? getDeviceType() : 'Unknown',
+                message: text,
+                timestamp: new Date().toLocaleString(),
+                userLocation: window.location.href
+            };
+    
+            let webhookUrl = "https://defaultda67ef1bca594db29a8caa8d94617a.16.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/25/workflows/7e09ec03536d41e49c205a13b589c631/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=QJwQDrdWZ1oEV9z_h-oaZ4qoWUpFOs-LajftqiZ0-PI";
+    
+            // Structured cleanly for Power Automate HTTP request triggers
+            fetch(webhookUrl, {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify({
+                            text: `[OneTrack Feedback]\nCategory: ${feedbackPayload.category}\nDevice: ${feedbackPayload.device}\nMessage: ${feedbackPayload.message}\nTime: ${feedbackPayload.timestamp}`
+                        })
+                    })
+                    .then(response => {
+                        if (response.ok) {
+                            showToast("✓ Feedback sent successfully!");
+                        } else {
+                            console.error("Webhook error response:", response.status);
+                            showToast("⚠️ Failed to send feedback (Status: " + response.status + ")");
+                        }
+                    })
+                    .catch(error => {
+                        console.error("Network error sending feedback:", error);
+                        showToast("❌ Network error connecting to webhook.");
+                    });
+    
+            ov.remove();
+            showAdvancedSettingsModal();
+        };
+        box.appendChild(submitBtn);
+    
+        let backBtn = document.createElement('button');
+        backBtn.innerText = "← Back to Advanced Settings";
+        backBtn.className = 'onetrack-btn';
+        backBtn.style.cssText = isDark ? "width:100%;padding:8px;background:#444;color:#e0e0e0;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;" : "width:100%;padding:8px;background:#e0e0e0;color:#333;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;";
+        backBtn.onclick = () => {
+            ov.remove();
+            showAdvancedSettingsModal();
+        };
+        box.appendChild(backBtn);
+    
+        ov.appendChild(box);
+        document.body.appendChild(ov);
+    }
     function showAdvancedSettingsModal() {
         let activeTheme = document.getElementById('preset-notes-modal')?.getAttribute('data-theme') || localStorage.getItem('onetrack_theme') || 'light';
         let isDark = activeTheme === 'dark';
@@ -1933,6 +2045,16 @@ function showCurlinUploadModal(passedTheme) {
         whatsNewBtn.style.cssText = "background:#eef7fe;color:#0366d6;border:1px solid #c8e1ff;padding:8px;border-radius:4px;cursor:pointer;font-weight:bold;font-size:12px;width:100%;margin-bottom:15px;";
         whatsNewBtn.onclick = () => { ov.remove(); checkWhatsNew(true); };
         sa.appendChild(whatsNewBtn);
+
+        let feedbackBtn = document.createElement('button');
+        feedbackBtn.innerText = "💬 Submit Feedback / Request Feature";
+        feedbackBtn.className = 'onetrack-btn';
+        feedbackBtn.style.cssText = "background:#2b542c;color:#fff;border:1px solid #b5d89c;padding:8px;border-radius:4px;cursor:pointer;font-weight:bold;font-size:12px;width:100%;margin-bottom:6px;";
+        feedbackBtn.onclick = () => {
+            ov.remove();
+            showFeedbackModal(activeTheme);
+        };
+        sa.appendChild(feedbackBtn);
 
         let themeRow = document.createElement('div');
         themeRow.style.cssText = 'display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; font-size:13px; font-weight:bold;';
