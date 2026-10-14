@@ -1921,7 +1921,7 @@ function showCurlinUploadModal(passedTheme) {
         desc.style.cssText = `font-size:11px;color:${isDark ? '#aaa' : '#666'};margin-top:0;margin-bottom:12px;text-align:center;`;
         box.appendChild(desc);
     
-        // Wrapper for dropdown
+        // Dropdown Category
         let selectWrapper = document.createElement('div');
         selectWrapper.style.cssText = "position:relative;margin-bottom:10px;width:100%;";
         
@@ -1929,65 +1929,92 @@ function showCurlinUploadModal(passedTheme) {
         categorySelect.className = 'onetrack-btn';
         categorySelect.innerHTML = '<option value="Feature Request">💡 Feature Request</option><option value="Bug Report">🐛 Bug Report</option><option value="General Feedback">⭐ General Feedback</option>';
         
-        // Using a clean SVG arrow data URI baked directly into the background
         let svgArrow = encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="${isDark ? '#aaa' : '#666'}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>`);
-        
         categorySelect.style.cssText = `width:100%;padding:8px 32px 8px 10px;border-radius:4px;background:${isDark ? '#2a2a2a' : '#fff'} url("data:image/svg+xml;utf8,${svgArrow}") no-repeat right 10px center;color:${boxColor};border:1px solid ${isDark ? '#555' : '#ccc'};font-size:12px;appearance:none;-webkit-appearance:none;-moz-appearance:none;cursor:pointer;box-sizing:border-box;`;
-        
         selectWrapper.appendChild(categorySelect);
         box.appendChild(selectWrapper);
-        
+    
+        // Textarea
         let textarea = document.createElement('textarea');
         textarea.placeholder = "Type your feedback here...";
-        textarea.style.cssText = `width:100%;height:110px;padding:8px;box-sizing:border-box;border:1px solid ${isDark ? '#444' : '#ccc'};border-radius:4px;background:${isDark ? '#2a2a2a' : '#fff'};color:${boxColor};font-size:12px;margin-bottom:12px;resize:vertical;font-family:inherit;`;
+        textarea.style.cssText = `width:100%;height:90px;padding:8px;box-sizing:border-box;border:1px solid ${isDark ? '#444' : '#ccc'};border-radius:4px;background:${isDark ? '#2a2a2a' : '#fff'};color:${boxColor};font-size:12px;margin-bottom:10px;resize:vertical;font-family:inherit;`;
         box.appendChild(textarea);
+    
+        // File Attachment Input for Pictures
+        let fileLabel = document.createElement('label');
+        fileLabel.innerText = "Attach Screenshot / Image (Optional):";
+        fileLabel.style.cssText = `font-size:11px;font-weight:bold;color:${isDark ? '#ccc' : '#555'};margin-bottom:4px;display:block;`;
+        box.appendChild(fileLabel);
+    
+        let fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = 'image/*';
+        fileInput.style.cssText = `width:100%;margin-bottom:12px;font-size:11px;color:${boxColor};cursor:pointer;`;
+        box.appendChild(fileInput);
     
         let submitBtn = document.createElement('button');
         submitBtn.innerText = "Send Feedback";
         submitBtn.className = 'onetrack-btn';
         submitBtn.style.cssText = "width:100%;padding:9px;background:#28a745;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;margin-bottom:8px;";
+        
         submitBtn.onclick = () => {
             let text = textarea.value.trim();
             if (!text) {
                 alert("Please enter some feedback first.");
                 return;
             }
-            
-            let feedbackPayload = {
-                category: categorySelect.value,
-                device: typeof getDeviceType === 'function' ? getDeviceType() : 'Unknown',
-                message: text,
-                timestamp: new Date().toLocaleString(),
-                userLocation: window.location.href
+    
+            let file = fileInput.files[0];
+    
+            const sendPayload = (imageBase64 = null, fileName = null) => {
+                let feedbackPayload = {
+                    category: categorySelect.value,
+                    device: typeof getDeviceType === 'function' ? getDeviceType() : 'Unknown',
+                    message: text,
+                    timestamp: new Date().toLocaleString(),
+                    userLocation: window.location.href
+                };
+    
+                let webhookUrl = "YOUR_POWER_AUTOMATE_WEBHOOK_URL_HERE";
+    
+                let messageBody = `[OneTrack Feedback]\nCategory: ${feedbackPayload.category}\nDevice: ${feedbackPayload.device}\nMessage: ${feedbackPayload.message}\nTime: ${feedbackPayload.timestamp}`;
+    
+                fetch(webhookUrl, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ 
+                        text: messageBody,
+                        image: imageBase64,
+                        filename: fileName
+                    })
+                })
+                .then(response => {
+                    if (response.ok) {
+                        showToast("✓ Feedback sent successfully!");
+                    } else {
+                        console.error("Webhook error response:", response.status);
+                        showToast("⚠️ Failed to send feedback (Status: " + response.status + ")");
+                    }
+                })
+                .catch(error => {
+                    console.error("Network error sending feedback:", error);
+                    showToast("❌ Network error connecting to webhook.");
+                });
+    
+                ov.remove();
+                showAdvancedSettingsModal();
             };
     
-            let webhookUrl = "https://defaultda67ef1bca594db29a8caa8d94617a.16.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/25/workflows/7e09ec03536d41e49c205a13b589c631/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=QJwQDrdWZ1oEV9z_h-oaZ4qoWUpFOs-LajftqiZ0-PI";
-    
-            // Structured cleanly for Power Automate HTTP request triggers
-            fetch(webhookUrl, {
-                        method: "POST",
-                        headers: {
-                            "Content-Type": "application/json"
-                        },
-                        body: JSON.stringify({
-                            text: `[OneTrack Feedback]\nCategory: ${feedbackPayload.category}\nDevice: ${feedbackPayload.device}\nMessage: ${feedbackPayload.message}\nTime: ${feedbackPayload.timestamp}`
-                        })
-                    })
-                    .then(response => {
-                        if (response.ok) {
-                            showToast("✓ Feedback sent successfully!");
-                        } else {
-                            console.error("Webhook error response:", response.status);
-                            showToast("⚠️ Failed to send feedback (Status: " + response.status + ")");
-                        }
-                    })
-                    .catch(error => {
-                        console.error("Network error sending feedback:", error);
-                        showToast("❌ Network error connecting to webhook.");
-                    });
-    
-            ov.remove();
-            showAdvancedSettingsModal();
+            // If a file is selected, read it as Data URL (Base64)
+            if (file) {
+                let reader = new FileReader();
+                reader.onload = function(e) {
+                    sendPayload(e.target.result, file.name);
+                };
+                reader.readAsDataURL(file);
+            } else {
+                sendPayload(null, null);
+            }
         };
         box.appendChild(submitBtn);
     
