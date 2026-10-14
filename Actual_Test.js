@@ -1923,11 +1923,23 @@ function showCurlinUploadModal(passedTheme) {
         desc.style.cssText = `font-size:11px;color:${isDark ? '#aaa' : '#666'};margin-top:0;margin-bottom:12px;text-align:center;`;
         box.appendChild(desc);
     
+        // Wrapper for dropdown to style the custom arrow cleanly
+        let selectWrapper = document.createElement('div');
+        selectWrapper.style.cssText = "position:relative;margin-bottom:10px;width:100%;";
+        
         let categorySelect = document.createElement('select');
         categorySelect.className = 'onetrack-btn';
         categorySelect.innerHTML = '<option value="Feature Request">💡 Feature Request</option><option value="Bug Report">🐛 Bug Report</option><option value="General Feedback">⭐ General Feedback</option>';
-        categorySelect.style.cssText = `width:100%;padding:8px;margin-bottom:10px;border-radius:4px;background:${isDark ? '#2a2a2a' : '#fff'};color:${boxColor};border:1px solid ${isDark ? '#555' : '#ccc'};font-size:12px;`;
-        box.appendChild(categorySelect);
+        categorySelect.style.cssText = `width:100%;padding:8px 30px 8px 10px;border-radius:4px;background:${isDark ? '#2a2a2a' : '#fff'};color:${boxColor};border:1px solid ${isDark ? '#555' : '#ccc'};font-size:12px;appearance:none;-webkit-appearance:none;-moz-appearance:none;cursor:pointer;`;
+        selectWrapper.appendChild(categorySelect);
+    
+        // Custom dropdown arrow icon
+        let arrowIcon = document.createElement('span');
+        arrowIcon.innerHTML = "▼";
+        arrowIcon.style.cssText = `position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:10px;color:${isDark ? '#aaa' : '#666'};pointer-events:none;`;
+        selectWrapper.appendChild(arrowIcon);
+    
+        box.appendChild(selectWrapper);
     
         let textarea = document.createElement('textarea');
         textarea.placeholder = "Type your feedback here...";
@@ -1952,11 +1964,10 @@ function showCurlinUploadModal(passedTheme) {
                 timestamp: new Date().toLocaleString(),
                 userLocation: window.location.href
             };
-        
-            // Replace with your actual Microsoft Teams, Slack, or Discord incoming webhook URL
-            let webhookUrl = "https://defaultda67ef1bca594db29a8caa8d94617a.16.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/25/workflows/7e09ec03536d41e49c205a13b589c631/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=QJwQDrdWZ1oEV9z_h-oaZ4qoWUpFOs-LajftqiZ0-PI"; 
-        
-            // Send the feedback data in the background via Tampermonkey
+    
+            let webhookUrl = "https://defaultda67ef1bca594db29a8caa8d94617a.16.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/25/workflows/7e09ec03536d41e49c205a13b589c631/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=QJwQDrdWZ1oEV9z_h-oaZ4qoWUpFOs-LajftqiZ0-PI";
+    
+            // Structured cleanly for Power Automate HTTP request triggers
             GM_xmlhttpRequest({
                 method: "POST",
                 url: webhookUrl,
@@ -1964,23 +1975,22 @@ function showCurlinUploadModal(passedTheme) {
                     "Content-Type": "application/json"
                 },
                 data: JSON.stringify({
-                    // Formatting example tailored for Teams/Slack webhook payloads
-                    text: `*[OneTrack Feedback]*\n**Category:** ${feedbackPayload.category}\n**Device Context:** ${feedbackPayload.device}\n**Message:** ${feedbackPayload.message}\n*Time: ${feedbackPayload.timestamp}*`
+                    text: `[OneTrack Feedback]\nCategory: ${feedbackPayload.category}\nDevice: ${feedbackPayload.device}\nMessage: ${feedbackPayload.message}\nTime: ${feedbackPayload.timestamp}`
                 }),
                 onload: function(response) {
                     if (response.status >= 200 && response.status < 300) {
-                        showToast("✓ Feedback sent successfully to developer!");
+                        showToast("✓ Feedback sent successfully!");
                     } else {
-                        console.error("Webhook responded with status:", response.status);
-                        showToast("✓ Saved locally (Webhook delivery failed)");
+                        console.error("Webhook error response:", response.status, response.responseText);
+                        showToast("⚠️ Failed to send feedback (Status: " + response.status + ")");
                     }
                 },
                 onerror: function(error) {
                     console.error("Network error sending feedback:", error);
-                    showToast("✓ Feedback recorded.");
+                    showToast("❌ Network error connecting to webhook.");
                 }
             });
-        
+    
             ov.remove();
             showAdvancedSettingsModal();
         };
