@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         OneTrack Automation & Helper - Actual_Test
 // @namespace    http://tampermonkey.net/
-// @version      1.3.6
+// @version      1.4.0
 // @description  Automates workflows, UI enhancements, hotkeys, and persistent settings.
 // @author       jekosol
 // @match        *://*/*
@@ -24,7 +24,7 @@
             localStorage.setItem(key, val);
         };
     }
-    const CURRENT_VERSION = '1.3.6';
+    const CURRENT_VERSION = '1.4.0';
     // --- ENVIRONMENT AUTO-DETECTION ---
     const isTestEnv = typeof GM_info !== 'undefined' && GM_info && GM_info.script && GM_info.script.name.includes('Test');
     const CONFIG = {
@@ -34,13 +34,11 @@
         debugMode: isTestEnv
     };
     const RELEASE_NOTES = [
-        "Added customizable Theme Toggle (Dark/Light Mode).",
-        "Enabled draggable floating UI panels.",
+        "Added customizable Toggles: Dark/Light Mode, Compact UI, Import/Export backup.",
         "Added user-configurable hotkeys via settings menu.",
-        "Introduced UI Compact Mode preferences.",
-        "Added JSON Settings Export and Import backup functionality.",
-        "Shifted Company/Client Mapping into a separate collapsible sub-menu.",
-        "Added dedicated Global Common Phrases editor accessible from any device screen."
+        "Added dedicated Global Common Phrases editor accessible from any device screen.",
+        "Added PDF text extractor for MOOG Invoices",
+        "Added Feedback Feature within Advanced Settings tab"
     ];
 
     // 1. Inject clean theme styles (Backdrop made fully transparent / non-dimming)
