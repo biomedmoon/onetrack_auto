@@ -1940,17 +1940,99 @@ function showCurlinUploadModal(passedTheme) {
         textarea.style.cssText = `width:100%;height:90px;padding:8px;box-sizing:border-box;border:1px solid ${isDark ? '#444' : '#ccc'};border-radius:4px;background:${isDark ? '#2a2a2a' : '#fff'};color:${boxColor};font-size:12px;margin-bottom:10px;resize:vertical;font-family:inherit;`;
         box.appendChild(textarea);
     
-        // File Attachment Input for Pictures
+        // File Attachment & Screenshot Preview Section
         let fileLabel = document.createElement('label');
         fileLabel.innerText = "Attach Screenshot / Image (Optional):";
         fileLabel.style.cssText = `font-size:11px;font-weight:bold;color:${isDark ? '#ccc' : '#555'};margin-bottom:4px;display:block;`;
         box.appendChild(fileLabel);
-    
+        
+        let dropZone = document.createElement('div');
+        dropZone.style.cssText = `width:100%;min-height:65px;border:2px dashed ${isDark ? '#555' : '#ccc'};border-radius:4px;background:${isDark ? '#2a2a2a' : '#fafafa'};display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px;box-sizing:border-box;cursor:pointer;margin-bottom:10px;text-align:center;position:relative;`;
+        
+        let dropText = document.createElement('span');
+        dropText.innerText = "Drag & drop image here, click to browse, or Paste (Ctrl+V)";
+        dropText.style.cssText = `font-size:11px;color:${isDark ? '#aaa' : '#666'};pointer-events:none;`;
+        dropZone.appendChild(dropText);
+        
         let fileInput = document.createElement('input');
         fileInput.type = 'file';
         fileInput.accept = 'image/*';
-        fileInput.style.cssText = `width:100%;margin-bottom:12px;font-size:11px;color:${boxColor};cursor:pointer;`;
-        box.appendChild(fileInput);
+        fileInput.style.cssText = 'display:none;';
+        dropZone.appendChild(fileInput);
+        
+        // Image Preview Container
+        let previewContainer = document.createElement('div');
+        previewContainer.style.cssText = 'display:none;align-items:center;gap:10px;margin-top:5px;width:100%;';
+        
+        let previewImg = document.createElement('img');
+        previewImg.style.cssText = 'max-height:50px;max-width:80px;border-radius:4px;object-fit:cover;border:1px solid #ccc;';
+        previewContainer.appendChild(previewImg);
+        
+        let previewText = document.createElement('span');
+        previewText.style.cssText = `font-size:11px;color:${isDark ? '#28a745' : '#28a745'};font-weight:bold;flex-grow:1;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;`;
+        previewContainer.appendChild(previewText);
+        
+        let removeBtn = document.createElement('button');
+        removeBtn.innerText = "✕";
+        removeBtn.style.cssText = 'background:transparent;border:none;color:#ff4d4f;cursor:pointer;font-size:14px;font-weight:bold;padding:0 5px;';
+        previewContainer.appendChild(removeBtn);
+        
+        box.appendChild(dropZone);
+        box.appendChild(previewContainer);
+        
+        let attachedFileObject = null;
+        let attachedBase64 = null;
+        
+        const handleFileSelected = (file) => {
+            if (!file || !file.type.startsWith('image/')) return;
+            attachedFileObject = file;
+            
+            let reader = new FileReader();
+            reader.onload = function(e) {
+                attachedBase64 = e.target.result;
+                previewImg.src = attachedBase64;
+                previewText.innerText = file.name || "pasted_screenshot.png";
+                dropZone.style.display = 'none';
+                previewContainer.style.display = 'flex';
+            };
+            reader.readAsDataURL(file);
+        };
+        
+        removeBtn.onclick = (e) => {
+            e.stopPropagation();
+            attachedFileObject = null;
+            attachedBase64 = null;
+            fileInput.value = '';
+            previewContainer.style.display = 'none';
+            dropZone.style.display = 'flex';
+        };
+        
+        dropZone.onclick = () => fileInput.click();
+        fileInput.onchange = (e) => {
+            if (e.target.files[0]) handleFileSelected(e.target.files[0]);
+        };
+        
+        // Drag and Drop Events
+        dropZone.ondragover = (e) => { e.preventDefault(); dropZone.style.borderColor = '#28a745'; };
+        dropZone.ondragleave = () => { dropZone.style.borderColor = isDark ? '#555' : '#ccc'; };
+        dropZone.ondrop = (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = isDark ? '#555' : '#ccc';
+            if (e.dataTransfer.files[0]) handleFileSelected(e.dataTransfer.files[0]);
+        };
+        
+        // Global Paste Listener (Ctrl+V anywhere in modal or textarea)
+        box.onpaste = (e) => {
+            let items = (e.clipboardData || e.originalEvent.clipboardData).items;
+            for (let item of items) {
+                if (item.kind === 'file' && item.type.startsWith('image/')) {
+                    e.preventDefault();
+                    let file = item.getAsFile();
+                    handleFileSelected(file);
+                    break;
+                }
+            }
+        };
     
         let submitBtn = document.createElement('button');
         submitBtn.innerText = "Send Feedback";
@@ -1963,9 +2045,7 @@ function showCurlinUploadModal(passedTheme) {
                 alert("Please enter some feedback first.");
                 return;
             }
-    
-            let file = fileInput.files[0];
-    
+        
             const sendPayload = (imageBase64 = null, fileName = null) => {
                 let feedbackPayload = {
                     category: categorySelect.value,
@@ -1974,18 +2054,17 @@ function showCurlinUploadModal(passedTheme) {
                     timestamp: new Date().toLocaleString(),
                     userLocation: window.location.href
                 };
-    
+        
                 let webhookUrl = "https://defaultda67ef1bca594db29a8caa8d94617a.16.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/25/workflows/7e09ec03536d41e49c205a13b589c631/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=QJwQDrdWZ1oEV9z_h-oaZ4qoWUpFOs-LajftqiZ0-PI";
-    
                 let messageBody = `[OneTrack Feedback]\nCategory: ${feedbackPayload.category}\nDevice: ${feedbackPayload.device}\nMessage: ${feedbackPayload.message}\nTime: ${feedbackPayload.timestamp}`;
-    
+        
                 fetch(webhookUrl, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ 
-                        text: messageBody,
-                        image: imageBase64,
-                        filename: fileName
+                        text: messageBody, 
+                        image: imageBase64, 
+                        filename: fileName 
                     })
                 })
                 .then(response => {
@@ -2000,21 +2079,12 @@ function showCurlinUploadModal(passedTheme) {
                     console.error("Network error sending feedback:", error);
                     showToast("❌ Network error connecting to webhook.");
                 });
-    
+        
                 ov.remove();
                 showAdvancedSettingsModal();
             };
-    
-            // If a file is selected, read it as Data URL (Base64)
-            if (file) {
-                let reader = new FileReader();
-                reader.onload = function(e) {
-                    sendPayload(e.target.result, file.name);
-                };
-                reader.readAsDataURL(file);
-            } else {
-                sendPayload(null, null);
-            }
+        
+            sendPayload(attachedBase64, attachedFileObject ? attachedFileObject.name : (attachedBase64 ? "screenshot.png" : null));
         };
         box.appendChild(submitBtn);
     
