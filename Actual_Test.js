@@ -1059,6 +1059,16 @@
     }
 function showCurlinUploadModal(passedTheme) {
     try {
+        // Pre-load pdf.js immediately upon opening modal to prevent drop freeze
+        if (!window.pdfjsLib) {
+            let script = document.createElement('script');
+            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+            script.onload = () => {
+                window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+            };
+            document.head.appendChild(script);
+        }
+    try {
         let activeTheme = passedTheme || document.getElementById('preset-notes-modal')?.getAttribute('data-theme') || 'light';
         let isDark = activeTheme === 'dark';
         let ex = document.getElementById('preset-notes-modal');
