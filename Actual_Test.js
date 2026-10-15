@@ -5,6 +5,7 @@
 // @description  Automates workflows, UI enhancements, hotkeys, and persistent settings.
 // @author       jekosol
 // @match        *://*/*
+// @require      https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js
 // @grant        GM_xmlhttpRequest
 // @grant        GM_getValue
 // @grant        GM_setValue
@@ -1033,24 +1034,10 @@
     
     async function extractTextFromPDFFile(file) {
         if (!window.pdfjsLib) {
-            if (!pdfLibLoadingPromise) {
-                pdfLibLoadingPromise = new Promise((resolve, reject) => {
-                    let script = document.createElement('script');
-                    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
-                    script.onload = () => {
-                        if (window.pdfjsLib) {
-                            window.pdfjsLib.GlobalWorkerOptions.workerSrc = false;
-                            resolve();
-                        } else {
-                            reject(new Error("pdfjsLib failed to initialize"));
-                        }
-                    };
-                    script.onerror = (err) => reject(err);
-                    document.head.appendChild(script);
-                });
-            }
-            await pdfLibLoadingPromise;
+            throw new Error("PDF.js library is not loaded. Please check Tampermonkey @require headers.");
         }
+        
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = false;
         
         let arrayBuffer = await file.arrayBuffer();
         let loadingTask = window.pdfjsLib.getDocument({ data: arrayBuffer });
