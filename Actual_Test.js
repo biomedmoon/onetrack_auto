@@ -1029,37 +1029,40 @@
         );
     }
 
-     async function extractTextFromPDFFile(file) {
-        if (!window.pdfjsLib) {
-            await new Promise((resolve, reject) => {
-                let script = document.createElement('script');
-                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
-                script.onload = () => {
-                    if (window.pdfjsLib) {
-                        // Disable separate worker thread to prevent Tampermonkey sandbox blocking
-                        window.pdfjsLib.GlobalWorkerOptions.workerSrc = false;
-                        resolve();
-                    } else {
-                        reject(new Error("pdfjsLib failed to initialize"));
-                    }
-                };
-                script.onerror = reject;
-                document.head.appendChild(script);
-            });
-        }
+    let pdfLibLoadingPromise = null;
     
+    async function extractTextFromPDFFile(file) {
+        if (!window.pdfjsLib) {
+            if (!pdfLibLoadingPromise) {
+                pdfLibLoadingPromise = new Promise((resolve, reject) => {
+                    let script = document.createElement('script');
+                    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+                    script.onload = () => {
+                        if (window.pdfjsLib) {
+                            window.pdfjsLib.GlobalWorkerOptions.workerSrc = false;
+                            resolve();
+                        } else {
+                            reject(new Error("pdfjsLib failed to initialize"));
+                        }
+                    };
+                    script.onerror = (err) => reject(err);
+                    document.head.appendChild(script);
+                });
+            }
+            await pdfLibLoadingPromise;
+        }
+        
         let arrayBuffer = await file.arrayBuffer();
         let loadingTask = window.pdfjsLib.getDocument({ data: arrayBuffer });
         let pdfDoc = await loadingTask.promise;
         let fullText = '';
-    
+        
         for (let i = 1; i <= pdfDoc.numPages; i++) {
             let page = await pdfDoc.getPage(i);
             let textContent = await page.getTextContent();
             let pageText = textContent.items.map(item => item.str).join(' ');
             fullText += pageText + '\n';
         }
-    
         return fullText;
     }
 function showCurlinUploadModal(passedTheme) {
