@@ -1029,7 +1029,7 @@
         );
     }
 
-     function extractTextFromPDFFile(file) {
+     async function extractTextFromPDFFile(file) {
         if (!window.pdfjsLib) {
             await new Promise((resolve, reject) => {
                 let script = document.createElement('script');
