@@ -1068,7 +1068,6 @@ function showCurlinUploadModal(passedTheme) {
             };
             document.head.appendChild(script);
         }
-    try {
         let activeTheme = passedTheme || document.getElementById('preset-notes-modal')?.getAttribute('data-theme') || 'light';
         let isDark = activeTheme === 'dark';
         let ex = document.getElementById('preset-notes-modal');
