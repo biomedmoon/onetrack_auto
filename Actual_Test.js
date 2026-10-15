@@ -1037,7 +1037,8 @@
             throw new Error("PDF.js library is not loaded. Please check Tampermonkey @require headers.");
         }
         
-        window.pdfjsLib.GlobalWorkerOptions.workerSrc = false;
+        // Explicitly set workerSrc to the matching CDN worker version
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
         
         let arrayBuffer = await file.arrayBuffer();
         let loadingTask = window.pdfjsLib.getDocument({ data: arrayBuffer });
