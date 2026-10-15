@@ -1029,7 +1029,7 @@
         );
     }
 
-    async function extractTextFromPDFFile(file) {
+     function extractTextFromPDFFile(file) {
         if (!window.pdfjsLib) {
             await new Promise((resolve, reject) => {
                 let script = document.createElement('script');
@@ -1107,7 +1107,6 @@ function showCurlinUploadModal(passedTheme) {
         dropZone.addEventListener('drop', async (e) => {
             e.preventDefault();
             e.stopPropagation();
-            
             let dt = e.dataTransfer;
             let files = dt.files;
             if (files && files.length > 0) {
@@ -1115,6 +1114,18 @@ function showCurlinUploadModal(passedTheme) {
                 if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
                     dropZone.innerHTML = '<b>Reading PDF file... Please wait.</b>';
                     try {
+                        if (!window.pdfjsLib) {
+                            await new Promise((resolve, reject) => {
+                                let script = document.createElement('script');
+                                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+                                script.onload = () => {
+                                    window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+                                    resolve();
+                                };
+                                script.onerror = reject;
+                                document.head.appendChild(script);
+                            });
+                        }
                         let extractedText = await extractTextFromPDFFile(file);
                         textArea.value = extractedText;
                         dropZone.innerHTML = '<b>✓ PDF Loaded Successfully!</b><br><span style="font-size:10px;opacity:0.8;">Review text below or click process.</span>';
