@@ -1401,26 +1401,31 @@ function showCurlinUploadModal(passedTheme) {
             webcamContainer.style.display = 'none';
             scanToggleBtn.innerText = '📷 Open Document Scanner Viewfinder';
     
-            showToast("⏳ Running local OCR on snapshot... Please wait.");
+            showToast("⏳ Loading OCR engine & analyzing document...");
     
             try {
-                // Ensure Tesseract is loaded globally
+                // Dynamically inject Tesseract.js if it isn't already loaded in the environment
                 if (typeof Tesseract === 'undefined') {
-                    alert("Tesseract library is still loading or missing from @require headers.");
-                    return;
+                    await new Promise((resolve, reject) => {
+                        let script = document.createElement('script');
+                        script.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+                        script.onload = resolve;
+                        script.onerror = reject;
+                        document.head.appendChild(script);
+                    });
                 }
     
-                // Run local OCR recognition using Tesseract.js
+                // Run local OCR recognition
                 let result = await Tesseract.recognize(
                     imageDataUrl,
                     'eng',
-                    { logger: m => console.log(m) } // Optional progress tracker in console
+                    { logger: m => console.log(m) }
                 );
     
                 let extractedText = result.data.text ? result.data.text.trim() : "";
                 
                 if (extractedText) {
-                    showToast("✓ Text extracted successfully via Tesseract!");
+                    showToast("✓ Text extracted successfully!");
                     searchInput.value = extractedText;
                     searchInput.dispatchEvent(new Event('input'));
                 } else {
@@ -1428,7 +1433,7 @@ function showCurlinUploadModal(passedTheme) {
                 }
             } catch (err) {
                 console.error("Tesseract OCR Error:", err);
-                alert("Error processing local OCR recognition.");
+                alert("Error loading or processing local OCR recognition.");
             }
         };
         box.appendChild(webcamContainer);
