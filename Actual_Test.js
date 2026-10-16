@@ -1400,36 +1400,30 @@ function showCurlinUploadModal(passedTheme) {
             webcamContainer.style.display = 'none';
             scanToggleBtn.innerText = '📷 Open Document Scanner Viewfinder';
     
-            showToast("⏳ Uploading image for text extraction...");
+            showToast("⏳ Processing document image...");
     
-            // Safely executes when installed via Tampermonkey with @grant GM_xmlhttpRequest
-            if (typeof GM_xmlhttpRequest !== 'undefined') {
-                GM_xmlhttpRequest({
-                    method: "POST",
-                    url: "https://your-ocr-or-ai-endpoint.com/api/extract",
-                    headers: { "Content-Type": "application/json" },
-                    data: JSON.stringify({ image: imageDataUrl }),
-                    onload: function(response) {
-                        try {
-                            let res = JSON.parse(response.responseText);
-                            if (res && res.extractedText) {
-                                showToast("✓ Text extracted successfully!");
-                                searchInput.value = res.extractedText;
-                                searchInput.dispatchEvent(new Event('input'));
-                            } else {
-                                alert("Could not detect text from the document image.");
-                            }
-                        } catch (err) {
-                            alert("Error processing response from OCR service.");
-                        }
-                    },
-                    onerror: function(err) {
-                        alert("Failed to reach external OCR service.");
-                    }
-                });
-            } else {
-                alert("GM_xmlhttpRequest requires local Tampermonkey script installation.");
-            }
+            // Standard standard fetch request (fully compatible with GitHub raw loads and CORS-enabled endpoints)
+            fetch("https://your-ocr-or-ai-endpoint.com/api/extract", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ image: imageDataUrl })
+            })
+            .then(response => response.json())
+            .then(res => {
+                if (res && res.extractedText) {
+                    showToast("✓ Text extracted successfully!");
+                    searchInput.value = res.extractedText;
+                    searchInput.dispatchEvent(new Event('input'));
+                } else {
+                    alert("Could not detect text from the document image.");
+                }
+            })
+            .catch(err => {
+                console.error("API request failed:", err);
+                alert("Failed to reach external OCR service. Check endpoint CORS settings.");
+            });
         };
         box.appendChild(webcamContainer);
     
