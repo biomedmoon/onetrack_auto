@@ -1425,31 +1425,57 @@ function showCurlinUploadModal(passedTheme) {
                 let rawText = result.data.text ? result.data.text.trim().toUpperCase() : "";
                 
                 if (rawText) {
-                    // Log the raw text to your console so you can inspect exactly what Tesseract is reading from your sheets!
                     console.log("--- RAW TESSERACT OCR SCAN --- \n", rawText);
-    
                     let matchedCount = 0;
+                    let cleanScanText = rawText.replace(/[\s,\-\/]+/g, ' ');
+    
                     partsList.forEach(part => {
                         if (part.name && part.name.trim()) {
                             let partNameUpper = part.name.toUpperCase();
-                            
-                            // 1. Direct inclusion check
-                            let isMatched = rawText.includes(partNameUpper);
+                            let isMatched = false;
     
-                            // 2. Fallback Keyword Token Check (catches descriptions even if formatting/punctuation varies)
-                            if (!isMatched) {
-                                // Extract significant words (ignoring small words, numbers, and common fluff)
-                                let keywords = partNameUpper.split(/[\s,\-\/]+/).filter(w => w.length > 3 && !['CADD', 'SOLIS', 'EA'].includes(w));
-                                if (keywords.length > 0) {
-                                    // If at least 70% of the core keywords match the scan, consider it found
-                                    let matchedKeywords = keywords.filter(kw => rawText.includes(kw));
-                                    if (matchedKeywords.length >= Math.ceil(keywords.length * 0.7)) {
-                                        isMatched = true;
+                            // 1. Direct or cleaned full phrase match (Most accurate)
+                            let cleanPartName = partNameUpper.replace(/[\s,\-\/]+/g, ' ');
+                            if (cleanScanText.includes(cleanPartName)) {
+                                isMatched = true;
+                            } 
+                            // 2. Specific multi-word check for parts with unique identifiers
+                            else {
+                                // Extract specific descriptive words (ignoring generic fluff words)
+                                let tokens = partNameUpper.split(/[\s,\-\/]+/).filter(w => w.length > 3 && !['CADD', 'SOLIS', 'EA', 'THE', 'W/O', 'AY', 'LBL'].includes(w));
+                                
+                                if (tokens.length > 0) {
+                                    let foundTokens = tokens.filter(token => cleanScanText.includes(token));
+                                    
+                                    // Require a high confidence threshold: 
+                                    // Either all unique tokens must match, or at least 80% for long descriptions
+                                    let threshold = tokens.length > 2 ? 0.8 : 1.0;
+                                    if (foundTokens.length >= Math.ceil(tokens.length * threshold)) {
+                                        // Extra guard for generic labels/seals: ensure a distinguishing modifier is present
+                                        if (tokens.includes('SEAL')) {
+                                            // Ensure we match the exact modifier (e.g. 'NEOPRENE' or 'UPSTREAM')
+                                            isMatched = tokens.every(t => cleanScanText.includes(t));
+                                        } else {
+                                            isMatched = true;
+                                        }
                                     }
                                 }
                             }
     
-                            if (isMatched) {
+                            // Specific disambiguated rules for items that share common root words
+                            if (rawText.includes("NEOPRENE") && part.name === 'SEAL, DSO, NEOPRENE') isMatched = true;
+                            if (rawText.includes("UPSTREAM") && part.name === 'SEAL, UPSTREAM OCCLUSION') isMatched = true;
+                            if (rawText.includes("DIAPHRAGM") && part.name === 'SEAL, DIAPHRAGM, CASSETTE SENSOR') isMatched = true;
+                            
+                            // Prevent generic LBL matching unless model/version text matches specifically
+                            if (part.name.includes('LBL, DEVICE, PUMP') && !rawText.includes(part.num)) {
+                                // If it's a generic label row without its specific part number, don't blindly cross-trigger
+                                if (!cleanScanText.includes(part.name.replace(/[\s,\-\/]+/g, ' ').substring(0, 15))) {
+                                    isMatched = false;
+                                }
+                            }
+    
+                            if (isMatched && !selectedItems.has(part.name)) {
                                 selectedItems.add(part.name);
                                 matchedCount++;
                             }
@@ -1457,7 +1483,7 @@ function showCurlinUploadModal(passedTheme) {
                     });
     
                     renderList();
-                    showToast(`✓ OCR scanned! Auto-selected ${matchedCount} part(s).`);
+                    showToast(`✓ OCR scanned! Auto-selected ${matchedCount} specific part(s).`);
                 } else {
                     alert("Could not detect any text from the captured image. Try adjusting lighting or framing.");
                 }
