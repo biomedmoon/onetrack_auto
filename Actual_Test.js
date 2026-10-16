@@ -1335,7 +1335,7 @@ function showCurlinUploadModal(passedTheme) {
         box.className = 'onetrack-modal' + (typeof compactMode !== 'undefined' && compactMode ? ' onetrack-compact-mode' : '');
         let boxBg = isDark ? '#1e1e1e' : '#fff';
         let boxColor = isDark ? '#e0e0e0' : '#333';
-        box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:480px;display:flex;flex-direction:column;position:relative;pointer-events:auto;`;
+        box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.25);width:600px;display:flex;flex-direction:column;position:relative;pointer-events:auto;`;
         
         if (typeof applyUIScale === 'function') applyUIScale(box);
         if (typeof applySavedPosition === 'function') applySavedPosition(box);
@@ -1343,20 +1343,107 @@ function showCurlinUploadModal(passedTheme) {
     
         let h = document.createElement('h3');
         h.innerText = 'Select Solis OEM Replaced Parts';
-        h.style.cssText = `margin-top:0;margin-bottom:10px;font-size:16px;color:${isDark ? '#fff' : '#222'};text-align:center;cursor:move;`;
+        h.style.cssText = `margin-top:0;margin-bottom:12px;font-size:16px;color:${isDark ? '#fff' : '#222'};text-align:center;cursor:move;`;
         if (typeof makeDraggable === 'function') makeDraggable(box, h);
         box.appendChild(h);
     
-        // Controls Row for Sorting Housekeeping
+        let defaultParts = [
+            { num: '30-3285', name: 'ADHESIVE, PSA, PIEZO RING, CADD-SOLIS 1/EA' },
+            { num: '70-0354', name: 'AIR DETECTOR, SOLIS' },
+            { num: '70-0446', name: 'AY, 27MM PIEZO SOUNDER, FRONT' },
+            { num: '70-0447', name: 'AY, 27MM PIEZO SOUNDER, REAR' },
+            { num: '67-2341', name: 'AY, USO, CADD-SOLIS 1/EA' },
+            { num: '60013', name: 'BEARING, CAMSHAFT' },
+            { num: '30-3028', name: 'BEARING, CAMSHAFT, .375" OD X 0.187" ID, CADD-SOLIS 1/EA' },
+            { num: '', name: 'BEZEL, CASSETTE DETECTION' },
+            { num: '30-3052', name: 'BEZEL, DSO, CADD-SOLIS' },
+            { num: '30-3130', name: 'BRACKET, OPTICAL SWITCH, CADD-SOLIS' },
+            { num: '31-0485', name: 'CAMSHAFT, 3 LOBE, DUAL ACTIVATION' },
+            { num: '10018270-001', name: 'CONNECTOR, LEMO HALF MOON INSERT (NUT FIXING) FIXED RECEPTACLE, CADD - SOLIS' },
+            { num: '70-0227', name: 'CONTACT, BATTERY COMPARTMENT FLOOR' },
+            { num: '70-0178', name: 'CONTACT, BATTERY, SPRING PIN, CADD-SOLIS' },
+            { num: '30-3053', name: 'DISK, OPTICAL, DUAL FLAG, CADD-SOLIS' },
+            { num: '70-0508', name: 'DISPLAY, LCD, TRULY/HIMAX, 320 X 320 W/BACKLIGHT, CADD-SOLIS' },
+            { num: '30-3245', name: 'DOOR AY, BATTERY, PUMP' },
+            { num: '10022627-001', name: 'DOOR AY, BATTERY, PUMP (Do Not Use)' },
+            { num: '30-3086-001', name: 'EXPULSOR, MACHINED, .344"' },
+            { num: '70-0243', name: 'FLEX AY, CAM SENSOR' },
+            { num: '70-0303', name: 'FLEX AY, LED, CADD-SOLIS' },
+            { num: '70-0335', name: 'FLEX CIRCUIT, SENSOR, L/L' },
+            { num: '30-3181', name: 'FOAM, ISOLATION, LCD' },
+            { num: '', name: 'FOAM, POSITIONING, LCD' },
+            { num: '30-3174', name: 'GASKET, CONDUCTIVE, BAT COMP' },
+            { num: '30-3173', name: 'GASKET, CONDUCTIVE, CHASSIS' },
+            { num: '', name: 'GASKET, CONDUCTIVE, COPPER, RIGHT' },
+            { num: '', name: 'GASKET, CONDUCTIVE, LCD, FRAMING' },
+            { num: '', name: 'GASKET, CONDUCTIVE, LCD, TOP' },
+            { num: '30-3289', name: 'GASKET, ENVIRONMENTAL, BATTERY COMPARTMENT' },
+            { num: '30-3171', name: 'GASKET, ENVIRONMENTAL, CHASSIS' },
+            { num: '30-3167', name: 'GASKET, ENVIRONMENTAL, POWER BOARD' },
+            { num: '', name: 'GASKET, PERIMETER, EMC' },
+            { num: '30-3288', name: 'GASKET, PSA, LENS, CADD-SOLIS' },
+            { num: '', name: 'GASKET, TUBING, SILICON HOUSING' },
+            { num: '60003', name: 'GEAR, FLAT' },
+            { num: '60002', name: 'GEAR, HUB (FASTENS TO MOTOR)' },
+            { num: '10009592', name: 'GEARMOTOR, PLANETARY, 12V, 16MM' },
+            { num: '30-3299', name: 'GUARD, PIEZO ALARM' },
+            { num: '30-4106', name: 'HANDLE, LATCH LEVER, CADD-SOLIS' },
+            { num: '70-0216', name: 'HARNESS, WIRE, ON/OFF SWITCH' },
+            { num: '30-3248', name: 'HSG, BATTERY COMPARTMENT' },
+            { num: '', name: 'HSG, PUMP, FRONT, SHLD' },
+            { num: '', name: 'HSG, PUMP, REAR SHLD' },
+            { num: '30-3106', name: 'INSULATOR, KAPTON, CADD-SOLIS' },
+            { num: '30-3322', name: 'INSULATOR, PWA/HOUSING' },
+            { num: '30-4065', name: 'INSULATOR, USB' },
+            { num: '70-0229', name: 'KEYPAD, MEMBRANE SW, W/O CONN, CADD-SOLIS' },
+            { num: '10011174-001', name: 'LABEL, PUMP, REAR, CADD-SOLIS VIP' },
+            { num: '67-2482', name: 'LATCH/LOCK' },
+            { num: '10017410-001', name: 'LBL, DEVICE, PUMP, CADD-SOLIS, MODEL 2120, VIP, 3RD EDITION w cUL, BLUE, RX ONLY' },
+            { num: '10017409-001', name: 'LBL, DEVICE, PUMP, CADD-SOLIS, MODEL 2120, VIP, 3RD EDITION w cUL, DRK GREY, RX ONLY' },
+            { num: '10006271-002', name: 'LBL, DEVICE, PUMP, CADD-SOLIS, VIP' },
+            { num: '10012921-001', name: 'LBL, DEVICE, PUMP, CADD-SOLIS, VIP, BLACK' },
+            { num: '10013249-001', name: 'LBL, DEVICE, PUMP, CADD-SOLIS, VIP, BLUE' },
+            { num: '40-6288-24A', name: 'LBL, SET, DEVICE, CADD-SOLIS' },
+            { num: '40-5733-51A', name: 'LENS, PAD PRINTED, CADD-SOLIS' },
+            { num: '', name: 'NLT - HEADER, IDC, 5 POS' },
+            { num: '40-5482-51A', name: 'OVERLAY, MEMBRANE SWITCH, CE ENGLISH' },
+            { num: '30-4205', name: 'PAD, GND, L/L SENSOR' },
+            { num: '10015258-001', name: 'PCBA, CADD-SOLIS, TRULY/HIMAX LCD, FLASH MEMORY UPGRADE' },
+            { num: '', name: 'PIN, CASSETTE DETECTOR' },
+            { num: '30-4086', name: 'PLATE, AY, GROUNDING' },
+            { num: '', name: 'SEAL, DIAPHRAGM, CASSETTE SENSOR' },
+            { num: '30-3381', name: 'SEAL, DSO, NEOPRENE' },
+            { num: '', name: 'SEAL, FOAM, CADD-SOLIS' },
+            { num: '31-0993', name: 'SEAL, UPSTREAM OCCLUSION' },
+            { num: '70-0171', name: 'SENSOR, DSO, CADD-SOLIS' },
+            { num: '30-4712', name: 'SOLIS, CHASSIS, MACHINED 1/EA' },
+            { num: '30-3294', name: 'STABILIZER, BATTERY, SST' },
+            { num: '', name: 'STRIP, ADHESIVE, UPPER' },
+            { num: '30-3163', name: 'SWITCH, POWER' },
+            { num: '', name: 'TAB, LCD INSTALLATION' },
+            { num: '', name: 'TAPE, ADHESIVE, PIEZO GUARD' },
+            { num: '30-3306', name: 'TAPE, LCD HOLD DOWN' },
+            { num: '40-4085', name: 'TAPE, POGO CONTACT' },
+            { num: '30-3063', name: 'VALVE, DUAL ACTIVATION, CADD-SOLIS' }
+        ];
+    
+        let storedPartsJson = localStorage.getItem('solis_custom_parts_list');
+        let partsList = storedPartsJson ? JSON.parse(storedPartsJson) : defaultParts;
+    
+        let selectedItems = new Set();
+        let usageCounts = JSON.parse(localStorage.getItem('solis_parts_usage') || '{}');
+    
+        // Controls Row: Search & Sort
         let controlRow = document.createElement('div');
-        controlRow.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-size:11px;';
-        
-        let sortLabel = document.createElement('span');
-        sortLabel.innerText = 'Sort by:';
-        sortLabel.style.cssText = `color:${isDark ? '#aaa' : '#666'};`;
-        
+        controlRow.style.cssText = 'display:flex;gap:8px;margin-bottom:8px;align-items:center;';
+    
+        let searchInput = document.createElement('input');
+        searchInput.type = 'text';
+        searchInput.placeholder = '🔍 Search part name or #...';
+        searchInput.style.cssText = `flex:1;padding:6px 8px;background:${isDark ? '#2a2a2a' : '#fff'};color:${boxColor};border:1px solid ${isDark ? '#444' : '#ccc'};border-radius:4px;font-size:11px;`;
+    
         let sortSelect = document.createElement('select');
-        sortSelect.style.cssText = `background:${isDark ? '#2a2a2a' : '#fff'};color:${boxColor};border:1px solid ${isDark ? '#444' : '#ccc'};border-radius:3px;padding:2px 4px;font-size:11px;cursor:pointer;`;
+        sortSelect.style.cssText = `background:${isDark ? '#2a2a2a' : '#fff'};color:${boxColor};border:1px solid ${isDark ? '#444' : '#ccc'};border-radius:4px;padding:6px;font-size:11px;cursor:pointer;`;
         
         let optAlpha = document.createElement('option');
         optAlpha.value = 'alpha';
@@ -1372,138 +1459,173 @@ function showCurlinUploadModal(passedTheme) {
         let currentSort = localStorage.getItem('solis_parts_sort_pref') || 'alpha';
         sortSelect.value = currentSort;
     
-        controlRow.appendChild(sortLabel);
+        controlRow.appendChild(searchInput);
         controlRow.appendChild(sortSelect);
         box.appendChild(controlRow);
     
+        // Quick Add Bar
+        let addRow = document.createElement('div');
+        addRow.style.cssText = 'display:flex;gap:6px;margin-bottom:10px;align-items:center;';
+    
+        let newDescInput = document.createElement('input');
+        newDescInput.type = 'text';
+        newDescInput.placeholder = 'Part Description';
+        newDescInput.style.cssText = `flex:2;padding:6px;font-size:11px;background:${isDark ? '#2a2a2a' : '#fff'};color:${boxColor};border:1px solid ${isDark ? '#444' : '#ccc'};border-radius:4px;`;
+    
+        let newNumInput = document.createElement('input');
+        newNumInput.type = 'text';
+        newNumInput.placeholder = 'Part #';
+        newNumInput.style.cssText = `flex:1;padding:6px;font-size:11px;background:${isDark ? '#2a2a2a' : '#fff'};color:${boxColor};border:1px solid ${isDark ? '#444' : '#ccc'};border-radius:4px;`;
+    
+        let addBtn = document.createElement('button');
+        addBtn.innerText = '+ Add';
+        addBtn.className = 'onetrack-btn';
+        addBtn.style.cssText = 'padding:6px 12px;background:#0366d6;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;white-space:nowrap;';
+    
+        addBtn.onclick = () => {
+            let desc = newDescInput.value.trim();
+            let num = newNumInput.value.trim();
+            if (!desc) {
+                alert('Please enter a part description.');
+                newDescInput.focus();
+                return;
+            }
+            partsList.push({ num: num, name: desc.toUpperCase() });
+            localStorage.setItem('solis_custom_parts_list', JSON.stringify(partsList));
+            newDescInput.value = '';
+            newNumInput.value = '';
+            renderList();
+        };
+    
+        addRow.appendChild(newDescInput);
+        addRow.appendChild(newNumInput);
+        addRow.appendChild(addBtn);
+        box.appendChild(addRow);
+    
+        // List Container
         let listContainer = document.createElement('div');
         listContainer.style.cssText = 'max-height:280px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;margin-bottom:12px;padding-right:4px;';
     
-        // Complete Solis parts list parsed from your inventory
-        let baseParts = [
-            'ADHESIVE, PSA, PIEZO RING, CADD-SOLIS 1/EA',
-            'AIR DETECTOR, SOLIS',
-            'AY, 27MM PIEZO SOUNDER, FRONT',
-            'AY, 27MM PIEZO SOUNDER, REAR',
-            'AY, USO, CADD-SOLIS 1/EA',
-            'BEARING, CAMSHAFT',
-            'BEARING, CAMSHAFT, .375" OD X 0.187" ID, CADD-SOLIS 1/EA',
-            'BEZEL, CASSETTE DETECTION',
-            'BEZEL, DSO, CADD-SOLIS',
-            'BRACKET, OPTICAL SWITCH, CADD-SOLIS',
-            'CAMSHAFT, 3 LOBE, DUAL ACTIVATION',
-            'CONNECTOR, LEMO HALF MOON INSERT (NUT FIXING) FIXED RECEPTACLE, CADD - SOLIS',
-            'CONTACT, BATTERY COMPARTMENT FLOOR',
-            'CONTACT, BATTERY, SPRING PIN, CADD-SOLIS',
-            'DISK, OPTICAL, DUAL FLAG, CADD-SOLIS',
-            'DISPLAY, LCD, TRULY/HIMAX, 320 X 320 W/BACKLIGHT, CADD-SOLIS',
-            'DOOR AY, BATTERY, PUMP',
-            'EXPULSOR, MACHINED, .344"',
-            'FLEX AY, CAM SENSOR',
-            'FLEX AY, LED, CADD-SOLIS',
-            'FLEX CIRCUIT, SENSOR, L/L',
-            'FOAM, ISOLATION, LCD',
-            'FOAM, POSITIONING, LCD',
-            'GASKET, CONDUCTIVE, BAT COMP',
-            'GASKET, CONDUCTIVE, CHASSIS',
-            'GASKET, CONDUCTIVE, COPPER, RIGHT',
-            'GASKET, CONDUCTIVE, LCD, FRAMING',
-            'GASKET, CONDUCTIVE, LCD, TOP',
-            'GASKET, ENVIRONMENTAL, BATTERY COMPARTMENT',
-            'GASKET, ENVIRONMENTAL, CHASSIS',
-            'GASKET, ENVIRONMENTAL, POWER BOARD',
-            'GASKET, PERIMETER, EMC',
-            'GASKET, PSA, LENS, CADD-SOLIS',
-            'GASKET, TUBING, SILICON HOUSING',
-            'GEAR, FLAT',
-            'GEAR, HUB (FASTENS TO MOTOR)',
-            'GEARMOTOR, PLANETARY, 12V, 16MM',
-            'GUARD, PIEZO ALARM',
-            'HANDLE, LATCH LEVER, CADD-SOLIS',
-            'HARNESS, WIRE, ON/OFF SWITCH',
-            'HSG, BATTERY COMPARTMENT',
-            'HSG, PUMP, FRONT, SHLD',
-            'HSG, PUMP, REAR SHLD',
-            'INSULATOR, KAPTON, CADD-SOLIS',
-            'INSULATOR, PWA/HOUSING',
-            'INSULATOR, USB',
-            'KEYPAD, MEMBRANE SW, W/O CONN, CADD-SOLIS',
-            'LABEL, PUMP, REAR, CADD-SOLIS VIP',
-            'LATCH/LOCK',
-            'LBL, DEVICE, PUMP, CADD-SOLIS, MODEL 2120, VIP, 3RD EDITION w cUL, BLUE, RX ONLY',
-            'LBL, DEVICE, PUMP, CADD-SOLIS, MODEL 2120, VIP, 3RD EDITION w cUL, DRK GREY, RX ONLY',
-            'LBL, DEVICE, PUMP, CADD-SOLIS, VIP',
-            'LBL, DEVICE, PUMP, CADD-SOLIS, VIP, BLACK',
-            'LBL, DEVICE, PUMP, CADD-SOLIS, VIP, BLUE',
-            'LBL, SET, DEVICE, CADD-SOLIS',
-            'LENS, PAD PRINTED, CADD-SOLIS',
-            'NLT - HEADER, IDC, 5 POS',
-            'OVERLAY, MEMBRANE SWITCH, CE ENGLISH',
-            'PAD, GND, L/L SENSOR',
-            'PCBA, CADD-SOLIS, TRULY/HIMAX LCD, FLASH MEMORY UPGRADE',
-            'PIN, CASSETTE DETECTOR',
-            'PLATE, AY, GROUNDING',
-            'SEAL, DIAPHRAGM, CASSETTE SENSOR',
-            'SEAL, DSO, NEOPRENE',
-            'SEAL, FOAM, CADD-SOLIS',
-            'SEAL, UPSTREAM OCCLUSION',
-            'SENSOR, DSO, CADD-SOLIS',
-            'SOLIS, CHASSIS, MACHINED 1/EA',
-            'STABILIZER, BATTERY, SST',
-            'STRIP, ADHESIVE, UPPER',
-            'SWITCH, POWER',
-            'TAB, LCD INSTALLATION',
-            'TAPE, ADHESIVE, PIEZO GUARD',
-            'TAPE, LCD HOLD DOWN',
-            'TAPE, POGO CONTACT',
-            'VALVE, DUAL ACTIVATION, CADD-SOLIS'
-        ];
-    
-        let selectedItems = new Set();
-        let usageCounts = JSON.parse(localStorage.getItem('solis_parts_usage') || '{}');
-    
         function renderList() {
             listContainer.innerHTML = '';
-            
-            let parts = [...baseParts];
+            let query = searchInput.value.toLowerCase();
+    
+            let filtered = partsList.filter(p => p.name.toLowerCase().includes(query) || p.num.toLowerCase().includes(query));
+    
             if (sortSelect.value === 'alpha') {
-                parts.sort((a, b) => a.localeCompare(b));
+                filtered.sort((a, b) => a.name.localeCompare(b.name));
             } else {
-                parts.sort((a, b) => (usageCounts[b] || 0) - (usageCounts[a] || 0));
+                filtered.sort((a, b) => (usageCounts[b.name] || 0) - (usageCounts[a.name] || 0));
             }
     
-            parts.forEach(part => {
+            if (filtered.length === 0) {
+                let emptyMsg = document.createElement('div');
+                emptyMsg.innerText = 'No matching parts found.';
+                emptyMsg.style.cssText = 'text-align:center;padding:20px;font-size:11px;opacity:0.6;';
+                listContainer.appendChild(emptyMsg);
+                return;
+            }
+    
+            filtered.forEach((partObj) => {
                 let itemBox = document.createElement('div');
                 itemBox.className = 'onetrack-btn';
                 let baseBg = isDark ? '#2a2a2a' : '#f8f9fa';
                 let baseBorder = isDark ? '#444' : '#dee2e6';
-                
-                let isSelected = selectedItems.has(part);
+                let isSelected = selectedItems.has(partObj.name);
     
-                itemBox.style.cssText = `display:flex;justify-content:flex-start;align-items:center;padding:8px 12px;background:${isSelected ? (isDark ? '#0d3b66' : '#e7f5ff') : baseBg};border:1px solid ${isSelected ? '#0366d6' : baseBorder};border-radius:4px;cursor:pointer;font-size:11px;color:${isDark ? '#fff' : '#212529'};transition:all 0.15s ease;text-align:left;`;
+                itemBox.style.cssText = `display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:${isSelected ? (isDark ? '#0d3b66' : '#e7f5ff') : baseBg};border:1px solid ${isSelected ? '#0366d6' : baseBorder};border-radius:4px;font-size:11px;transition:all 0.15s ease;`;
+    
+                // Left side: Checkbox + Description
+                let leftInfo = document.createElement('div');
+                leftInfo.style.cssText = 'display:flex;align-items:center;gap:8px;flex:1;cursor:pointer;overflow:hidden;';
+    
+                let checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.checked = isSelected;
+                checkbox.style.cssText = 'cursor:pointer;margin:0;';
     
                 let nameSpan = document.createElement('span');
-                nameSpan.innerText = part;
-                nameSpan.style.cssText = 'font-weight:500;width:100%;';
+                nameSpan.innerText = partObj.name;
+                nameSpan.style.cssText = `color:${isDark ? '#e0e0e0' : '#212529'};font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;`;
     
-                itemBox.appendChild(nameSpan);
+                leftInfo.appendChild(checkbox);
+                leftInfo.appendChild(nameSpan);
     
-                itemBox.onclick = () => {
-                    if (selectedItems.has(part)) {
-                        selectedItems.delete(part);
+                // Right side: Part Number + Edit/Delete Buttons
+                let rightInfo = document.createElement('div');
+                rightInfo.style.cssText = 'display:flex;align-items:center;gap:8px;flex-shrink:0;margin-left:8px;';
+    
+                let numSpan = document.createElement('span');
+                numSpan.innerText = partObj.num || '';
+                numSpan.style.cssText = `font-weight:bold;color:${isDark ? '#aaa' : '#666'};font-family:monospace;font-size:10px;min-width:70px;text-align:right;`;
+    
+                let editBtn = document.createElement('button');
+                editBtn.innerText = 'Edit';
+                editBtn.style.cssText = 'padding:2px 6px;background:#f0ad4e;color:#fff;border:none;border-radius:3px;cursor:pointer;font-size:10px;font-weight:bold;';
+                
+                let deleteBtn = document.createElement('button');
+                deleteBtn.innerText = 'Delete';
+                deleteBtn.style.cssText = 'padding:2px 6px;background:#d9534f;color:#fff;border:none;border-radius:3px;cursor:pointer;font-size:10px;font-weight:bold;';
+    
+                const toggleSelection = () => {
+                    if (selectedItems.has(partObj.name)) {
+                        selectedItems.delete(partObj.name);
+                        checkbox.checked = false;
                         itemBox.style.background = baseBg;
                         itemBox.style.borderColor = baseBorder;
                     } else {
-                        selectedItems.add(part);
+                        selectedItems.add(partObj.name);
+                        checkbox.checked = true;
                         itemBox.style.background = isDark ? '#0d3b66' : '#e7f5ff';
                         itemBox.style.borderColor = '#0366d6';
                     }
                 };
     
+                leftInfo.onclick = toggleSelection;
+                checkbox.onclick = (e) => {
+                    e.stopPropagation();
+                    toggleSelection();
+                };
+    
+                editBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    let newN = prompt('Edit Part Description:', partObj.name);
+                    if (newN !== null && newN.trim() !== '') {
+                        let newNum = prompt('Edit Part Number:', partObj.num);
+                        let originalName = partObj.name;
+                        partObj.name = newN.trim().toUpperCase();
+                        partObj.num = newNum !== null ? newNum.trim() : partObj.num;
+                        
+                        if (selectedItems.has(originalName)) {
+                            selectedItems.delete(originalName);
+                            selectedItems.add(partObj.name);
+                        }
+                        localStorage.setItem('solis_custom_parts_list', JSON.stringify(partsList));
+                        renderList();
+                    }
+                };
+    
+                deleteBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    if (confirm(`Remove "${partObj.name}" from list?`)) {
+                        partsList = partsList.filter(p => p !== partObj);
+                        selectedItems.delete(partObj.name);
+                        localStorage.setItem('solis_custom_parts_list', JSON.stringify(partsList));
+                        renderList();
+                    }
+                };
+    
+                rightInfo.appendChild(numSpan);
+                rightInfo.appendChild(editBtn);
+                rightInfo.appendChild(deleteBtn);
+    
+                itemBox.appendChild(leftInfo);
+                itemBox.appendChild(rightInfo);
                 listContainer.appendChild(itemBox);
             });
         }
     
+        searchInput.oninput = renderList;
         sortSelect.onchange = () => {
             localStorage.setItem('solis_parts_sort_pref', sortSelect.value);
             renderList();
@@ -1512,19 +1634,23 @@ function showCurlinUploadModal(passedTheme) {
         renderList();
         box.appendChild(listContainer);
     
+        // Bottom Action Buttons
         let btnRow = document.createElement('div');
         btnRow.style.cssText = 'display:flex;justify-content:flex-end;gap:8px;';
     
         let cancelBtn = document.createElement('button');
         cancelBtn.innerText = 'Cancel';
         cancelBtn.className = 'onetrack-btn';
-        cancelBtn.style.cssText = `padding:8px 14px;background:${isDark ? '#333' : '#e9ecef'};color:${boxColor};border:1px solid ${isDark ? '#444' : '#ced4da'};border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;`;
-        cancelBtn.onclick = () => ov.remove();
+        cancelBtn.style.cssText = isDark ? 'padding:8px 14px;background:#444;color:#e0e0e0;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;' : 'padding:8px 14px;background:#dc3545;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;';
+        cancelBtn.onclick = () => {
+            ov.remove();
+            if (typeof showMainModal === 'function') showMainModal(activeTheme);
+        };
     
         let confirmBtn = document.createElement('button');
         confirmBtn.innerText = 'Confirm Selection';
         confirmBtn.className = 'onetrack-btn';
-        confirmBtn.style.cssText = 'padding:8px 14px;background:#2b542c;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;';
+        confirmBtn.style.cssText = 'padding:8px 16px;background:#28a745;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;';
         
         confirmBtn.onclick = () => {
             let arr = Array.from(selectedItems);
