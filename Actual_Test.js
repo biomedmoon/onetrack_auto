@@ -1425,17 +1425,31 @@ function showCurlinUploadModal(passedTheme) {
                 let rawText = result.data.text ? result.data.text.trim().toUpperCase() : "";
                 
                 if (rawText) {
-                    // Clean OCR text by standardizing spaces and punctuation
-                    let cleanRawText = rawText.replace(/[\r\n]+/g, ' ');
-                    let matchedCount = 0;
+                    // Log the raw text to your console so you can inspect exactly what Tesseract is reading from your sheets!
+                    console.log("--- RAW TESSERACT OCR SCAN --- \n", rawText);
     
+                    let matchedCount = 0;
                     partsList.forEach(part => {
                         if (part.name && part.name.trim()) {
-                            // Extract key keywords from the part name (e.g., ignoring commas/sizes for broader matching)
                             let partNameUpper = part.name.toUpperCase();
                             
-                            // Check if the description or key identifier appears in the scanned text
-                            if (cleanRawText.includes(partNameUpper)) {
+                            // 1. Direct inclusion check
+                            let isMatched = rawText.includes(partNameUpper);
+    
+                            // 2. Fallback Keyword Token Check (catches descriptions even if formatting/punctuation varies)
+                            if (!isMatched) {
+                                // Extract significant words (ignoring small words, numbers, and common fluff)
+                                let keywords = partNameUpper.split(/[\s,\-\/]+/).filter(w => w.length > 3 && !['CADD', 'SOLIS', 'EA'].includes(w));
+                                if (keywords.length > 0) {
+                                    // If at least 70% of the core keywords match the scan, consider it found
+                                    let matchedKeywords = keywords.filter(kw => rawText.includes(kw));
+                                    if (matchedKeywords.length >= Math.ceil(keywords.length * 0.7)) {
+                                        isMatched = true;
+                                    }
+                                }
+                            }
+    
+                            if (isMatched) {
                                 selectedItems.add(part.name);
                                 matchedCount++;
                             }
@@ -1443,7 +1457,7 @@ function showCurlinUploadModal(passedTheme) {
                     });
     
                     renderList();
-                    showToast(`✓ OCR scanned! Auto-selected ${matchedCount} part(s) by description.`);
+                    showToast(`✓ OCR scanned! Auto-selected ${matchedCount} part(s).`);
                 } else {
                     alert("Could not detect any text from the captured image. Try adjusting lighting or framing.");
                 }
