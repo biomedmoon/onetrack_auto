@@ -697,6 +697,18 @@
             cont.appendChild(curlinPdfBtn);
         }
 
+        if (/solis/i.test(dt)) {
+            let solisOemBtn = document.createElement('button');
+            solisOemBtn.innerText = '🔧 Solis OEM Replaced Parts Selection...';
+            solisOemBtn.className = 'onetrack-btn';
+            solisOemBtn.style.cssText = 'display:block;width:100%;padding:8px 10px;margin:4px 0;background:#e2f0cb;color:#2b542c;border:1px solid #b5d89c;border-radius:4px;cursor:pointer;font-size:12px;text-align:left;font-weight:bold;line-height:1.4;';
+            solisOemBtn.onclick = () => {
+                ov.remove();
+                showSolisPartsModal(activeTheme);
+            };
+            cont.appendChild(solisOemBtn);
+        }
+        
         if (/enteralite\s*infinity/i.test(dt)) {
             let infBtn = document.createElement('button');
             infBtn.innerText = '⚡ Infinity Flat Rate Repair Calculation';
@@ -1303,6 +1315,237 @@ function showCurlinUploadModal(passedTheme) {
     
         btnRow.appendChild(cancelBtn);
         btnRow.appendChild(okBtn);
+        box.appendChild(btnRow);
+        ov.appendChild(box);
+        document.body.appendChild(ov);
+    }
+    function showSolisPartsModal(passedTheme) {
+        let activeTheme = passedTheme || document.getElementById('preset-notes-modal')?.getAttribute('data-theme') || 'light';
+        let isDark = activeTheme === 'dark';
+        
+        let ex = document.getElementById('preset-notes-modal');
+        if (ex) ex.remove();
+    
+        let ov = document.createElement('div');
+        ov.id = 'preset-notes-modal';
+        ov.setAttribute('data-theme', activeTheme);
+        ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:transparent;z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;pointer-events:none;';
+    
+        let box = document.createElement('div');
+        box.className = 'onetrack-modal' + (typeof compactMode !== 'undefined' && compactMode ? ' onetrack-compact-mode' : '');
+        let boxBg = isDark ? '#1e1e1e' : '#fff';
+        let boxColor = isDark ? '#e0e0e0' : '#333';
+        box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:480px;display:flex;flex-direction:column;position:relative;pointer-events:auto;`;
+        
+        if (typeof applyUIScale === 'function') applyUIScale(box);
+        if (typeof applySavedPosition === 'function') applySavedPosition(box);
+        if (typeof applySavedScale === 'function') applySavedScale(box);
+    
+        let h = document.createElement('h3');
+        h.innerText = 'Select Solis OEM Replaced Parts';
+        h.style.cssText = `margin-top:0;margin-bottom:10px;font-size:16px;color:${isDark ? '#fff' : '#222'};text-align:center;cursor:move;`;
+        if (typeof makeDraggable === 'function') makeDraggable(box, h);
+        box.appendChild(h);
+    
+        // Controls Row for Sorting Housekeeping
+        let controlRow = document.createElement('div');
+        controlRow.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-size:11px;';
+        
+        let sortLabel = document.createElement('span');
+        sortLabel.innerText = 'Sort by:';
+        sortLabel.style.cssText = `color:${isDark ? '#aaa' : '#666'};`;
+        
+        let sortSelect = document.createElement('select');
+        sortSelect.style.cssText = `background:${isDark ? '#2a2a2a' : '#fff'};color:${boxColor};border:1px solid ${isDark ? '#444' : '#ccc'};border-radius:3px;padding:2px 4px;font-size:11px;cursor:pointer;`;
+        
+        let optAlpha = document.createElement('option');
+        optAlpha.value = 'alpha';
+        optAlpha.innerText = 'Alphabetical';
+        
+        let optRecent = document.createElement('option');
+        optRecent.value = 'recent';
+        optRecent.innerText = 'Most Recently Used';
+        
+        sortSelect.appendChild(optAlpha);
+        sortSelect.appendChild(optRecent);
+        
+        let currentSort = localStorage.getItem('solis_parts_sort_pref') || 'alpha';
+        sortSelect.value = currentSort;
+    
+        controlRow.appendChild(sortLabel);
+        controlRow.appendChild(sortSelect);
+        box.appendChild(controlRow);
+    
+        let listContainer = document.createElement('div');
+        listContainer.style.cssText = 'max-height:280px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;margin-bottom:12px;padding-right:4px;';
+    
+        // Complete Solis parts list parsed from your inventory
+        let baseParts = [
+            'ADHESIVE, PSA, PIEZO RING, CADD-SOLIS 1/EA',
+            'AIR DETECTOR, SOLIS',
+            'AY, 27MM PIEZO SOUNDER, FRONT',
+            'AY, 27MM PIEZO SOUNDER, REAR',
+            'AY, USO, CADD-SOLIS 1/EA',
+            'BEARING, CAMSHAFT',
+            'BEARING, CAMSHAFT, .375" OD X 0.187" ID, CADD-SOLIS 1/EA',
+            'BEZEL, CASSETTE DETECTION',
+            'BEZEL, DSO, CADD-SOLIS',
+            'BRACKET, OPTICAL SWITCH, CADD-SOLIS',
+            'CAMSHAFT, 3 LOBE, DUAL ACTIVATION',
+            'CONNECTOR, LEMO HALF MOON INSERT (NUT FIXING) FIXED RECEPTACLE, CADD - SOLIS',
+            'CONTACT, BATTERY COMPARTMENT FLOOR',
+            'CONTACT, BATTERY, SPRING PIN, CADD-SOLIS',
+            'DISK, OPTICAL, DUAL FLAG, CADD-SOLIS',
+            'DISPLAY, LCD, TRULY/HIMAX, 320 X 320 W/BACKLIGHT, CADD-SOLIS',
+            'DOOR AY, BATTERY, PUMP',
+            'EXPULSOR, MACHINED, .344"',
+            'FLEX AY, CAM SENSOR',
+            'FLEX AY, LED, CADD-SOLIS',
+            'FLEX CIRCUIT, SENSOR, L/L',
+            'FOAM, ISOLATION, LCD',
+            'FOAM, POSITIONING, LCD',
+            'GASKET, CONDUCTIVE, BAT COMP',
+            'GASKET, CONDUCTIVE, CHASSIS',
+            'GASKET, CONDUCTIVE, COPPER, RIGHT',
+            'GASKET, CONDUCTIVE, LCD, FRAMING',
+            'GASKET, CONDUCTIVE, LCD, TOP',
+            'GASKET, ENVIRONMENTAL, BATTERY COMPARTMENT',
+            'GASKET, ENVIRONMENTAL, CHASSIS',
+            'GASKET, ENVIRONMENTAL, POWER BOARD',
+            'GASKET, PERIMETER, EMC',
+            'GASKET, PSA, LENS, CADD-SOLIS',
+            'GASKET, TUBING, SILICON HOUSING',
+            'GEAR, FLAT',
+            'GEAR, HUB (FASTENS TO MOTOR)',
+            'GEARMOTOR, PLANETARY, 12V, 16MM',
+            'GUARD, PIEZO ALARM',
+            'HANDLE, LATCH LEVER, CADD-SOLIS',
+            'HARNESS, WIRE, ON/OFF SWITCH',
+            'HSG, BATTERY COMPARTMENT',
+            'HSG, PUMP, FRONT, SHLD',
+            'HSG, PUMP, REAR SHLD',
+            'INSULATOR, KAPTON, CADD-SOLIS',
+            'INSULATOR, PWA/HOUSING',
+            'INSULATOR, USB',
+            'KEYPAD, MEMBRANE SW, W/O CONN, CADD-SOLIS',
+            'LABEL, PUMP, REAR, CADD-SOLIS VIP',
+            'LATCH/LOCK',
+            'LBL, DEVICE, PUMP, CADD-SOLIS, MODEL 2120, VIP, 3RD EDITION w cUL, BLUE, RX ONLY',
+            'LBL, DEVICE, PUMP, CADD-SOLIS, MODEL 2120, VIP, 3RD EDITION w cUL, DRK GREY, RX ONLY',
+            'LBL, DEVICE, PUMP, CADD-SOLIS, VIP',
+            'LBL, DEVICE, PUMP, CADD-SOLIS, VIP, BLACK',
+            'LBL, DEVICE, PUMP, CADD-SOLIS, VIP, BLUE',
+            'LBL, SET, DEVICE, CADD-SOLIS',
+            'LENS, PAD PRINTED, CADD-SOLIS',
+            'NLT - HEADER, IDC, 5 POS',
+            'OVERLAY, MEMBRANE SWITCH, CE ENGLISH',
+            'PAD, GND, L/L SENSOR',
+            'PCBA, CADD-SOLIS, TRULY/HIMAX LCD, FLASH MEMORY UPGRADE',
+            'PIN, CASSETTE DETECTOR',
+            'PLATE, AY, GROUNDING',
+            'SEAL, DIAPHRAGM, CASSETTE SENSOR',
+            'SEAL, DSO, NEOPRENE',
+            'SEAL, FOAM, CADD-SOLIS',
+            'SEAL, UPSTREAM OCCLUSION',
+            'SENSOR, DSO, CADD-SOLIS',
+            'SOLIS, CHASSIS, MACHINED 1/EA',
+            'STABILIZER, BATTERY, SST',
+            'STRIP, ADHESIVE, UPPER',
+            'SWITCH, POWER',
+            'TAB, LCD INSTALLATION',
+            'TAPE, ADHESIVE, PIEZO GUARD',
+            'TAPE, LCD HOLD DOWN',
+            'TAPE, POGO CONTACT',
+            'VALVE, DUAL ACTIVATION, CADD-SOLIS'
+        ];
+    
+        let selectedItems = new Set();
+        let usageCounts = JSON.parse(localStorage.getItem('solis_parts_usage') || '{}');
+    
+        function renderList() {
+            listContainer.innerHTML = '';
+            
+            let parts = [...baseParts];
+            if (sortSelect.value === 'alpha') {
+                parts.sort((a, b) => a.localeCompare(b));
+            } else {
+                parts.sort((a, b) => (usageCounts[b] || 0) - (usageCounts[a] || 0));
+            }
+    
+            parts.forEach(part => {
+                let itemBox = document.createElement('div');
+                itemBox.className = 'onetrack-btn';
+                let baseBg = isDark ? '#2a2a2a' : '#f8f9fa';
+                let baseBorder = isDark ? '#444' : '#dee2e6';
+                
+                let isSelected = selectedItems.has(part);
+    
+                itemBox.style.cssText = `display:flex;justify-content:flex-start;align-items:center;padding:8px 12px;background:${isSelected ? (isDark ? '#0d3b66' : '#e7f5ff') : baseBg};border:1px solid ${isSelected ? '#0366d6' : baseBorder};border-radius:4px;cursor:pointer;font-size:11px;color:${isDark ? '#fff' : '#212529'};transition:all 0.15s ease;text-align:left;`;
+    
+                let nameSpan = document.createElement('span');
+                nameSpan.innerText = part;
+                nameSpan.style.cssText = 'font-weight:500;width:100%;';
+    
+                itemBox.appendChild(nameSpan);
+    
+                itemBox.onclick = () => {
+                    if (selectedItems.has(part)) {
+                        selectedItems.delete(part);
+                        itemBox.style.background = baseBg;
+                        itemBox.style.borderColor = baseBorder;
+                    } else {
+                        selectedItems.add(part);
+                        itemBox.style.background = isDark ? '#0d3b66' : '#e7f5ff';
+                        itemBox.style.borderColor = '#0366d6';
+                    }
+                };
+    
+                listContainer.appendChild(itemBox);
+            });
+        }
+    
+        sortSelect.onchange = () => {
+            localStorage.setItem('solis_parts_sort_pref', sortSelect.value);
+            renderList();
+        };
+    
+        renderList();
+        box.appendChild(listContainer);
+    
+        let btnRow = document.createElement('div');
+        btnRow.style.cssText = 'display:flex;justify-content:flex-end;gap:8px;';
+    
+        let cancelBtn = document.createElement('button');
+        cancelBtn.innerText = 'Cancel';
+        cancelBtn.className = 'onetrack-btn';
+        cancelBtn.style.cssText = `padding:8px 14px;background:${isDark ? '#333' : '#e9ecef'};color:${boxColor};border:1px solid ${isDark ? '#444' : '#ced4da'};border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;`;
+        cancelBtn.onclick = () => ov.remove();
+    
+        let confirmBtn = document.createElement('button');
+        confirmBtn.innerText = 'Confirm Selection';
+        confirmBtn.className = 'onetrack-btn';
+        confirmBtn.style.cssText = 'padding:8px 14px;background:#2b542c;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;';
+        
+        confirmBtn.onclick = () => {
+            let arr = Array.from(selectedItems);
+            
+            if (arr.length > 0) {
+                let now = Date.now();
+                arr.forEach(p => { usageCounts[p] = now; });
+                localStorage.setItem('solis_parts_usage', JSON.stringify(usageCounts));
+            }
+    
+            let summaryText = arr.length > 0 
+                ? `OEM Parts Replaced: ${arr.join(', ')}` 
+                : `No OEM Parts Replaced`;
+            
+            ov.remove();
+            if (typeof addHistoryItem === 'function') addHistoryItem(summaryText);
+            if (typeof processTextSelection === 'function') processTextSelection(summaryText);
+        };
+    
+        btnRow.appendChild(cancelBtn);
+        btnRow.appendChild(confirmBtn);
         box.appendChild(btnRow);
         ov.appendChild(box);
         document.body.appendChild(ov);
