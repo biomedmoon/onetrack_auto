@@ -1504,7 +1504,7 @@ function showCurlinUploadModal(passedTheme) {
     
         // List Container
         let listContainer = document.createElement('div');
-        listContainer.style.cssText = 'max-height:280px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;margin-bottom:12px;padding-right:4px;';
+        listContainer.style.cssText = 'max-height:200px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;margin-bottom:10px;padding-right:4px;';
     
         function renderList() {
             listContainer.innerHTML = '';
@@ -1521,7 +1521,7 @@ function showCurlinUploadModal(passedTheme) {
             if (filtered.length === 0) {
                 let emptyMsg = document.createElement('div');
                 emptyMsg.innerText = 'No matching parts found.';
-                emptyMsg.style.cssText = 'text-align:center;padding:20px;font-size:11px;opacity:0.6;';
+                emptyMsg.style.cssText = 'text-align:center;padding:15px;font-size:11px;opacity:0.6;';
                 listContainer.appendChild(emptyMsg);
                 return;
             }
@@ -1535,7 +1535,6 @@ function showCurlinUploadModal(passedTheme) {
     
                 itemBox.style.cssText = `display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:${isSelected ? (isDark ? '#0d3b66' : '#e7f5ff') : baseBg};border:1px solid ${isSelected ? '#0366d6' : baseBorder};border-radius:4px;font-size:11px;transition:all 0.15s ease;`;
     
-                // Left side: Checkbox + Description
                 let leftInfo = document.createElement('div');
                 leftInfo.style.cssText = 'display:flex;align-items:center;gap:8px;flex:1;cursor:pointer;overflow:hidden;';
     
@@ -1551,7 +1550,6 @@ function showCurlinUploadModal(passedTheme) {
                 leftInfo.appendChild(checkbox);
                 leftInfo.appendChild(nameSpan);
     
-                // Right side: Part Number + Edit/Delete Buttons
                 let rightInfo = document.createElement('div');
                 rightInfo.style.cssText = 'display:flex;align-items:center;gap:8px;flex-shrink:0;margin-left:8px;';
     
@@ -1634,15 +1632,39 @@ function showCurlinUploadModal(passedTheme) {
         renderList();
         box.appendChild(listContainer);
     
-        // Bottom Action Buttons
+        // Customizable OEM Sentence Structure Section
+        let sentenceLabel = document.createElement('label');
+        sentenceLabel.innerText = 'Customizable OEM Sentence Structure (Use [PARTS] for selections):';
+        sentenceLabel.style.cssText = `font-size:10px;font-weight:bold;color:${isDark ? '#aaa' : '#555'};margin-bottom:4px;display:block;`;
+        box.appendChild(sentenceLabel);
+    
+        let defaultTemplate = "Per the OEM, the following parts have been replaced: [PARTS] and passed the related testing. The OEM also certifies that the device passes the following: Visual Inspection, Pump Power Up Test, Motor Test, Remote Dose Test, Keypad Test, Latch Lock Test, Disposable Test, Air Detector Test, Verify Air Detector Height, LCD Screen Inspection, Amber Green and LED Functional Test, Adjust LCD POT Screen, Downstream Occlusion Test, Upstream Occlusion Sensor Test, Battery Fallout Test, 50ml Cassette Test, Go_No_Go Test, and Delivery Accuracy Test 20mL";
+        let savedTemplate = localStorage.getItem('solis_oem_sentence_template') || defaultTemplate;
+    
+        let sentenceTextarea = document.createElement('textarea');
+        sentenceTextarea.value = savedTemplate;
+        sentenceTextarea.style.cssText = `width:100%;height:65px;padding:6px;box-sizing:border-box;border:1px solid ${isDark ? '#444' : '#ccc'};border-radius:4px;background:${isDark ? '#2a2a2a' : '#fff'};color:${boxColor};font-size:11px;resize:vertical;font-family:inherit;margin-bottom:12px;`;
+        
+        sentenceTextarea.oninput = () => {
+            localStorage.setItem('solis_oem_sentence_template', sentenceTextarea.value);
+        };
+        box.appendChild(sentenceTextarea);
+    
+        // Bottom Action Buttons (Cancel, Back, Confirm Selection)
         let btnRow = document.createElement('div');
         btnRow.style.cssText = 'display:flex;justify-content:flex-end;gap:8px;';
     
         let cancelBtn = document.createElement('button');
         cancelBtn.innerText = 'Cancel';
         cancelBtn.className = 'onetrack-btn';
-        cancelBtn.style.cssText = isDark ? 'padding:8px 14px;background:#444;color:#e0e0e0;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;' : 'padding:8px 14px;background:#dc3545;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;';
-        cancelBtn.onclick = () => {
+        cancelBtn.style.cssText = isDark ? 'padding:8px 12px;background:#444;color:#e0e0e0;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;' : 'padding:8px 12px;background:#dc3545;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;';
+        cancelBtn.onclick = () => ov.remove();
+    
+        let backBtn = document.createElement('button');
+        backBtn.innerText = '← Back';
+        backBtn.className = 'onetrack-btn';
+        backBtn.style.cssText = isDark ? 'padding:8px 12px;background:#555;color:#e0e0e0;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;' : 'padding:8px 12px;background:#6c757d;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;';
+        backBtn.onclick = () => {
             ov.remove();
             if (typeof showMainModal === 'function') showMainModal(activeTheme);
         };
@@ -1650,7 +1672,7 @@ function showCurlinUploadModal(passedTheme) {
         let confirmBtn = document.createElement('button');
         confirmBtn.innerText = 'Confirm Selection';
         confirmBtn.className = 'onetrack-btn';
-        confirmBtn.style.cssText = 'padding:8px 16px;background:#28a745;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;';
+        confirmBtn.style.cssText = 'padding:8px 16px;background:#28a745;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;';
         
         confirmBtn.onclick = () => {
             let arr = Array.from(selectedItems);
@@ -1661,9 +1683,11 @@ function showCurlinUploadModal(passedTheme) {
                 localStorage.setItem('solis_parts_usage', JSON.stringify(usageCounts));
             }
     
-            let summaryText = arr.length > 0 
-                ? `OEM Parts Replaced: ${arr.join(', ')}` 
-                : `No OEM Parts Replaced`;
+            let partsString = arr.length > 0 ? arr.join(', ') : 'None';
+            let template = sentenceTextarea.value.trim() || defaultTemplate;
+            
+            // Replace [PARTS] placeholder with selected parts list
+            let summaryText = template.replace(/[PARTS]/gi, partsString);
             
             ov.remove();
             if (typeof addHistoryItem === 'function') addHistoryItem(summaryText);
@@ -1671,6 +1695,7 @@ function showCurlinUploadModal(passedTheme) {
         };
     
         btnRow.appendChild(cancelBtn);
+        btnRow.appendChild(backBtn);
         btnRow.appendChild(confirmBtn);
         box.appendChild(btnRow);
         ov.appendChild(box);
