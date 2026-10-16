@@ -1402,28 +1402,51 @@ function showCurlinUploadModal(passedTheme) {
     
             showToast("⏳ Processing document image...");
     
-            // Standard standard fetch request (fully compatible with GitHub raw loads and CORS-enabled endpoints)
-            fetch("https://your-ocr-or-ai-endpoint.com/api/extract", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({ image: imageDataUrl })
-            })
-            .then(response => response.json())
-            .then(res => {
-                if (res && res.extractedText) {
-                    showToast("✓ Text extracted successfully!");
-                    searchInput.value = res.extractedText;
-                    searchInput.dispatchEvent(new Event('input'));
-                } else {
-                    alert("Could not detect text from the document image.");
-                }
-            })
-            .catch(err => {
-                console.error("API request failed:", err);
-                alert("Failed to reach external OCR service. Check endpoint CORS settings.");
-            });
+            // Ready for your OCR endpoint configuration
+            let oemApiUrl = "https://your-ocr-or-ai-endpoint.com/api/extract";
+    
+            if (typeof GM_xmlhttpRequest !== 'undefined') {
+                GM_xmlhttpRequest({
+                    method: "POST",
+                    url: oemApiUrl,
+                    headers: { "Content-Type": "application/json" },
+                    data: JSON.stringify({ image: imageDataUrl }),
+                    onload: function(response) {
+                        try {
+                            let res = JSON.parse(response.responseText);
+                            if (res && res.extractedText) {
+                                showToast("✓ Text extracted successfully!");
+                                searchInput.value = res.extractedText;
+                                searchInput.dispatchEvent(new Event('input'));
+                            } else {
+                                alert("Could not detect text from the document image.");
+                            }
+                        } catch (err) {
+                            alert("Error processing response from OCR service.");
+                        }
+                    },
+                    onerror: function() {
+                        alert("Failed to reach external OCR service.");
+                    }
+                });
+            } else {
+                fetch(oemApiUrl, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ image: imageDataUrl })
+                })
+                .then(res => res.json())
+                .then(res => {
+                    if (res && res.extractedText) {
+                        showToast("✓ Text extracted successfully!");
+                        searchInput.value = res.extractedText;
+                        searchInput.dispatchEvent(new Event('input'));
+                    } else {
+                        alert("Could not detect text from document.");
+                    }
+                })
+                .catch(() => alert("Failed to reach OCR service. Check CORS settings."));
+            }
         };
         box.appendChild(webcamContainer);
     
