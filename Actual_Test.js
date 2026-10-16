@@ -1,11 +1,12 @@
 // ==UserScript==
 // @name         OneTrack Automation & Helper - Actual_Test
 // @namespace    http://tampermonkey.net/
-// @version      1.4.1
+// @version      1.4.2
 // @description  Automates workflows, UI enhancements, hotkeys, and persistent settings.
 // @author       jekosol
 // @match        *://*/*
 // @require      https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js
+// @require      https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js
 // @grant        GM_xmlhttpRequest
 // @grant        GM_getValue
 // @grant        GM_setValue
@@ -1387,7 +1388,7 @@ function showCurlinUploadModal(passedTheme) {
             }
         };
     
-        captureBtn.onclick = () => {
+        captureBtn.onclick = async () => {
             let canvas = document.createElement('canvas');
             canvas.width = videoElement.videoWidth || 1280;
             canvas.height = videoElement.videoHeight || 720;
@@ -1400,52 +1401,34 @@ function showCurlinUploadModal(passedTheme) {
             webcamContainer.style.display = 'none';
             scanToggleBtn.innerText = '📷 Open Document Scanner Viewfinder';
     
-            showToast("⏳ Processing document image...");
+            showToast("⏳ Running local OCR on snapshot... Please wait.");
     
-            // Ready for your OCR endpoint configuration
-            let oemApiUrl = "https://your-ocr-or-ai-endpoint.com/api/extract";
+            try {
+                // Ensure Tesseract is loaded globally
+                if (typeof Tesseract === 'undefined') {
+                    alert("Tesseract library is still loading or missing from @require headers.");
+                    return;
+                }
     
-            if (typeof GM_xmlhttpRequest !== 'undefined') {
-                GM_xmlhttpRequest({
-                    method: "POST",
-                    url: oemApiUrl,
-                    headers: { "Content-Type": "application/json" },
-                    data: JSON.stringify({ image: imageDataUrl }),
-                    onload: function(response) {
-                        try {
-                            let res = JSON.parse(response.responseText);
-                            if (res && res.extractedText) {
-                                showToast("✓ Text extracted successfully!");
-                                searchInput.value = res.extractedText;
-                                searchInput.dispatchEvent(new Event('input'));
-                            } else {
-                                alert("Could not detect text from the document image.");
-                            }
-                        } catch (err) {
-                            alert("Error processing response from OCR service.");
-                        }
-                    },
-                    onerror: function() {
-                        alert("Failed to reach external OCR service.");
-                    }
-                });
-            } else {
-                fetch(oemApiUrl, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ image: imageDataUrl })
-                })
-                .then(res => res.json())
-                .then(res => {
-                    if (res && res.extractedText) {
-                        showToast("✓ Text extracted successfully!");
-                        searchInput.value = res.extractedText;
-                        searchInput.dispatchEvent(new Event('input'));
-                    } else {
-                        alert("Could not detect text from document.");
-                    }
-                })
-                .catch(() => alert("Failed to reach OCR service. Check CORS settings."));
+                // Run local OCR recognition using Tesseract.js
+                let result = await Tesseract.recognize(
+                    imageDataUrl,
+                    'eng',
+                    { logger: m => console.log(m) } // Optional progress tracker in console
+                );
+    
+                let extractedText = result.data.text ? result.data.text.trim() : "";
+                
+                if (extractedText) {
+                    showToast("✓ Text extracted successfully via Tesseract!");
+                    searchInput.value = extractedText;
+                    searchInput.dispatchEvent(new Event('input'));
+                } else {
+                    alert("Could not detect any text from the captured image. Try adjusting lighting or framing.");
+                }
+            } catch (err) {
+                console.error("Tesseract OCR Error:", err);
+                alert("Error processing local OCR recognition.");
             }
         };
         box.appendChild(webcamContainer);
