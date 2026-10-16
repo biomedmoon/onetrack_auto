@@ -1335,7 +1335,7 @@ function showCurlinUploadModal(passedTheme) {
         box.className = 'onetrack-modal' + (typeof compactMode !== 'undefined' && compactMode ? ' onetrack-compact-mode' : '');
         let boxBg = isDark ? '#1e1e1e' : '#fff';
         let boxColor = isDark ? '#e0e0e0' : '#333';
-        box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.25);width:600px;display:flex;flex-direction:column;position:relative;pointer-events:auto;max-height:90vh;`;
+        box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.25);width:640px;display:flex;flex-direction:column;position:relative;pointer-events:auto;max-height:95vh;`;
         
         if (typeof applyUIScale === 'function') applyUIScale(box);
         if (typeof applySavedPosition === 'function') applySavedPosition(box);
@@ -1343,30 +1343,31 @@ function showCurlinUploadModal(passedTheme) {
     
         let h = document.createElement('h3');
         h.innerText = 'Select Solis OEM Replaced Parts & Scanner';
-        h.style.cssText = `margin-top:0;margin-bottom:12px;font-size:16px;color:${isDark ? '#fff' : '#222'};text-align:center;cursor:move;`;
+        h.style.cssText = `margin-top:0;margin-bottom:10px;font-size:16px;color:${isDark ? '#fff' : '#222'};text-align:center;cursor:move;`;
         if (typeof makeDraggable === 'function') makeDraggable(box, h);
         box.appendChild(h);
     
-        // --- WEBCAM SCANNER SECTION ---
+        // --- EXPANDED WEBCAM SCANNER SECTION ---
         let scanToggleBtn = document.createElement('button');
-        scanToggleBtn.innerText = '📷 Open Webcam Document Scanner';
+        scanToggleBtn.innerText = '📷 Open Document Scanner Viewfinder';
         scanToggleBtn.className = 'onetrack-btn';
-        scanToggleBtn.style.cssText = 'width:100%;padding:6px;background:#17a2b8;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;margin-bottom:8px;';
+        scanToggleBtn.style.cssText = 'width:100%;padding:8px;background:#17a2b8;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;margin-bottom:8px;';
         box.appendChild(scanToggleBtn);
     
         let webcamContainer = document.createElement('div');
-        webcamContainer.style.cssText = 'display:none;flex-direction:column;align-items:center;gap:6px;margin-bottom:10px;background:rgba(0,0,0,0.05);padding:8px;border-radius:4px;';
+        webcamContainer.style.cssText = 'display:none;flex-direction:column;align-items:center;gap:8px;margin-bottom:10px;background:rgba(0,0,0,0.08);padding:10px;border-radius:6px;';
         
         let videoElement = document.createElement('video');
         videoElement.autoplay = true;
         videoElement.playsInline = true;
-        videoElement.style.cssText = 'width:100%;max-height:180px;background:#000;border-radius:4px;object-fit:cover;';
+        // Expanded camera view area (larger width & taller height for ease of use)
+        videoElement.style.cssText = 'width:100%;height:260px;background:#000;border-radius:4px;object-fit:cover;';
         webcamContainer.appendChild(videoElement);
     
         let captureBtn = document.createElement('button');
-        captureBtn.innerText = '📸 Snap & Extract Text';
+        captureBtn.innerText = '📸 Snap Document Photo';
         captureBtn.className = 'onetrack-btn';
-        captureBtn.style.cssText = 'padding:6px 12px;background:#28a745;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;';
+        captureBtn.style.cssText = 'padding:8px 16px;background:#28a745;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;width:100%;';
         webcamContainer.appendChild(captureBtn);
     
         let mediaStream = null;
@@ -1374,13 +1375,13 @@ function showCurlinUploadModal(passedTheme) {
             if (webcamContainer.style.display === 'flex') {
                 if (mediaStream) mediaStream.getTracks().forEach(t => t.stop());
                 webcamContainer.style.display = 'none';
-                scanToggleBtn.innerText = '📷 Open Webcam Document Scanner';
+                scanToggleBtn.innerText = '📷 Open Document Scanner Viewfinder';
             } else {
                 try {
-                    mediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+                    mediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } } });
                     videoElement.srcObject = mediaStream;
                     webcamContainer.style.display = 'flex';
-                    scanToggleBtn.innerText = '❌ Close Webcam Scanner';
+                    scanToggleBtn.innerText = '❌ Close Scanner Viewfinder';
                 } catch (err) {
                     alert('Unable to access webcam. Please check camera permissions.');
                 }
@@ -1389,23 +1390,21 @@ function showCurlinUploadModal(passedTheme) {
     
         captureBtn.onclick = () => {
             let canvas = document.createElement('canvas');
-            canvas.width = videoElement.videoWidth || 640;
-            canvas.height = videoElement.videoHeight || 480;
+            canvas.width = videoElement.videoWidth || 1280;
+            canvas.height = videoElement.videoHeight || 720;
             let ctx = canvas.getContext('2d');
             ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
             
-            // Stop stream
             if (mediaStream) mediaStream.getTracks().forEach(t => t.stop());
             webcamContainer.style.display = 'none';
-            scanToggleBtn.innerText = '📷 Open Webcam Document Scanner';
+            scanToggleBtn.innerText = '📷 Open Document Scanner Viewfinder';
     
-            // Simulate lightweight extraction or trigger text parsing via canvas snapshot data URL
-            // (If using Tesseract or backend parsing, process canvas.toDataURL('image/png') here)
-            alert('Snapshot captured successfully! (Connect your parser or OCR script here to auto-populate part fields).');
+            // Snapshot preview or data handling
+            showToast("📸 Document snapshot captured successfully!");
         };
         box.appendChild(webcamContainer);
     
-        // --- STANDARD PARTS INVENTORY LIST & CONTROLS ---
+        // --- PARTS INVENTORY LIST ---
         let defaultParts = [
             { num: '30-3285', name: 'ADHESIVE, PSA, PIEZO RING, CADD-SOLIS 1/EA' },
             { num: '70-0354', name: 'AIR DETECTOR, SOLIS' },
