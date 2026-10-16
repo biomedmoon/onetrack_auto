@@ -1436,19 +1436,18 @@ function showCurlinUploadModal(passedTheme) {
                                 isMatched = true;
                             }
     
-                            // Specific disambiguated rules for all 8 expected sheet rows
+                            // Robust disambiguated rules for all 8 expected sheet rows
                             if (rawText.includes("BATTERY") && rawText.includes("COMPARTMENT") && part.name === 'HSG, BATTERY COMPARTMENT') isMatched = true;
-                            if (rawText.includes("DOOR") && rawText.includes("BATTERY") && part.name === 'DOOR AY, BATTERY, PUMP') isMatched = true;
+                            if ((rawText.includes("DOOR") || rawText.includes("BATTERY PUMP")) && part.name === 'DOOR AY, BATTERY, PUMP') isMatched = true;
                             if (rawText.includes("NEOPRENE") && part.name === 'SEAL, DSO, NEOPRENE') isMatched = true;
                             if (rawText.includes("OVERLAY") && rawText.includes("KEYPAD") && part.name === 'OVERLAY, MEMBRANE SWITCH, CE ENGLISH') isMatched = true;
                             if (rawText.includes("KEYPAD") && rawText.includes("CONN") && part.name === 'KEYPAD, MEMBRANE SW, W/O CONN, CADD-SOLIS') isMatched = true;
                             if (rawText.includes("LENS") && rawText.includes("PAD PRINTED") && part.name === 'LENS, PAD PRINTED, CADD-SOLIS') isMatched = true;
                             
-                            // Explicit label safety rules to catch the exact label rows on your sheet
+                            // Reliable label rules ensuring the specific colored labels get captured
                             if (rawText.includes("MODEL 2120") && rawText.includes("BLUE") && part.name.includes("MODEL 2120, VIP, 3RD EDITION w cUL, BLUE")) isMatched = true;
                             if (rawText.includes("MODEL 2120") && rawText.includes("DRK GREY") && part.name.includes("MODEL 2120, VIP, 3RD EDITION w cUL, DRK GREY")) isMatched = true;
     
-                            // Match specific part numbers by their unique codes if present
                             if (part.num && part.num.trim() && rawText.includes(part.num.toUpperCase())) {
                                 isMatched = true;
                             }
@@ -1700,14 +1699,11 @@ function showCurlinUploadModal(passedTheme) {
             
             let summaryText = template.replace('[PARTS]', partsString);
     
-            // --- CLEANUP PASS: Remove redundant repeated instances of CADD-SOLIS ---
+            // --- SAFE CLEANUP PASS: Only strip trailing brand tags, preserving valid item labels ---
             summaryText = summaryText
-                .replace(/,\s*CADD-SOLIS/gi, '')          // Removes ", CADD-SOLIS" trailing tags
-                .replace(/CADD-SOLIS,\s*/gi, '')          // Removes leading "CADD-SOLIS, " tags
-                .replace(/\bCADD-SOLIS\b/gi, '');         // Removes any stray isolated mentions
-            
-            // Clean up any double spaces or awkward trailing commas left behind
-            summaryText = summaryText.replace(/\s{2,}/g, ' ').replace(/\s+,/g, ',');
+                .replace(/,\s*CADD-SOLIS\b(?!\s*,)/gi, '') // Removes trailing CADD-SOLIS tags safely
+                .replace(/\s{2,}/g, ' ')
+                .replace(/\s+,/g, ',');
     
             ov.remove();
             if (typeof addHistoryItem === 'function') addHistoryItem(summaryText);
