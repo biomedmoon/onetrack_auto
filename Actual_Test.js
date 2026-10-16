@@ -1686,8 +1686,8 @@ function showCurlinUploadModal(passedTheme) {
             let partsString = arr.length > 0 ? arr.join(', ') : 'None';
             let template = sentenceTextarea.value.trim() || defaultTemplate;
             
-            // Replace [PARTS] placeholder with selected parts list
-            let summaryText = template.replace(/[PARTS]/gi, partsString);
+            // Properly replace the [PARTS] placeholder with the clean comma-separated list
+            let summaryText = template.replace(/\[PARTS\]/gi, partsString);
             
             ov.remove();
             if (typeof addHistoryItem === 'function') addHistoryItem(summaryText);
