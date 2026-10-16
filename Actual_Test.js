@@ -1431,21 +1431,24 @@ function showCurlinUploadModal(passedTheme) {
                             let partNameUpper = part.name.toUpperCase();
                             let isMatched = false;
     
-                            // Strict clean phrase match to avoid broad cross-triggering
                             let cleanPartName = partNameUpper.replace(/[\s,\-\/]+/g, ' ');
                             if (cleanScanText.includes(cleanPartName)) {
                                 isMatched = true;
                             }
     
-                            // Specific disambiguated rules matching your exact sheet rows
+                            // Specific disambiguated rules for all 8 expected sheet rows
                             if (rawText.includes("BATTERY") && rawText.includes("COMPARTMENT") && part.name === 'HSG, BATTERY COMPARTMENT') isMatched = true;
                             if (rawText.includes("DOOR") && rawText.includes("BATTERY") && part.name === 'DOOR AY, BATTERY, PUMP') isMatched = true;
                             if (rawText.includes("NEOPRENE") && part.name === 'SEAL, DSO, NEOPRENE') isMatched = true;
                             if (rawText.includes("OVERLAY") && rawText.includes("KEYPAD") && part.name === 'OVERLAY, MEMBRANE SWITCH, CE ENGLISH') isMatched = true;
                             if (rawText.includes("KEYPAD") && rawText.includes("CONN") && part.name === 'KEYPAD, MEMBRANE SW, W/O CONN, CADD-SOLIS') isMatched = true;
                             if (rawText.includes("LENS") && rawText.includes("PAD PRINTED") && part.name === 'LENS, PAD PRINTED, CADD-SOLIS') isMatched = true;
+                            
+                            // Explicit label safety rules to catch the exact label rows on your sheet
+                            if (rawText.includes("MODEL 2120") && rawText.includes("BLUE") && part.name.includes("MODEL 2120, VIP, 3RD EDITION w cUL, BLUE")) isMatched = true;
+                            if (rawText.includes("MODEL 2120") && rawText.includes("DRK GREY") && part.name.includes("MODEL 2120, VIP, 3RD EDITION w cUL, DRK GREY")) isMatched = true;
     
-                            // Match specific labels by their unique codes on the sheet
+                            // Match specific part numbers by their unique codes if present
                             if (part.num && part.num.trim() && rawText.includes(part.num.toUpperCase())) {
                                 isMatched = true;
                             }
@@ -1695,9 +1698,17 @@ function showCurlinUploadModal(passedTheme) {
             let partsString = arr.length > 0 ? arr.join(', ') : 'None';
             let template = sentenceTextarea.value.trim() || defaultTemplate;
             
-            // Use a single replacement instance to prevent text stacking/duplication bugs
             let summaryText = template.replace('[PARTS]', partsString);
+    
+            // --- CLEANUP PASS: Remove redundant repeated instances of CADD-SOLIS ---
+            summaryText = summaryText
+                .replace(/,\s*CADD-SOLIS/gi, '')          // Removes ", CADD-SOLIS" trailing tags
+                .replace(/CADD-SOLIS,\s*/gi, '')          // Removes leading "CADD-SOLIS, " tags
+                .replace(/\bCADD-SOLIS\b/gi, '');         // Removes any stray isolated mentions
             
+            // Clean up any double spaces or awkward trailing commas left behind
+            summaryText = summaryText.replace(/\s{2,}/g, ' ').replace(/\s+,/g, ',');
+    
             ov.remove();
             if (typeof addHistoryItem === 'function') addHistoryItem(summaryText);
             if (typeof processTextSelection === 'function') processTextSelection(summaryText);
