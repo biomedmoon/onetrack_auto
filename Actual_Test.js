@@ -1422,12 +1422,20 @@ function showCurlinUploadModal(passedTheme) {
                     { logger: m => console.log(m) }
                 );
     
-                let extractedText = result.data.text ? result.data.text.trim() : "";
+                let rawText = result.data.text ? result.data.text.trim().toUpperCase() : "";
                 
-                if (extractedText) {
-                    showToast("✓ Text extracted successfully!");
-                    searchInput.value = extractedText;
-                    searchInput.dispatchEvent(new Event('input'));
+                if (rawText) {
+                    let matchedCount = 0;
+                    partsList.forEach(part => {
+                        // Smart match: Checks if the part number exists anywhere in the OCR scan
+                        if (part.num && part.num.trim() && rawText.includes(part.num.toUpperCase())) {
+                            selectedItems.add(part.name);
+                            matchedCount++;
+                        }
+                    });
+    
+                    renderList();
+                    showToast(`✓ OCR scanned! Auto-selected ${matchedCount} part(s).`);
                 } else {
                     alert("Could not detect any text from the captured image. Try adjusting lighting or framing.");
                 }
