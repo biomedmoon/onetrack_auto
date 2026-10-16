@@ -1404,7 +1404,6 @@ function showCurlinUploadModal(passedTheme) {
             showToast("⏳ Loading OCR engine & analyzing document...");
     
             try {
-                // Dynamically inject Tesseract.js if it isn't already loaded in the environment
                 if (typeof Tesseract === 'undefined') {
                     await new Promise((resolve, reject) => {
                         let script = document.createElement('script');
@@ -1415,7 +1414,6 @@ function showCurlinUploadModal(passedTheme) {
                     });
                 }
     
-                // Run local OCR recognition
                 let result = await Tesseract.recognize(
                     imageDataUrl,
                     'eng',
@@ -1425,7 +1423,6 @@ function showCurlinUploadModal(passedTheme) {
                 let rawText = result.data.text ? result.data.text.trim().toUpperCase() : "";
                 
                 if (rawText) {
-                    console.log("--- RAW TESSERACT OCR SCAN --- \n", rawText);
                     let matchedCount = 0;
                     let cleanScanText = rawText.replace(/[\s,\-\/]+/g, ' ');
     
@@ -1434,45 +1431,23 @@ function showCurlinUploadModal(passedTheme) {
                             let partNameUpper = part.name.toUpperCase();
                             let isMatched = false;
     
-                            // 1. Direct or cleaned full phrase match (Most accurate)
+                            // Strict clean phrase match to avoid broad cross-triggering
                             let cleanPartName = partNameUpper.replace(/[\s,\-\/]+/g, ' ');
                             if (cleanScanText.includes(cleanPartName)) {
                                 isMatched = true;
-                            } 
-                            // 2. Specific multi-word check for parts with unique identifiers
-                            else {
-                                // Extract specific descriptive words (ignoring generic fluff words)
-                                let tokens = partNameUpper.split(/[\s,\-\/]+/).filter(w => w.length > 3 && !['CADD', 'SOLIS', 'EA', 'THE', 'W/O', 'AY', 'LBL'].includes(w));
-                                
-                                if (tokens.length > 0) {
-                                    let foundTokens = tokens.filter(token => cleanScanText.includes(token));
-                                    
-                                    // Require a high confidence threshold: 
-                                    // Either all unique tokens must match, or at least 80% for long descriptions
-                                    let threshold = tokens.length > 2 ? 0.8 : 1.0;
-                                    if (foundTokens.length >= Math.ceil(tokens.length * threshold)) {
-                                        // Extra guard for generic labels/seals: ensure a distinguishing modifier is present
-                                        if (tokens.includes('SEAL')) {
-                                            // Ensure we match the exact modifier (e.g. 'NEOPRENE' or 'UPSTREAM')
-                                            isMatched = tokens.every(t => cleanScanText.includes(t));
-                                        } else {
-                                            isMatched = true;
-                                        }
-                                    }
-                                }
                             }
     
-                            // Specific disambiguated rules for items that share common root words
+                            // Specific disambiguated rules matching your exact sheet rows
+                            if (rawText.includes("BATTERY") && rawText.includes("COMPARTMENT") && part.name === 'HSG, BATTERY COMPARTMENT') isMatched = true;
+                            if (rawText.includes("DOOR") && rawText.includes("BATTERY") && part.name === 'DOOR AY, BATTERY, PUMP') isMatched = true;
                             if (rawText.includes("NEOPRENE") && part.name === 'SEAL, DSO, NEOPRENE') isMatched = true;
-                            if (rawText.includes("UPSTREAM") && part.name === 'SEAL, UPSTREAM OCCLUSION') isMatched = true;
-                            if (rawText.includes("DIAPHRAGM") && part.name === 'SEAL, DIAPHRAGM, CASSETTE SENSOR') isMatched = true;
-                            
-                            // Prevent generic LBL matching unless model/version text matches specifically
-                            if (part.name.includes('LBL, DEVICE, PUMP') && !rawText.includes(part.num)) {
-                                // If it's a generic label row without its specific part number, don't blindly cross-trigger
-                                if (!cleanScanText.includes(part.name.replace(/[\s,\-\/]+/g, ' ').substring(0, 15))) {
-                                    isMatched = false;
-                                }
+                            if (rawText.includes("OVERLAY") && rawText.includes("KEYPAD") && part.name === 'OVERLAY, MEMBRANE SWITCH, CE ENGLISH') isMatched = true;
+                            if (rawText.includes("KEYPAD") && rawText.includes("CONN") && part.name === 'KEYPAD, MEMBRANE SW, W/O CONN, CADD-SOLIS') isMatched = true;
+                            if (rawText.includes("LENS") && rawText.includes("PAD PRINTED") && part.name === 'LENS, PAD PRINTED, CADD-SOLIS') isMatched = true;
+    
+                            // Match specific labels by their unique codes on the sheet
+                            if (part.num && part.num.trim() && rawText.includes(part.num.toUpperCase())) {
+                                isMatched = true;
                             }
     
                             if (isMatched && !selectedItems.has(part.name)) {
@@ -1719,7 +1694,9 @@ function showCurlinUploadModal(passedTheme) {
     
             let partsString = arr.length > 0 ? arr.join(', ') : 'None';
             let template = sentenceTextarea.value.trim() || defaultTemplate;
-            let summaryText = template.replace(/[PARTS]/gi, partsString);
+            
+            // Use a single replacement instance to prevent text stacking/duplication bugs
+            let summaryText = template.replace('[PARTS]', partsString);
             
             ov.remove();
             if (typeof addHistoryItem === 'function') addHistoryItem(summaryText);
