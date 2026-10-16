@@ -1390,17 +1390,53 @@ function showCurlinUploadModal(passedTheme) {
     
         captureBtn.onclick = () => {
             let canvas = document.createElement('canvas');
+            // Set higher resolution dimensions for clear document text capture
             canvas.width = videoElement.videoWidth || 1280;
             canvas.height = videoElement.videoHeight || 720;
             let ctx = canvas.getContext('2d');
             ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
             
+            // Convert canvas image to base64 data URL
+            let imageDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+    
+            // Stop camera stream
             if (mediaStream) mediaStream.getTracks().forEach(t => t.stop());
             webcamContainer.style.display = 'none';
             scanToggleBtn.innerText = '📷 Open Document Scanner Viewfinder';
     
-            // Snapshot preview or data handling
-            showToast("📸 Document snapshot captured successfully!");
+            showToast("⏳ Uploading image for text extraction...");
+    
+            // Example using Tampermonkey's GM_xmlhttpRequest to reach out to an external service/API
+            GM_xmlhttpRequest({
+                method: "POST",
+                url: "https://your-ocr-or-ai-endpoint.com/api/extract", // Replace with your service endpoint
+                headers: {
+                    "Content-Type": "application/json",
+                    // "Authorization": "Bearer YOUR_API_KEY" // Add if authentication is needed
+                },
+                data: JSON.stringify({ image: imageDataUrl }),
+                onload: function(response) {
+                    try {
+                        let res = JSON.parse(response.responseText);
+                        if (res && res.extractedText) {
+                            showToast("✓ Text extracted successfully!");
+                            
+                            // Automatically drop extracted text into search or populate fields
+                            searchInput.value = res.extractedText;
+                            searchInput.dispatchEvent(new Event('input'));
+                        } else {
+                            alert("Could not detect text from the document image.");
+                        }
+                    } catch (err) {
+                        console.error("Parsing response error:", err);
+                        alert("Error processing response from OCR service.");
+                    }
+                },
+                onerror: function(err) {
+                    console.error("API request failed:", err);
+                    alert("Failed to reach external OCR service.");
+                }
+            });
         };
         box.appendChild(webcamContainer);
     
