@@ -1425,17 +1425,25 @@ function showCurlinUploadModal(passedTheme) {
                 let rawText = result.data.text ? result.data.text.trim().toUpperCase() : "";
                 
                 if (rawText) {
+                    // Clean OCR text by standardizing spaces and punctuation
+                    let cleanRawText = rawText.replace(/[\r\n]+/g, ' ');
                     let matchedCount = 0;
+    
                     partsList.forEach(part => {
-                        // Smart match: Checks if the part number exists anywhere in the OCR scan
-                        if (part.num && part.num.trim() && rawText.includes(part.num.toUpperCase())) {
-                            selectedItems.add(part.name);
-                            matchedCount++;
+                        if (part.name && part.name.trim()) {
+                            // Extract key keywords from the part name (e.g., ignoring commas/sizes for broader matching)
+                            let partNameUpper = part.name.toUpperCase();
+                            
+                            // Check if the description or key identifier appears in the scanned text
+                            if (cleanRawText.includes(partNameUpper)) {
+                                selectedItems.add(part.name);
+                                matchedCount++;
+                            }
                         }
                     });
     
                     renderList();
-                    showToast(`✓ OCR scanned! Auto-selected ${matchedCount} part(s).`);
+                    showToast(`✓ OCR scanned! Auto-selected ${matchedCount} part(s) by description.`);
                 } else {
                     alert("Could not detect any text from the captured image. Try adjusting lighting or framing.");
                 }
