@@ -1436,7 +1436,7 @@ function showCurlinUploadModal(passedTheme) {
                                 isMatched = true;
                             }
     
-                            // Robust disambiguated rules for all 8 expected sheet rows
+                            // Core component disambiguated rules
                             if (rawText.includes("BATTERY") && rawText.includes("COMPARTMENT") && part.name === 'HSG, BATTERY COMPARTMENT') isMatched = true;
                             if ((rawText.includes("DOOR") || rawText.includes("BATTERY PUMP")) && part.name === 'DOOR AY, BATTERY, PUMP') isMatched = true;
                             if (rawText.includes("NEOPRENE") && part.name === 'SEAL, DSO, NEOPRENE') isMatched = true;
@@ -1444,10 +1444,21 @@ function showCurlinUploadModal(passedTheme) {
                             if (rawText.includes("KEYPAD") && rawText.includes("CONN") && part.name === 'KEYPAD, MEMBRANE SW, W/O CONN, CADD-SOLIS') isMatched = true;
                             if (rawText.includes("LENS") && rawText.includes("PAD PRINTED") && part.name === 'LENS, PAD PRINTED, CADD-SOLIS') isMatched = true;
                             
-                            // Reliable label rules ensuring the specific colored labels get captured
-                            if (rawText.includes("MODEL 2120") && rawText.includes("BLUE") && part.name.includes("MODEL 2120, VIP, 3RD EDITION w cUL, BLUE")) isMatched = true;
-                            if (rawText.includes("MODEL 2120") && rawText.includes("DRK GREY") && part.name.includes("MODEL 2120, VIP, 3RD EDITION w cUL, DRK GREY")) isMatched = true;
+                            // --- RELIABLE LABEL MATCHERS ---
+                            // 1. Matches the set label
+                            if ((rawText.includes("LBL") && rawText.includes("SET")) || rawText.includes("40-6288-24A")) {
+                                if (part.name.includes('LBL, SET, DEVICE')) isMatched = true;
+                            }
+                            // 2. Matches Blue model label variant
+                            if (rawText.includes("MODEL 2120") && rawText.includes("BLUE") && part.name.includes("BLUE, RX ONLY")) {
+                                isMatched = true;
+                            }
+                            // 3. Matches Dark Grey model label variant
+                            if (rawText.includes("MODEL 2120") && rawText.includes("DRK GREY") && part.name.includes("DRK GREY, RX ONLY")) {
+                                isMatched = true;
+                            }
     
+                            // Fallback check against official part numbers if present
                             if (part.num && part.num.trim() && rawText.includes(part.num.toUpperCase())) {
                                 isMatched = true;
                             }
