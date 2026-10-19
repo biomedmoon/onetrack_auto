@@ -1423,6 +1423,7 @@ function showCurlinUploadModal(passedTheme) {
                 let rawText = result.data.text ? result.data.text.trim().toUpperCase() : "";
                 
                 if (rawText) {
+                    console.log("--- RAW TESSERACT OCR SCAN --- \n", rawText);
                     let matchedCount = 0;
                     let cleanScanText = rawText.replace(/[\s,\-\/]+/g, ' ');
     
@@ -1436,26 +1437,51 @@ function showCurlinUploadModal(passedTheme) {
                                 isMatched = true;
                             }
     
-                            // Core component disambiguated rules
-                            if (rawText.includes("BATTERY") && rawText.includes("COMPARTMENT") && part.name === 'HSG, BATTERY COMPARTMENT') isMatched = true;
-                            if ((rawText.includes("DOOR") || rawText.includes("BATTERY PUMP")) && part.name === 'DOOR AY, BATTERY, PUMP') isMatched = true;
-                            if (rawText.includes("NEOPRENE") && part.name === 'SEAL, DSO, NEOPRENE') isMatched = true;
-                            if (rawText.includes("OVERLAY") && rawText.includes("KEYPAD") && part.name === 'OVERLAY, MEMBRANE SWITCH, CE ENGLISH') isMatched = true;
-                            if (rawText.includes("KEYPAD") && rawText.includes("CONN") && part.name === 'KEYPAD, MEMBRANE SW, W/O CONN, CADD-SOLIS') isMatched = true;
-                            if (rawText.includes("LENS") && rawText.includes("PAD PRINTED") && part.name === 'LENS, PAD PRINTED, CADD-SOLIS') isMatched = true;
+                            // --- COMPREHENSIVE BENCH HELPER MATCHERS FOR ALL SHEET ROWS ---
                             
-                            // --- RELIABLE LABEL MATCHERS ---
-                            // 1. Matches the set label
-                            if ((rawText.includes("LBL") && rawText.includes("SET")) || rawText.includes("40-6288-24A")) {
-                                if (part.name.includes('LBL, SET, DEVICE')) isMatched = true;
+                            // 1. HSG, Battery Compartment
+                            if ((rawText.includes("BATTERY") && rawText.includes("COMPARTMENT")) && part.name === 'HSG, BATTERY COMPARTMENT') {
+                                isMatched = true;
                             }
-                            // 2. Matches Blue model label variant
+                            
+                            // 2. Door Assembly, Battery, Pump (Catches split rows & part numbers)
+                            if ((rawText.includes("DOOR") && (rawText.includes("BATTERY") || rawText.includes("PUMP"))) || rawText.includes("30-3245")) {
+                                if (part.name === 'DOOR AY, BATTERY, PUMP') isMatched = true;
+                            }
+                            
+                            // 3. Seal, DSO, Neoprene (Catches neoprene or DSO seal mentions)
+                            if ((rawText.includes("NEOPRENE") || (rawText.includes("SEAL") && rawText.includes("DSO"))) || rawText.includes("30-3381")) {
+                                if (part.name === 'SEAL, DSO, NEOPRENE') isMatched = true;
+                            }
+                            
+                            // 4. Overlay Membrane Switch
+                            if ((rawText.includes("OVERLAY") && rawText.includes("KEYPAD")) || rawText.includes("40-5482-51A")) {
+                                if (part.name === 'OVERLAY, MEMBRANE SWITCH, CE ENGLISH') isMatched = true;
+                            }
+                            
+                            // 5. Blue Model Label
                             if (rawText.includes("MODEL 2120") && rawText.includes("BLUE") && part.name.includes("BLUE, RX ONLY")) {
                                 isMatched = true;
                             }
-                            // 3. Matches Dark Grey model label variant
+                            
+                            // 6. Dark Grey Model Label
                             if (rawText.includes("MODEL 2120") && rawText.includes("DRK GREY") && part.name.includes("DRK GREY, RX ONLY")) {
                                 isMatched = true;
+                            }
+                            
+                            // 7. Keypad Membrane Switch w/o Conn (Catches keypad rows even if conn text is split)
+                            if ((rawText.includes("KEYPAD") && (rawText.includes("MEMBRANE") || rawText.includes("W/O CONN"))) || rawText.includes("70-0229")) {
+                                if (part.name === 'KEYPAD, MEMBRANE SW, W/O CONN, CADD-SOLIS') isMatched = true;
+                            }
+                            
+                            // 8. Set Label
+                            if ((rawText.includes("LBL") && rawText.includes("SET")) || rawText.includes("40-6288-24A")) {
+                                if (part.name.includes('LBL, SET, DEVICE')) isMatched = true;
+                            }
+                            
+                            // 9. Lens Pad Printed
+                            if ((rawText.includes("LENS") && rawText.includes("PAD PRINTED")) || rawText.includes("40-5733-51A")) {
+                                if (part.name === 'LENS, PAD PRINTED, CADD-SOLIS') isMatched = true;
                             }
     
                             // Fallback check against official part numbers if present
