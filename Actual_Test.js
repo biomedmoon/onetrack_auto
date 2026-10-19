@@ -1320,89 +1320,150 @@ function showCurlinUploadModal(passedTheme) {
         ov.appendChild(box);
         document.body.appendChild(ov);
     }
-    function showSolisPartsModal(passedTheme) {
-        let activeTheme = passedTheme || document.getElementById('preset-notes-modal')?.getAttribute('data-theme') || 'light';
-        let isDark = activeTheme === 'dark';
-        
-        let ex = document.getElementById('preset-notes-modal');
-        if (ex) ex.remove();
+    function showSolisPartsModal(defaultTemplate, addHistoryItem, processTextSelection) {
+        let usageCounts = JSON.parse(localStorage.getItem('solis_parts_usage') || '{}');
+        let selectedItems = new Set();
+        let isExpandedView = false;
+    
+        let defaultParts = [
+            {num: '30-3285', name: 'ADHESIVE, PSA, PIEZO RING, CADD-SOLIS 1/EA'},
+            {num: '70-0354', name: 'AIR DETECTOR, SOLIS'},
+            {num: '70-0446', name: 'AY, 27MM PIEZO SOUNDER, FRONT'},
+            {num: '70-0447', name: 'AY, 27MM PIEZO SOUNDER, REAR'},
+            {num: '67-2341', name: 'AY, USO, CADD-SOLIS 1/EA'},
+            {num: '60013', name: 'BEARING, CAMSHAFT'},
+            {num: '30-3028', name: 'BEARING, CAMSHAFT, .375" OD X 0.187" ID, CADD-SOLIS 1/EA'},
+            {num: '', name: 'BEZEL, CASSETTE DETECTION'},
+            {num: '30-3052', name: 'BEZEL, DSO, CADD-SOLIS'},
+            {num: '30-3130', name: 'BRACKET, OPTICAL SWITCH, CADD-SOLIS'},
+            {num: '31-0485', name: 'CAMSHAFT, 3 LOBE, DUAL ACTIVATION'},
+            {num: '10018270-001', name: 'CONNECTOR, LEMO HALF MOON INSERT (NUT FIXING) FIXED RECEPTACLE, CADD - SOLIS'},
+            {num: '70-0227', name: 'CONTACT, BATTERY COMPARTMENT FLOOR'},
+            {num: '70-0178', name: 'CONTACT, BATTERY, SPRING PIN, CADD-SOLIS'},
+            {num: '30-3053', name: 'DISK, OPTICAL, DUAL FLAG, CADD-SOLIS'},
+            {num: '70-0508', name: 'DISPLAY, LCD, TRULY/HIMAX, 320 X 320 W/BACKLIGHT, CADD-SOLIS'},
+            {num: '30-3245', name: 'DOOR AY, BATTERY, PUMP'},
+            {num: '10022627-001', name: 'DOOR AY, BATTERY, PUMP (Do Not Use)'},
+            {num: '30-3086-001', name: 'EXPULSOR, MACHINED, .344"'},
+            {num: '70-0243', name: 'FLEX AY, CAM SENSOR'},
+            {num: '70-0303', name: 'FLEX AY, LED, CADD-SOLIS'},
+            {num: '70-0335', name: 'FLEX CIRCUIT, SENSOR, L/L'},
+            {num: '30-3181', name: 'FOAM, ISOLATION, LCD'},
+            {num: '', name: 'FOAM, POSITIONING, LCD'},
+            {num: '30-3082', name: 'GEAR, CAMSHAFT'},
+            {num: '30-3083', name: 'GEAR, REDUCTION'},
+            {num: '30-3084', name: 'GEAR, WORM'},
+            {num: '30-3248', name: 'HSG, BATTERY COMPARTMENT'},
+            {num: '70-0229', name: 'KEYPAD, MEMBRANE SW, W/O CONN, CADD-SOLIS'},
+            {num: '40-6288-24A', name: 'LBL, SET, DEVICE, CADD-SOLIS'},
+            {num: '10017410-001', name: 'LBL, DEVICE, PUMP, CADD-SOLIS, MODEL 2120, BLUE, RX ONLY'},
+            {num: '10017410-002', name: 'LBL, DEVICE, PUMP, CADD-SOLIS, MODEL 2120, DRK GREY, RX ONLY'},
+            {num: '10017410-003', name: 'LBL, DEVICE, PUMP, CADD-SOLIS, VIP'},
+            {num: '10017410-004', name: 'LBL, DEVICE, PUMP, CADD-SOLIS, VIP, BLUE'},
+            {num: '40-5733-51A', name: 'LENS, PAD PRINTED, CADD-SOLIS'},
+            {num: '40-5482-51A', name: 'OVERLAY, MEMBRANE SWITCH, CE ENGLISH'},
+            {num: '30-3381', name: 'SEAL, DSO, NEOPRENE'},
+            {num: '30-3027', name: 'SEAL, UPSTREAM OCCLUSION'},
+            {num: '30-3151', name: 'SEAL, DIAPHRAGM, CASSETTE SENSOR'}
+        ];
+    
+        let partsList = JSON.parse(localStorage.getItem('solis_parts_inventory') || JSON.stringify(defaultParts));
     
         let ov = document.createElement('div');
-        ov.id = 'preset-notes-modal';
-        ov.setAttribute('data-theme', activeTheme);
-        ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:transparent;z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;pointer-events:none;';
-    
-        let box = document.createElement('div');
-        box.className = 'onetrack-modal' + (typeof compactMode !== 'undefined' && compactMode ? ' onetrack-compact-mode' : '');
-        let boxBg = isDark ? '#1e1e1e' : '#fff';
-        let boxColor = isDark ? '#e0e0e0' : '#333';
-        box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.25);width:640px;display:flex;flex-direction:column;position:relative;pointer-events:auto;max-height:95vh;`;
+        ov.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:99999;display:flex;justify-content:center;align-items:center;font-family:sans-serif;";
         
-        if (typeof applyUIScale === 'function') applyUIScale(box);
-        if (typeof applySavedPosition === 'function') applySavedPosition(box);
-        if (typeof applySavedScale === 'function') applySavedScale(box);
+        let box = document.createElement('div');
+        box.style.cssText = "background:#1e1e1e;color:#fff;padding:20px;border-radius:8px;width:700px;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 4px 20px rgba(0,0,0,0.5);";
+        
+        let title = document.createElement('h3');
+        title.innerText = "Select Solis OEM Replaced Parts & Scanner";
+        title.style.cssText = "margin-top:0;margin-bottom:15px;text-align:center;color:#fff;";
+        box.appendChild(title);
     
-        let h = document.createElement('h3');
-        h.innerText = 'Select Solis OEM Replaced Parts & Scanner';
-        h.style.cssText = `margin-top:0;margin-bottom:10px;font-size:16px;color:${isDark ? '#fff' : '#222'};text-align:center;cursor:move;`;
-        if (typeof makeDraggable === 'function') makeDraggable(box, h);
-        box.appendChild(h);
+        // --- UTILITY CONTAINER: Camera Viewfinder & File Upload ---
+        let scannerControls = document.createElement('div');
+        scannerControls.style.cssText = "display:flex;gap:10px;margin-bottom:15px;";
     
-        // --- EXPANDED WEBCAM SCANNER SECTION ---
         let scanToggleBtn = document.createElement('button');
-        scanToggleBtn.innerText = '📷 Open Document Scanner Viewfinder';
-        scanToggleBtn.className = 'onetrack-btn';
-        scanToggleBtn.style.cssText = 'width:100%;padding:8px;background:#17a2b8;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;margin-bottom:8px;';
-        box.appendChild(scanToggleBtn);
+        scanToggleBtn.innerText = "📷 Open Document Scanner Viewfinder";
+        scanToggleBtn.style.cssText = "flex:1;background:#008CBA;color:white;border:none;padding:10px;border-radius:4px;cursor:pointer;font-weight:bold;";
+        
+        // File upload input for saved images
+        let uploadLabel = document.createElement('label');
+        uploadLabel.innerText = "📁 Upload Image for OCR";
+        uploadLabel.style.cssText = "background:#444;color:white;border:none;padding:10px 15px;border-radius:4px;cursor:pointer;font-weight:bold;display:flex;align-items:center;font-size:14px;";
+        
+        let fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = 'image/*';
+        fileInput.style.display = 'none';
+        uploadLabel.appendChild(fileInput);
+    
+        scannerControls.appendChild(scanToggleBtn);
+        scannerControls.appendChild(uploadLabel);
+        box.appendChild(scannerControls);
     
         let webcamContainer = document.createElement('div');
-        webcamContainer.style.cssText = 'display:none;flex-direction:column;align-items:center;gap:8px;margin-bottom:10px;background:rgba(0,0,0,0.08);padding:10px;border-radius:6px;';
+        webcamContainer.style.cssText = "display:none;flex-direction:column;align-items:center;margin-bottom:15px;background:#111;padding:10px;border-radius:6px;";
         
         let videoElement = document.createElement('video');
         videoElement.autoplay = true;
         videoElement.playsInline = true;
-        videoElement.style.cssText = 'width:100%;height:260px;background:#000;border-radius:4px;object-fit:cover;';
+        videoElement.style.cssText = "width:100%;max-height:250px;border-radius:4px;background:#000;object-fit:cover;";
         webcamContainer.appendChild(videoElement);
     
+        let camActionRow = document.createElement('div');
+        camActionRow.style.cssText = "display:flex;gap:10px;width:100%;margin-top:10px;";
+    
         let captureBtn = document.createElement('button');
-        captureBtn.innerText = '📸 Snap Document Photo';
-        captureBtn.className = 'onetrack-btn';
-        captureBtn.style.cssText = 'padding:8px 16px;background:#28a745;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;width:100%;';
-        webcamContainer.appendChild(captureBtn);
+        captureBtn.innerText = "📸 Capture & Run OCR";
+        captureBtn.style.cssText = "flex:2;background:#4CAF50;color:white;border:none;padding:8px;border-radius:4px;cursor:pointer;font-weight:bold;";
+    
+        let expandCamBtn = document.createElement('button');
+        expandCamBtn.innerText = "🔍 Expand View";
+        expandCamBtn.style.cssText = "flex:1;background:#555;color:white;border:none;padding:8px;border-radius:4px;cursor:pointer;";
+    
+        camActionRow.appendChild(captureBtn);
+        camActionRow.appendChild(expandCamBtn);
+        webcamContainer.appendChild(camActionRow);
+        box.appendChild(webcamContainer);
     
         let mediaStream = null;
+    
+        // Expand view toggle
+        expandCamBtn.onclick = () => {
+            isExpandedView = !isExpandedView;
+            if (isExpandedView) {
+                videoElement.style.maxHeight = "500px";
+                expandCamBtn.innerText = "📉 Normal View";
+            } else {
+                videoElement.style.maxHeight = "250px";
+                expandCamBtn.innerText = "🔍 Expand View";
+            }
+        };
+    
         scanToggleBtn.onclick = async () => {
             if (webcamContainer.style.display === 'flex') {
                 if (mediaStream) mediaStream.getTracks().forEach(t => t.stop());
                 webcamContainer.style.display = 'none';
-                scanToggleBtn.innerText = '📷 Open Document Scanner Viewfinder';
+                scanToggleBtn.innerText = "📷 Open Document Scanner Viewfinder";
             } else {
+                webcamContainer.style.display = 'flex';
+                scanToggleBtn.innerText = "❌ Close Viewfinder";
                 try {
-                    mediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } } });
+                    mediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
                     videoElement.srcObject = mediaStream;
-                    webcamContainer.style.display = 'flex';
-                    scanToggleBtn.innerText = '❌ Close Scanner Viewfinder';
                 } catch (err) {
-                    alert('Unable to access webcam. Please check camera permissions.');
+                    alert("Camera access denied or unavailable.");
+                    webcamContainer.style.display = 'none';
+                    scanToggleBtn.innerText = "📷 Open Document Scanner Viewfinder";
                 }
             }
         };
     
-        captureBtn.onclick = async () => {
-            let canvas = document.createElement('canvas');
-            canvas.width = videoElement.videoWidth || 1280;
-            canvas.height = videoElement.videoHeight || 720;
-            let ctx = canvas.getContext('2d');
-            ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
-            
-            let imageDataUrl = canvas.toDataURL('image/jpeg', 0.85);
-    
-            if (mediaStream) mediaStream.getTracks().forEach(t => t.stop());
-            webcamContainer.style.display = 'none';
-            scanToggleBtn.innerText = '📷 Open Document Scanner Viewfinder';
-    
+        // --- SHARED OCR PROCESSING FUNCTION ---
+        async function processImageForOCR(imageDataUrl) {
             showToast("⏳ Loading OCR engine & analyzing document...");
-    
             try {
                 if (typeof Tesseract === 'undefined') {
                     await new Promise((resolve, reject) => {
@@ -1414,80 +1475,44 @@ function showCurlinUploadModal(passedTheme) {
                     });
                 }
     
-                let result = await Tesseract.recognize(
-                    imageDataUrl,
-                    'eng',
-                    { logger: m => console.log(m) }
-                );
-    
+                let result = await Tesseract.recognize(imageDataUrl, 'eng', { logger: m => console.log(m) });
                 let rawText = result.data.text ? result.data.text.trim().toUpperCase() : "";
                 
                 if (rawText) {
-                    console.log("--- RAW TESSERACT OCR SCAN --- \n", rawText);
                     let matchedCount = 0;
-                    let cleanScanText = rawText.replace(/[\s,\-\/]+/g, ' ');
-    
                     partsList.forEach(part => {
                         if (part.name && part.name.trim()) {
                             let partNameUpper = part.name.toUpperCase();
                             let isMatched = false;
     
                             let cleanPartName = partNameUpper.replace(/[\s,\-\/]+/g, ' ');
-                            if (cleanScanText.includes(cleanPartName)) {
-                                isMatched = true;
-                            }
+                            let cleanScanText = rawText.replace(/[\s,\-\/]+/g, ' ');
+                            if (cleanScanText.includes(cleanPartName)) isMatched = true;
     
-                            // --- COMPREHENSIVE BENCH HELPER MATCHERS FOR ALL SHEET ROWS ---
-                            
-                            // 1. HSG, Battery Compartment
-                            if ((rawText.includes("BATTERY") && rawText.includes("COMPARTMENT")) && part.name === 'HSG, BATTERY COMPARTMENT') {
-                                isMatched = true;
-                            }
-                            
-                            // 2. Door Assembly, Battery, Pump (Catches split rows & part numbers)
+                            // Comprehensive sheet row helpers
+                            if ((rawText.includes("BATTERY") && rawText.includes("COMPARTMENT")) && part.name === 'HSG, BATTERY COMPARTMENT') isMatched = true;
                             if ((rawText.includes("DOOR") && (rawText.includes("BATTERY") || rawText.includes("PUMP"))) || rawText.includes("30-3245")) {
                                 if (part.name === 'DOOR AY, BATTERY, PUMP') isMatched = true;
                             }
-                            
-                            // 3. Seal, DSO, Neoprene (Catches neoprene or DSO seal mentions)
                             if ((rawText.includes("NEOPRENE") || (rawText.includes("SEAL") && rawText.includes("DSO"))) || rawText.includes("30-3381")) {
                                 if (part.name === 'SEAL, DSO, NEOPRENE') isMatched = true;
                             }
-                            
-                            // 4. Overlay Membrane Switch
                             if ((rawText.includes("OVERLAY") && rawText.includes("KEYPAD")) || rawText.includes("40-5482-51A")) {
                                 if (part.name === 'OVERLAY, MEMBRANE SWITCH, CE ENGLISH') isMatched = true;
                             }
-                            
-                            // 5. Blue Model Label
-                            if (rawText.includes("MODEL 2120") && rawText.includes("BLUE") && part.name.includes("BLUE, RX ONLY")) {
-                                isMatched = true;
-                            }
-                            
-                            // 6. Dark Grey Model Label
-                            if (rawText.includes("MODEL 2120") && rawText.includes("DRK GREY") && part.name.includes("DRK GREY, RX ONLY")) {
-                                isMatched = true;
-                            }
-                            
-                            // 7. Keypad Membrane Switch w/o Conn (Catches keypad rows even if conn text is split)
+                            if (rawText.includes("MODEL 2120") && rawText.includes("BLUE") && part.name.includes("BLUE, RX ONLY")) isMatched = true;
+                            if (rawText.includes("MODEL 2120") && rawText.includes("DRK GREY") && part.name.includes("DRK GREY, RX ONLY")) isMatched = true;
                             if ((rawText.includes("KEYPAD") && (rawText.includes("MEMBRANE") || rawText.includes("W/O CONN"))) || rawText.includes("70-0229")) {
                                 if (part.name === 'KEYPAD, MEMBRANE SW, W/O CONN, CADD-SOLIS') isMatched = true;
                             }
-                            
-                            // 8. Set Label
                             if ((rawText.includes("LBL") && rawText.includes("SET")) || rawText.includes("40-6288-24A")) {
                                 if (part.name.includes('LBL, SET, DEVICE')) isMatched = true;
                             }
-                            
-                            // 9. Lens Pad Printed
                             if ((rawText.includes("LENS") && rawText.includes("PAD PRINTED")) || rawText.includes("40-5733-51A")) {
                                 if (part.name === 'LENS, PAD PRINTED, CADD-SOLIS') isMatched = true;
                             }
     
-                            // Fallback check against official part numbers if present
-                            if (part.num && part.num.trim() && rawText.includes(part.num.toUpperCase())) {
-                                isMatched = true;
-                            }
+                            if (part.num && part.num.trim() && rawText.includes(part.num.toUpperCase())) isMatched = true;
     
                             if (isMatched && !selectedItems.has(part.name)) {
                                 selectedItems.add(part.name);
@@ -1499,229 +1524,139 @@ function showCurlinUploadModal(passedTheme) {
                     renderList();
                     showToast(`✓ OCR scanned! Auto-selected ${matchedCount} specific part(s).`);
                 } else {
-                    alert("Could not detect any text from the captured image. Try adjusting lighting or framing.");
+                    alert("Could not detect any text from the image.");
                 }
             } catch (err) {
                 console.error("Tesseract OCR Error:", err);
-                alert("Error loading or processing local OCR recognition.");
+                alert("Error processing local OCR recognition.");
             }
+        }
+    
+        captureBtn.onclick = async () => {
+            let canvas = document.createElement('canvas');
+            canvas.width = videoElement.videoWidth || 1280;
+            canvas.height = videoElement.videoHeight || 720;
+            let ctx = canvas.getContext('2d');
+            ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+            let imageDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+    
+            if (mediaStream) mediaStream.getTracks().forEach(t => t.stop());
+            webcamContainer.style.display = 'none';
+            scanToggleBtn.innerText = '📷 Open Document Scanner Viewfinder';
+    
+            await processImageForOCR(imageDataUrl);
         };
-        box.appendChild(webcamContainer);
     
-        // --- PARTS INVENTORY LIST ---
-        let defaultParts = [
-            { num: '30-3285', name: 'ADHESIVE, PSA, PIEZO RING, CADD-SOLIS 1/EA' },
-            { num: '70-0354', name: 'AIR DETECTOR, SOLIS' },
-            { num: '70-0446', name: 'AY, 27MM PIEZO SOUNDER, FRONT' },
-            { num: '70-0447', name: 'AY, 27MM PIEZO SOUNDER, REAR' },
-            { num: '67-2341', name: 'AY, USO, CADD-SOLIS 1/EA' },
-            { num: '60013', name: 'BEARING, CAMSHAFT' },
-            { num: '30-3028', name: 'BEARING, CAMSHAFT, .375" OD X 0.187" ID, CADD-SOLIS 1/EA' },
-            { num: '', name: 'BEZEL, CASSETTE DETECTION' },
-            { num: '30-3052', name: 'BEZEL, DSO, CADD-SOLIS' },
-            { num: '30-3130', name: 'BRACKET, OPTICAL SWITCH, CADD-SOLIS' },
-            { num: '31-0485', name: 'CAMSHAFT, 3 LOBE, DUAL ACTIVATION' },
-            { num: '10018270-001', name: 'CONNECTOR, LEMO HALF MOON INSERT (NUT FIXING) FIXED RECEPTACLE, CADD - SOLIS' },
-            { num: '70-0227', name: 'CONTACT, BATTERY COMPARTMENT FLOOR' },
-            { num: '70-0178', name: 'CONTACT, BATTERY, SPRING PIN, CADD-SOLIS' },
-            { num: '30-3053', name: 'DISK, OPTICAL, DUAL FLAG, CADD-SOLIS' },
-            { num: '70-0508', name: 'DISPLAY, LCD, TRULY/HIMAX, 320 X 320 W/BACKLIGHT, CADD-SOLIS' },
-            { num: '30-3245', name: 'DOOR AY, BATTERY, PUMP' },
-            { num: '10022627-001', name: 'DOOR AY, BATTERY, PUMP (Do Not Use)' },
-            { num: '30-3086-001', name: 'EXPULSOR, MACHINED, .344"' },
-            { num: '70-0243', name: 'FLEX AY, CAM SENSOR' },
-            { num: '70-0303', name: 'FLEX AY, LED, CADD-SOLIS' },
-            { num: '70-0335', name: 'FLEX CIRCUIT, SENSOR, L/L' },
-            { num: '30-3181', name: 'FOAM, ISOLATION, LCD' },
-            { num: '', name: 'FOAM, POSITIONING, LCD' },
-            { num: '30-3174', name: 'GASKET, CONDUCTIVE, BAT COMP' },
-            { num: '30-3173', name: 'GASKET, CONDUCTIVE, CHASSIS' },
-            { num: '', name: 'GASKET, CONDUCTIVE, COPPER, RIGHT' },
-            { num: '', name: 'GASKET, CONDUCTIVE, LCD, FRAMING' },
-            { num: '', name: 'GASKET, CONDUCTIVE, LCD, TOP' },
-            { num: '30-3289', name: 'GASKET, ENVIRONMENTAL, BATTERY COMPARTMENT' },
-            { num: '30-3171', name: 'GASKET, ENVIRONMENTAL, CHASSIS' },
-            { num: '30-3167', name: 'GASKET, ENVIRONMENTAL, POWER BOARD' },
-            { num: '', name: 'GASKET, PERIMETER, EMC' },
-            { num: '30-3288', name: 'GASKET, PSA, LENS, CADD-SOLIS' },
-            { num: '', name: 'GASKET, TUBING, SILICON HOUSING' },
-            { num: '60003', name: 'GEAR, FLAT' },
-            { num: '60002', name: 'GEAR, HUB (FASTENS TO MOTOR)' },
-            { num: '10009592', name: 'GEARMOTOR, PLANETARY, 12V, 16MM' },
-            { num: '30-3299', name: 'GUARD, PIEZO ALARM' },
-            { num: '30-4106', name: 'HANDLE, LATCH LEVER, CADD-SOLIS' },
-            { num: '70-0216', name: 'HARNESS, WIRE, ON/OFF SWITCH' },
-            { num: '30-3248', name: 'HSG, BATTERY COMPARTMENT' },
-            { num: '', name: 'HSG, PUMP, FRONT, SHLD' },
-            { num: '', name: 'HSG, PUMP, REAR SHLD' },
-            { num: '30-3106', name: 'INSULATOR, KAPTON, CADD-SOLIS' },
-            { num: '30-3322', name: 'INSULATOR, PWA/HOUSING' },
-            { num: '30-4065', name: 'INSULATOR, USB' },
-            { num: '70-0229', name: 'KEYPAD, MEMBRANE SW, W/O CONN, CADD-SOLIS' },
-            { num: '10011174-001', name: 'LABEL, PUMP, REAR, CADD-SOLIS VIP' },
-            { num: '67-2482', name: 'LATCH/LOCK' },
-            { num: '10017410-001', name: 'LBL, DEVICE, PUMP, CADD-SOLIS, MODEL 2120, VIP, 3RD EDITION w cUL, BLUE, RX ONLY' },
-            { num: '10017409-001', name: 'LBL, DEVICE, PUMP, CADD-SOLIS, MODEL 2120, VIP, 3RD EDITION w cUL, DRK GREY, RX ONLY' },
-            { num: '10006271-002', name: 'LBL, DEVICE, PUMP, CADD-SOLIS, VIP' },
-            { num: '10012921-001', name: 'LBL, DEVICE, PUMP, CADD-SOLIS, VIP, BLACK' },
-            { num: '10013249-001', name: 'LBL, DEVICE, PUMP, CADD-SOLIS, VIP, BLUE' },
-            { num: '40-6288-24A', name: 'LBL, SET, DEVICE, CADD-SOLIS' },
-            { num: '40-5733-51A', name: 'LENS, PAD PRINTED, CADD-SOLIS' },
-            { num: '', name: 'NLT - HEADER, IDC, 5 POS' },
-            { num: '40-5482-51A', name: 'OVERLAY, MEMBRANE SWITCH, CE ENGLISH' },
-            { num: '30-4205', name: 'PAD, GND, L/L SENSOR' },
-            { num: '10015258-001', name: 'PCBA, CADD-SOLIS, TRULY/HIMAX LCD, FLASH MEMORY UPGRADE' },
-            { num: '', name: 'PIN, CASSETTE DETECTOR' },
-            { num: '30-4086', name: 'PLATE, AY, GROUNDING' },
-            { num: '', name: 'SEAL, DIAPHRAGM, CASSETTE SENSOR' },
-            { num: '30-3381', name: 'SEAL, DSO, NEOPRENE' },
-            { num: '', name: 'SEAL, FOAM, CADD-SOLIS' },
-            { num: '31-0993', name: 'SEAL, UPSTREAM OCCLUSION' },
-            { num: '70-0171', name: 'SENSOR, DSO, CADD-SOLIS' },
-            { num: '30-4712', name: 'SOLIS, CHASSIS, MACHINED 1/EA' },
-            { num: '30-3294', name: 'STABILIZER, BATTERY, SST' },
-            { num: '', name: 'STRIP, ADHESIVE, UPPER' },
-            { num: '30-3163', name: 'SWITCH, POWER' },
-            { num: '', name: 'TAB, LCD INSTALLATION' },
-            { num: '', name: 'TAPE, ADHESIVE, PIEZO GUARD' },
-            { num: '30-3306', name: 'TAPE, LCD HOLD DOWN' },
-            { num: '40-4085', name: 'TAPE, POGO CONTACT' },
-            { num: '30-3063', name: 'VALVE, DUAL ACTIVATION, CADD-SOLIS' }
-        ];
+        // File upload handler for pre-saved pictures
+        fileInput.onchange = (e) => {
+            let file = e.target.files[0];
+            if (!file) return;
+            let reader = new FileReader();
+            reader.onload = async (event) => {
+                await processImageForOCR(event.target.result);
+            };
+            reader.readAsDataURL(file);
+        };
     
-        let storedPartsJson = localStorage.getItem('solis_custom_parts_list');
-        let partsList = storedPartsJson ? JSON.parse(storedPartsJson) : defaultParts;
-    
-        let selectedItems = new Set();
-        let usageCounts = JSON.parse(localStorage.getItem('solis_parts_usage') || '{}');
-    
-        let controlRow = document.createElement('div');
-        controlRow.style.cssText = 'display:flex;gap:8px;margin-bottom:8px;align-items:center;';
-    
+        // --- FILTER & SEARCH BAR RESTORATION ---
+        let searchRow = document.createElement('div');
+        searchRow.style.cssText = "display:flex;gap:10px;margin-bottom:15px;";
+        
         let searchInput = document.createElement('input');
         searchInput.type = 'text';
         searchInput.placeholder = '🔍 Search part name or #...';
-        searchInput.style.cssText = `flex:1;padding:6px 8px;background:${isDark ? '#2a2a2a' : '#fff'};color:${boxColor};border:1px solid ${isDark ? '#444' : '#ccc'};border-radius:4px;font-size:11px;`;
-    
-        let sortSelect = document.createElement('select');
-        sortSelect.style.cssText = `background:${isDark ? '#2a2a2a' : '#fff'};color:${boxColor};border:1px solid ${isDark ? '#444' : '#ccc'};border-radius:4px;padding:6px;font-size:11px;cursor:pointer;`;
+        searchInput.style.cssText = "flex:1;padding:8px;border-radius:4px;border:1px solid #444;background:#2a2a2a;color:#fff;";
         
-        let optAlpha = document.createElement('option');
-        optAlpha.value = 'alpha';
-        optAlpha.innerText = 'Alphabetical';
+        let sortRecentBtn = document.createElement('button');
+        sortRecentBtn.innerText = "Most Recently Used";
+        sortRecentBtn.style.cssText = "padding:8px 12px;border-radius:4px;border:1px solid #444;background:#2a2a2a;color:#fff;cursor:pointer;";
         
-        let optRecent = document.createElement('option');
-        optRecent.value = 'recent';
-        optRecent.innerText = 'Most Recently Used';
-        
-        sortSelect.appendChild(optAlpha);
-        sortSelect.appendChild(optRecent);
-        sortSelect.value = localStorage.getItem('solis_parts_sort_pref') || 'alpha';
-    
-        controlRow.appendChild(searchInput);
-        controlRow.appendChild(sortSelect);
-        box.appendChild(controlRow);
+        searchRow.appendChild(searchInput);
+        searchRow.appendChild(sortRecentBtn);
+        box.appendChild(searchRow);
     
         let listContainer = document.createElement('div');
-        listContainer.style.cssText = 'max-height:160px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;margin-bottom:10px;padding-right:4px;';
+        listContainer.style.cssText = "flex:1;overflow-y:auto;max-height:350px;border:1px solid #333;border-radius:4px;margin-bottom:15px;background:#141414;";
+        box.appendChild(listContainer);
+    
+        let currentSortMode = 'alpha';
+        sortRecentBtn.onclick = () => {
+            currentSortMode = currentSortMode === 'alpha' ? 'recent' : 'alpha';
+            sortRecentBtn.style.background = currentSortMode === 'recent' ? '#008CBA' : '#2a2a2a';
+            renderList();
+        };
     
         function renderList() {
             listContainer.innerHTML = '';
             let query = searchInput.value.toLowerCase();
-            let filtered = partsList.filter(p => p.name.toLowerCase().includes(query) || p.num.toLowerCase().includes(query));
-    
-            if (sortSelect.value === 'alpha') {
-                filtered.sort((a, b) => a.name.localeCompare(b.name));
+            
+            let displayList = [...partsList];
+            if (currentSortMode === 'recent') {
+                displayList.sort((a, b) => (usageCounts[b.name] || 0) - (usageCounts[a.name] || 0));
             } else {
-                filtered.sort((a, b) => (usageCounts[b.name] || 0) - (usageCounts[a.name] || 0));
+                displayList.sort((a, b) => a.name.localeCompare(b.name));
             }
     
-            filtered.forEach((partObj) => {
-                let itemBox = document.createElement('div');
-                let baseBg = isDark ? '#2a2a2a' : '#f8f9fa';
-                let baseBorder = isDark ? '#444' : '#dee2e6';
-                let isSelected = selectedItems.has(partObj.name);
+            displayList.forEach(part => {
+                if (query && !part.name.toLowerCase().includes(query) && !part.num.toLowerCase().includes(query)) return;
     
-                itemBox.style.cssText = `display:flex;justify-content:space-between;align-items:center;padding:5px 8px;background:${isSelected ? (isDark ? '#0d3b66' : '#e7f5ff') : baseBg};border:1px solid ${isSelected ? '#0366d6' : baseBorder};border-radius:4px;font-size:11px;`;
+                let itemRow = document.createElement('div');
+                itemRow.style.cssText = "display:flex;align-items:center;padding:10px;border-bottom:1px solid #222;cursor:pointer;";
+                
+                let chk = document.createElement('input');
+                chk.type = 'checkbox';
+                chk.checked = selectedItems.has(part.name);
+                chk.style.cssText = "margin-right:10px;cursor:pointer;width:16px;height:16px;";
+                
+                let labelDiv = document.createElement('div');
+                labelDiv.style.cssText = "flex:1;font-size:13px;color:#eee;";
+                labelDiv.innerText = part.name;
     
-                let leftInfo = document.createElement('div');
-                leftInfo.style.cssText = 'display:flex;align-items:center;gap:8px;flex:1;cursor:pointer;';
+                let numDiv = document.createElement('div');
+                numDiv.style.cssText = "font-size:12px;color:#888;margin-left:10px;";
+                numDiv.innerText = part.num;
     
-                let checkbox = document.createElement('input');
-                checkbox.type = 'checkbox';
-                checkbox.checked = isSelected;
-    
-                let nameSpan = document.createElement('span');
-                nameSpan.innerText = partObj.name;
-                nameSpan.style.cssText = `color:${isDark ? '#e0e0e0' : '#212529'};font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;`;
-    
-                leftInfo.appendChild(checkbox);
-                leftInfo.appendChild(nameSpan);
-    
-                let rightInfo = document.createElement('div');
-                rightInfo.style.cssText = 'display:flex;align-items:center;gap:6px;';
-                let numSpan = document.createElement('span');
-                numSpan.innerText = partObj.num || '';
-                numSpan.style.cssText = `font-family:monospace;font-size:10px;color:${isDark ? '#aaa' : '#666'};`;
-                rightInfo.appendChild(numSpan);
-    
-                const toggle = () => {
-                    if (selectedItems.has(partObj.name)) {
-                        selectedItems.delete(partObj.name);
-                        checkbox.checked = false;
+                itemRow.onclick = (e) => {
+                    if (e.target !== chk) chk.checked = !chk.checked;
+                    if (chk.checked) {
+                        selectedItems.add(part.name);
                     } else {
-                        selectedItems.add(partObj.name);
-                        checkbox.checked = true;
+                        selectedItems.delete(part.name);
                     }
                 };
-                leftInfo.onclick = toggle;
-                checkbox.onclick = (e) => { e.stopPropagation(); toggle(); };
     
-                itemBox.appendChild(leftInfo);
-                itemBox.appendChild(rightInfo);
-                listContainer.appendChild(itemBox);
+                itemRow.appendChild(chk);
+                itemRow.appendChild(labelDiv);
+                itemRow.appendChild(numDiv);
+                listContainer.appendChild(itemRow);
             });
         }
     
-        searchInput.oninput = renderList;
-        sortSelect.onchange = () => {
-            localStorage.setItem('solis_parts_sort_pref', sortSelect.value);
-            renderList();
-        };
+        searchInput.oninput = () => renderList();
         renderList();
-        box.appendChild(listContainer);
     
-        // Sentence Template Box
-        let sentenceLabel = document.createElement('label');
-        sentenceLabel.innerText = 'Customizable OEM Sentence Structure (Use [PARTS]):';
-        sentenceLabel.style.cssText = `font-size:10px;font-weight:bold;color:${isDark ? '#aaa' : '#555'};margin-bottom:4px;display:block;`;
+        // --- SENTENCE STRUCTURE & ACTIONS ---
+        let sentenceLabel = document.createElement('div');
+        sentenceLabel.innerText = "Customizable OEM Sentence Structure (Use [PARTS] for selections):";
+        sentenceLabel.style.cssText = "font-size:12px;color:#aaa;margin-bottom:5px;";
         box.appendChild(sentenceLabel);
     
-        let defaultTemplate = "Per the OEM, the following parts have been replaced: [PARTS] and passed the related testing. The OEM also certifies that the device passes the following: Visual Inspection, Pump Power Up Test, Motor Test, Remote Dose Test, Keypad Test, Latch Lock Test, Disposable Test, Air Detector Test, Verify Air Detector Height, LCD Screen Inspection, Amber Green and LED Functional Test, Adjust LCD POT Screen, Downstream Occlusion Test, Upstream Occlusion Sensor Test, Battery Fallout Test, 50ml Cassette Test, Go_No_Go Test, and Delivery Accuracy Test 20mL";
         let sentenceTextarea = document.createElement('textarea');
-        sentenceTextarea.value = localStorage.getItem('solis_oem_sentence_template') || defaultTemplate;
-        sentenceTextarea.style.cssText = `width:100%;height:55px;padding:6px;box-sizing:border-box;border:1px solid ${isDark ? '#444' : '#ccc'};border-radius:4px;background:${isDark ? '#2a2a2a' : '#fff'};color:${boxColor};font-size:11px;resize:vertical;font-family:inherit;margin-bottom:10px;`;
-        
-        sentenceTextarea.oninput = () => localStorage.setItem('solis_oem_sentence_template', sentenceTextarea.value);
+        sentenceTextarea.style.cssText = "width:100%;height:80px;background:#2a2a2a;color:#fff;border:1px solid #444;border-radius:4px;padding:8px;font-size:13px;resize:none;margin-bottom:15px;";
+        sentenceTextarea.value = defaultTemplate;
         box.appendChild(sentenceTextarea);
     
-        // Buttons
         let btnRow = document.createElement('div');
-        btnRow.style.cssText = 'display:flex;justify-content:flex-end;gap:8px;';
+        btnRow.style.cssText = "display:flex;justify-content:flex-end;gap:10px;";
     
         let cancelBtn = document.createElement('button');
-        cancelBtn.innerText = 'Cancel';
-        cancelBtn.style.cssText = 'padding:8px 12px;background:#dc3545;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;';
+        cancelBtn.innerText = "Cancel";
+        cancelBtn.style.cssText = "background:#555;color:white;border:none;padding:8px 16px;border-radius:4px;cursor:pointer;";
         cancelBtn.onclick = () => ov.remove();
     
-        let backBtn = document.createElement('button');
-        backBtn.innerText = '← Back';
-        backBtn.style.cssText = 'padding:8px 12px;background:#6c757d;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;';
-        backBtn.onclick = () => { ov.remove(); if (typeof showMainModal === 'function') showMainModal(activeTheme); };
-    
         let confirmBtn = document.createElement('button');
-        confirmBtn.innerText = 'Confirm Selection';
-        confirmBtn.style.cssText = 'padding:8px 16px;background:#28a745;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;';
+        confirmBtn.innerText = "Confirm Selection";
+        confirmBtn.style.cssText = "background:#4CAF50;color:white;border:none;padding:8px 16px;border-radius:4px;cursor:pointer;font-weight:bold;";
         
         confirmBtn.onclick = () => {
             let arr = Array.from(selectedItems);
@@ -1733,12 +1668,10 @@ function showCurlinUploadModal(passedTheme) {
     
             let partsString = arr.length > 0 ? arr.join(', ') : 'None';
             let template = sentenceTextarea.value.trim() || defaultTemplate;
-            
             let summaryText = template.replace('[PARTS]', partsString);
     
-            // --- SAFE CLEANUP PASS: Only strip trailing brand tags, preserving valid item labels ---
             summaryText = summaryText
-                .replace(/,\s*CADD-SOLIS\b(?!\s*,)/gi, '') // Removes trailing CADD-SOLIS tags safely
+                .replace(/,\s*CADD-SOLIS\b(?!\s*,)/gi, '')
                 .replace(/\s{2,}/g, ' ')
                 .replace(/\s+,/g, ',');
     
@@ -1748,9 +1681,9 @@ function showCurlinUploadModal(passedTheme) {
         };
     
         btnRow.appendChild(cancelBtn);
-        btnRow.appendChild(backBtn);
         btnRow.appendChild(confirmBtn);
         box.appendChild(btnRow);
+    
         ov.appendChild(box);
         document.body.appendChild(ov);
     }
