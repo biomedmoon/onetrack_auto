@@ -1436,27 +1436,27 @@ function showCurlinUploadModal(passedTheme) {
         let usageCounts = JSON.parse(localStorage.getItem('solis_parts_usage') || '{}');
         let isExpandedView = false;
     
-        // --- SCANNER & UPLOAD UTILITY CONTROLS ---
+        // --- TOP SCANNER & UPLOAD RECEPTACLE ---
         let scannerControls = document.createElement('div');
         scannerControls.style.cssText = 'display:flex;gap:8px;margin-bottom:8px;';
     
         let scanToggleBtn = document.createElement('button');
         scanToggleBtn.innerText = '📷 Open Document Scanner Viewfinder';
         scanToggleBtn.style.cssText = 'flex:1;background:#008CBA;color:white;border:none;padding:8px;border-radius:4px;cursor:pointer;font-weight:bold;font-size:11px;';
-    
-        let uploadLabel = document.createElement('label');
-        uploadLabel.innerText = '📁 Upload Image';
-        uploadLabel.style.cssText = 'background:#444;color:white;border:none;padding:8px 12px;border-radius:4px;cursor:pointer;font-weight:bold;display:flex;align-items:center;font-size:11px;';
-        
-        let fileInput = document.createElement('input');
-        fileInput.type = 'file';
-        fileInput.accept = 'image/*';
-        fileInput.style.display = 'none';
-        uploadLabel.appendChild(fileInput);
-    
         scannerControls.appendChild(scanToggleBtn);
-        scannerControls.appendChild(uploadLabel);
         box.appendChild(scannerControls);
+    
+        // --- USER-FRIENDLY DROPZONE & CLIPBOARD PASTE RECEPTACLE ---
+        let dropZone = document.createElement('div');
+        dropZone.style.cssText = `border: 2px dashed ${isDark ? '#555' : '#aaa'}; border-radius: 6px; padding: 12px; text-align: center; margin-bottom: 8px; background: ${isDark ? '#252525' : '#f8f9fa'}; color: ${isDark ? '#ccc' : '#555'}; font-size: 11px; cursor: pointer; transition: background 0.2s;`;
+        dropZone.innerHTML = '📁 <b>Click to upload</b>, <b>drag & drop</b> an image, or <b>Ctrl+V</b> paste a screenshot here for OCR';
+        
+        let hiddenFileInput = document.createElement('input');
+        hiddenFileInput.type = 'file';
+        hiddenFileInput.accept = 'image/*';
+        hiddenFileInput.style.display = 'none';
+        dropZone.appendChild(hiddenFileInput);
+        box.appendChild(dropZone);
     
         // --- WEBCAM CONTAINER WITH EXPAND VIEW ---
         let webcamContainer = document.createElement('div');
@@ -1516,7 +1516,7 @@ function showCurlinUploadModal(passedTheme) {
             }
         };
     
-        // --- ROBUST OCR PROCESSING CORE (All Sheet Helpers Included) ---
+        // --- ROBUST OCR PROCESSING CORE ---
         async function processImageForOCR(imageDataUrl) {
             if (typeof showToast === 'function') showToast('⏳ Loading OCR engine & analyzing document...');
             try {
@@ -1603,15 +1603,57 @@ function showCurlinUploadModal(passedTheme) {
             await processImageForOCR(imageDataUrl);
         };
     
-        fileInput.onchange = (e) => {
+        // --- DROPZONE & CLIPBOARD PASTE INTERACTION HANDLERS ---
+        dropZone.onclick = () => hiddenFileInput.click();
+    
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = '#0366d6';
+        });
+    
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.style.borderColor = isDark ? '#555' : '#aaa';
+        });
+    
+        dropZone.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = isDark ? '#555' : '#aaa';
+            let file = e.dataTransfer.files[0];
+            if (file && file.type.startsWith('image/')) {
+                let reader = new FileReader();
+                reader.onload = async (event) => await processImageForOCR(event.target.result);
+                reader.readAsDataURL(file);
+            }
+        });
+    
+        hiddenFileInput.onchange = (e) => {
             let file = e.target.files[0];
             if (!file) return;
             let reader = new FileReader();
-            reader.onload = async (event) => {
-                await processImageForOCR(event.target.result);
-            };
+            reader.onload = async (event) => await processImageForOCR(event.target.result);
             reader.readAsDataURL(file);
         };
+    
+        // Global paste listener when modal is active (Ctrl+V screenshots)
+        const handlePaste = async (e) => {
+            let items = (e.clipboardData || e.originalEvent.clipboardData).items;
+            for (let item of items) {
+                if (item.type.indexOf('image') !== -1) {
+                    let blob = item.getAsFile();
+                    let reader = new FileReader();
+                    reader.onload = async (event) => await processImageForOCR(event.target.result);
+                    reader.readAsDataURL(blob);
+                    e.preventDefault();
+                    break;
+                }
+            }
+        };
+        document.addEventListener('paste', handlePaste);
+    
+        // Clean up paste listener when modal closes
+        ov.addEventListener('DOMNodeRemoved', () => {
+            document.removeEventListener('paste', handlePaste);
+        });
     
         // --- CONTROLS ROW: SEARCH & SORT ---
         let controlRow = document.createElement('div');
@@ -1851,7 +1893,6 @@ function showCurlinUploadModal(passedTheme) {
     
         confirmBtn.onclick = () => {
             let arr = Array.from(selectedItems);
-    
             if (arr.length > 0) {
                 let now = Date.now();
                 arr.forEach(p => { usageCounts[p] = now; });
@@ -1863,7 +1904,6 @@ function showCurlinUploadModal(passedTheme) {
             
             let summaryText = template.replace(/[PARTS]/gi, partsString);
     
-            // Safe cleanup pass to remove redundant trailing CADD-SOLIS tags cleanly
             summaryText = summaryText
                 .replace(/,\s*CADD-SOLIS\b(?!\s*,)/gi, '')
                 .replace(/\s{2,}/g, ' ')
