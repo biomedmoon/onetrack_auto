@@ -2338,7 +2338,9 @@ function showCurlinUploadModal(passedTheme) {
             let partsString = arr.length > 0 ? arr.join(', ') : 'None';
             let template = sentenceTextarea.value.trim() || defaultTemplate;
             
-            let summaryText = template.replace(/[PARTS]/gi, partsString);
+            // Use an exact token replacement to prevent recursive string nesting bugs
+            let summaryText = template.replace(/\[PARTS\]/g, partsString);
+            
             summaryText = summaryText
                 .replace(/,\s*CADD-SOLIS\b(?!\s*,)/gi, '')
                 .replace(/\s{2,}/g, ' ')
@@ -2346,20 +2348,47 @@ function showCurlinUploadModal(passedTheme) {
     
             ov.remove();
     
-            // 1. Guarantee text is copied to clipboard instantly
-            try {
-                await navigator.clipboard.writeText(summaryText);
-            } catch (err) {
-                console.error('Clipboard write error:', err);
+            // 1. Direct DOM Injection: Find any open "Actual Findings" or active form text field and insert instantly
+            let targetInput = null;
+            let activeEls = document.querySelectorAll('textarea, input[type="text"], [contenteditable="true"]');
+            for (let el of activeEls) {
+                let placeholder = (el.placeholder || '').toLowerCase();
+                let className = (el.className || '').toLowerCase();
+                let parentText = (el.parentElement ? el.parentElement.innerText : '').toLowerCase();
+                if (placeholder.includes('finding') || className.includes('finding') || parentText.includes('actual findings')) {
+                    targetInput = el;
+                    break;
+                }
             }
     
-            // 2. Pass to history log and text selection helper
-            if (typeof addHistoryItem === 'function') addHistoryItem(summaryText);
-            if (typeof processTextSelection === 'function') {
-                processTextSelection(summaryText);
-            } else {
-                if (typeof showToast === 'function') showToast('✓ Findings copied to clipboard!');
+            // Fallback to currently focused element if no specific findings box is found
+            if (!targetInput && document.activeElement && (document.activeElement.tagName === 'TEXTAREA' || document.activeElement.tagName === 'INPUT')) {
+                targetInput = document.activeElement;
             }
+    
+            if (targetInput) {
+                let appendMode = localStorage.getItem('preset_notes_append_mode') === 'true';
+                let existing = targetInput.value || '';
+                if (appendMode && existing.trim().length > 0) {
+                    targetInput.value = existing.trim() + ' ' + summaryText;
+                } else {
+                    targetInput.value = summaryText;
+                }
+                targetInput.dispatchEvent(new Event('input', { bubbles: true }));
+                targetInput.dispatchEvent(new Event('change', { bubbles: true }));
+                if (typeof showToast === 'function') showToast('✓ Applied directly to Actual Findings!');
+            } else {
+                // Backup clipboard write if no text field is currently open on screen
+                try {
+                    await navigator.clipboard.writeText(summaryText);
+                    if (typeof showToast === 'function') showToast('✓ Copied to clipboard!');
+                } catch (err) {
+                    console.error('Clipboard write error:', err);
+                }
+            }
+    
+            // 2. Log to smart history
+            if (typeof addHistoryItem === 'function') addHistoryItem(summaryText);
         };
     
         btnRow.appendChild(cancelBtn);
