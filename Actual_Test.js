@@ -1522,7 +1522,6 @@ function showCurlinUploadModal(passedTheme) {
             }
         };
     
-        // --- ROBUST OCR PROCESSING CORE & MATCHING LOGIC ---
         async function processImageForOCR(imageDataUrl) {
             if (typeof showToast === 'function') showToast('⏳ Loading OCR engine & analyzing document...');
             try {
@@ -1536,17 +1535,18 @@ function showCurlinUploadModal(passedTheme) {
                     });
                 }
     
+                // --- PSM 6 FORCED UNIFORM TABLE BLOCK PARSING ---
                 let result = await Tesseract.recognize(
                     imageDataUrl, 
                     'eng', 
                     { 
                         logger: m => console.log(m),
-                        tessedit_pageseg_mode: '3',
-                        tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-,()/. '
+                        tessedit_pageseg_mode: '6' // Optimizes OCR specifically for grid/table layouts
                     }
                 );
     
                 let rawText = result.data.text ? result.data.text.trim().toUpperCase() : '';
+                console.log("--- TESSERACT RAW OCR TEXT --- \n", rawText); // Check F12 console if anything drops!
                 
                 if (rawText) {
                     let matchedCount = 0;
@@ -1560,21 +1560,23 @@ function showCurlinUploadModal(passedTheme) {
                             let cleanPartName = partNameUpper.replace(/[\s,\-\/]+/g, ' ');
                             if (cleanScanText.includes(cleanPartName)) isMatched = true;
     
-                            // 1. Precise Battery Compartment Housing Rule (Prevents false positives with other housings/gaskets)
+                            // --- CLEVER FALLBACK & FUZZY TOKEN RULES ---
+    
+                            // 1. HSG, Battery Compartment (Requires housing term + battery compartment context)
                             if (part.name === 'HSG, BATTERY COMPARTMENT') {
                                 let hasHsg = rawText.includes('HSG') || rawText.includes('HOUSING');
                                 let hasBatteryComp = rawText.includes('BATTERY') && rawText.includes('COMPARTMENT');
-                                let isNotGasketOrShield = !rawText.includes('GASKET') && !rawText.includes('SHLD') && !rawText.includes('SHIELD');
-                                if (hasHsg && hasBatteryComp && isNotGasketOrShield) isMatched = true;
+                                let isNotShield = !rawText.includes('SHLD') && !rawText.includes('SHIELD');
+                                if (hasHsg && hasBatteryComp && isNotShield) isMatched = true;
                             }
                             
-                            // 2. Door Assembly (Catches part # 30-3245 or flexible row text)
+                            // 2. Door Assembly (Catches flexible row variations or split words)
                             if ((rawText.includes('DOOR') && rawText.includes('PUMP')) || rawText.includes('BATTERY PUMP') || rawText.includes('30-3245')) {
                                 if (part.name === 'DOOR AY, BATTERY, PUMP') isMatched = true;
                             }
                             
-                            // 3. Neoprene Seal (Neoprene is unique to this part, serving as a direct catch)
-                            if (rawText.includes('NEOPRENE') || rawText.includes('30-3381')) {
+                            // 3. Neoprene Seal (Neoprene is completely unique to this part)
+                            if (rawText.includes('NEOPRENE') || rawText.includes('NEOPR') || rawText.includes('30-3381')) {
                                 if (part.name === 'SEAL, DSO, NEOPRENE') isMatched = true;
                             }
     
@@ -1589,12 +1591,12 @@ function showCurlinUploadModal(passedTheme) {
                             }
                             
                             // 6. Dark Grey Model Label
-                            if (rawText.includes('MODEL 2120') && rawText.includes('DRK GREY') && part.name.includes('DRK GREY, RX ONLY')) {
+                            if (rawText.includes('MODEL 2120') && (rawText.includes('DRK') || rawText.includes('GREY')) && part.name.includes('DRK GREY, RX ONLY')) {
                                 isMatched = true;
                             }
                             
                             // 7. Keypad Membrane Switch w/o Conn
-                            if ((rawText.includes('KEYPAD') && (rawText.includes('MEMBRANE') || rawText.includes('W/O CONN'))) || rawText.includes('70-0229')) {
+                            if ((rawText.includes('KEYPAD') && (rawText.includes('MEMBRANE') || rawText.includes('CONN'))) || rawText.includes('70-0229')) {
                                 if (part.name === 'KEYPAD, MEMBRANE SW, W/O CONN, CADD-SOLIS') isMatched = true;
                             }
                             
@@ -1604,7 +1606,7 @@ function showCurlinUploadModal(passedTheme) {
                             }
                             
                             // 9. Lens Pad Printed
-                            if ((rawText.includes('LENS') && rawText.includes('PAD PRINTED')) || rawText.includes('40-5733-51A')) {
+                            if ((rawText.includes('LENS') && rawText.includes('PRINTED')) || rawText.includes('40-5733-51A')) {
                                 if (part.name === 'LENS, PAD PRINTED, CADD-SOLIS') isMatched = true;
                             }
     
