@@ -424,20 +424,27 @@
     function processTextSelection(text) {
         let appendMode = localStorage.getItem('preset_notes_append_mode') === 'true';
         let targetInput = null;
+        
+        // Exclude our own preset-notes-modal so we don't accidentally target our own template textarea
         let modalDialogs = document.querySelectorAll('.ant-modal, [role="dialog"], div[style*="z-index"]');
         for (let dialog of modalDialogs) {
+            if (dialog.id === 'preset-notes-modal') continue; // Skip our parts modal!
+            
             let ta = dialog.querySelector('textarea, input[type="text"]');
             if (ta && ta.offsetParent !== null) {
                 targetInput = ta;
                 break;
             }
         }
+        
         if (!targetInput) {
             let activeEl = document.activeElement;
-            if (activeEl && (activeEl.tagName === 'TEXTAREA' || activeEl.tagName === 'INPUT')) {
+            // Also ensure we don't grab the template box if it happens to be focused
+            if (activeEl && (activeEl.tagName === 'TEXTAREA' || activeEl.tagName === 'INPUT') && activeEl.id !== 'sentenceTextarea') {
                 targetInput = activeEl;
             }
         }
+        
         if (targetInput) {
             targetInput.focus();
             let existing = targetInput.value || '';
@@ -449,10 +456,11 @@
             targetInput.dispatchEvent(new Event('input', { bubbles: true }));
             targetInput.dispatchEvent(new Event('change', { bubbles: true }));
             targetInput.dispatchEvent(new Event('blur', { bubbles: true }));
-            showToast("✓ Applied to field & copied!");
+            if (typeof showToast === 'function') showToast("✓ Applied to field & copied!");
         } else {
-            showToast("✓ Copied to clipboard only!");
+            if (typeof showToast === 'function') showToast("✓ Copied to clipboard only!");
         }
+        
         let tempInput = document.createElement('textarea');
         tempInput.value = text;
         document.body.appendChild(tempInput);
