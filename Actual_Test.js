@@ -2327,7 +2327,7 @@ function showCurlinUploadModal(passedTheme) {
         confirmBtn.innerText = 'Confirm Selection';
         confirmBtn.style.cssText = 'padding:6px 14px;background:#28a745;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;';
     
-        confirmBtn.onclick = () => {
+        confirmBtn.onclick = async () => {
             let arr = Array.from(selectedItems);
             if (arr.length > 0) {
                 let now = Date.now();
@@ -2339,15 +2339,27 @@ function showCurlinUploadModal(passedTheme) {
             let template = sentenceTextarea.value.trim() || defaultTemplate;
             
             let summaryText = template.replace(/[PARTS]/gi, partsString);
-    
             summaryText = summaryText
                 .replace(/,\s*CADD-SOLIS\b(?!\s*,)/gi, '')
                 .replace(/\s{2,}/g, ' ')
                 .replace(/\s+,/g, ',');
     
             ov.remove();
+    
+            // 1. Guarantee text is copied to clipboard instantly
+            try {
+                await navigator.clipboard.writeText(summaryText);
+            } catch (err) {
+                console.error('Clipboard write error:', err);
+            }
+    
+            // 2. Pass to history log and text selection helper
             if (typeof addHistoryItem === 'function') addHistoryItem(summaryText);
-            if (typeof processTextSelection === 'function') processTextSelection(summaryText);
+            if (typeof processTextSelection === 'function') {
+                processTextSelection(summaryText);
+            } else {
+                if (typeof showToast === 'function') showToast('✓ Findings copied to clipboard!');
+            }
         };
     
         btnRow.appendChild(cancelBtn);
