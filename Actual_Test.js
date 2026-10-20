@@ -1573,8 +1573,8 @@ function showCurlinUploadModal(passedTheme) {
                                 if (part.name === 'DOOR AY, BATTERY, PUMP') isMatched = true;
                             }
                             
-                            // 3. Neoprene Seal (Catches part # 30-3381 or DSO/Neoprene combinations)
-                            if (rawText.includes('30-3381') || rawText.includes('NEOPRENE') || (rawText.includes('SEAL') && rawText.includes('DSO'))) {
+                            // 3. Neoprene Seal (Neoprene is unique to this part, serving as a direct catch)
+                            if (rawText.includes('NEOPRENE') || rawText.includes('30-3381')) {
                                 if (part.name === 'SEAL, DSO, NEOPRENE') isMatched = true;
                             }
     
