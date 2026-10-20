@@ -1232,13 +1232,13 @@ function showCurlinUploadModal(passedTheme) {
             { num: '25771-001', name: 'Backlight Diffuser' },
             { num: '25795-001', name: 'LCD Display' },
             { num: '26503-001', name: 'Battery Assembly' },
-            { num: '26542-001', name: 'Infinity II Pump Cover (Alt: 80786-001)' },
+            { num: '80786-001', name: 'Infinity II Pump Cover (Alt: 26542-001)' },
             { num: '27696-001', name: 'Infinity Bottom Housing' },
-            { num: '28270-001', name: 'Infinity Motor (Alt: 84239)' },
+            { num: '84239', name: 'Infinity Motor (Alt: 28270-001)' },
             { num: '28483-001', name: 'Rotor Assembly' },
             { num: '42611', name: 'Canon Motor' },
             { num: '43763-101', name: 'Infinity II PCB Assembly' },
-            { num: '56717-001', name: 'Top Housing (Alt: 80782-001)' }
+            { num: '80782-001', name: 'Top Housing (Alt: 56717-001)' }
         ];
     
         let storedPartsJson = localStorage.getItem('infinity_custom_parts_list');
