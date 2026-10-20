@@ -2340,19 +2340,42 @@ function showCurlinUploadModal(passedTheme) {
             if (arr.length > 0) {
                 let now = Date.now();
                 arr.forEach(p => { usageCounts[p] = now; });
-                localStorage.setItem('solis_parts_usage', JSON.stringify(usageCounts)); // (or infinity_parts_usage for Infinity)
+                localStorage.setItem('solis_parts_usage', JSON.stringify(usageCounts));
             }
     
-            let partsString = arr.length > 0 ? arr.join(', ') : 'None';
+            // Clean up and format the selected part descriptions nicely
+            let cleanedParts = arr.map(p => {
+                let cleaned = p
+                    .replace(/\bCADD-SOLIS\b/gi, '')
+                    .replace(/\bVIP\b/gi, '')
+                    .replace(/\bMODEL\s*2120\b/gi, '')
+                    .replace(/\b3RD\s*EDITION\b/gi, '')
+                    .replace(/\bw\/\s*cUL\b/gi, '')
+                    .replace(/\bRX\s*ONLY\b/gi, '')
+                    .replace(/\b1\/EA\b/gi, '')
+                    .replace(/^LBL,\s*DEVICE,\s*PUMP,?\s*/i, '') // Strips leading device labels
+                    .replace(/^[A-Z0-9\-]{4,},\s*/g, '')         // Strips leading part codes if formatted at start
+                    .replace(/,\s*,/g, ',')
+                    .replace(/\s{2,}/g, ' ')
+                    .trim();
+                
+                // Clean up trailing/leading punctuation
+                cleaned = cleaned.replace(/^,\s*|\s*,$/g, '').trim();
+                
+                // Fallback to original if overly stripped
+                return cleaned.length > 2 ? cleaned : p;
+            });
+    
+            let partsString = cleanedParts.length > 0 ? cleanedParts.join(', ') : 'None';
             let template = sentenceTextarea.value.trim() || defaultTemplate;
             
             let summaryText = template.replace(/\[PARTS\]/g, partsString);
+            
             summaryText = summaryText
                 .replace(/,\s*CADD-SOLIS\b(?!\s*,)/gi, '')
                 .replace(/\s{2,}/g, ' ')
                 .replace(/\s+,/g, ',');
     
-            // Pass directly to your existing processTextSelection function which handles field insertion & clipboard fallback
             if (typeof addHistoryItem === 'function') addHistoryItem(summaryText);
             if (typeof processTextSelection === 'function') {
                 processTextSelection(summaryText);
