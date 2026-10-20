@@ -1513,6 +1513,7 @@ function showCurlinUploadModal(passedTheme) {
                             height: { ideal: 1440 }
                         } 
                     });
+                    videoElement.srcObject = mediaStream;
                 } catch (err) {
                     alert('Camera access denied or unavailable.');
                     webcamContainer.style.display = 'none';
