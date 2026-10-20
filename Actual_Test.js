@@ -1508,9 +1508,9 @@ function showCurlinUploadModal(passedTheme) {
                 try {
                     mediaStream = await navigator.mediaDevices.getUserMedia({ 
                         video: { 
-                            facingMode: 'environment',
+                            facingMode: 'environment', 
                             width: { ideal: 2560 }, 
-                            height: { ideal: 1440 }
+                            height: { ideal: 1440 } 
                         } 
                     });
                     videoElement.srcObject = mediaStream;
@@ -1522,7 +1522,7 @@ function showCurlinUploadModal(passedTheme) {
             }
         };
     
-        // --- ROBUST OCR PROCESSING CORE ---
+        // --- ROBUST OCR PROCESSING CORE & MATCHING LOGIC ---
         async function processImageForOCR(imageDataUrl) {
             if (typeof showToast === 'function') showToast('⏳ Loading OCR engine & analyzing document...');
             try {
@@ -1535,20 +1535,17 @@ function showCurlinUploadModal(passedTheme) {
                         document.head.appendChild(script);
                     });
                 }
-
+    
                 let result = await Tesseract.recognize(
                     imageDataUrl, 
                     'eng', 
                     { 
                         logger: m => console.log(m),
-                        // PSM 3 keeps column structure intact without forcing block uniformity
-                        tessedit_pageseg_mode: '3', 
-                        
-                        // Disable optional interior component analysis which causes the 2px scaling errors
-                        tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-,()/. ',
+                        tessedit_pageseg_mode: '3',
+                        tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-,()/. '
                     }
                 );
-
+    
                 let rawText = result.data.text ? result.data.text.trim().toUpperCase() : '';
                 
                 if (rawText) {
@@ -1563,30 +1560,58 @@ function showCurlinUploadModal(passedTheme) {
                             let cleanPartName = partNameUpper.replace(/[\s,\-\/]+/g, ' ');
                             if (cleanScanText.includes(cleanPartName)) isMatched = true;
     
-                            // Comprehensive Bench Helper Matchers for All Sheet Rows
-                            if ((rawText.includes('BATTERY') && rawText.includes('COMPARTMENT')) && part.name === 'HSG, BATTERY COMPARTMENT') isMatched = true;
-                            if ((rawText.includes('DOOR') && (rawText.includes('BATTERY') || rawText.includes('PUMP'))) || rawText.includes('30-3245')) {
+                            // 1. Precise Battery Compartment Housing Rule (Prevents false positives with other housings/gaskets)
+                            if (part.name === 'HSG, BATTERY COMPARTMENT') {
+                                let hasHsg = rawText.includes('HSG') || rawText.includes('HOUSING');
+                                let hasBatteryComp = rawText.includes('BATTERY') && rawText.includes('COMPARTMENT');
+                                let isNotGasketOrShield = !rawText.includes('GASKET') && !rawText.includes('SHLD') && !rawText.includes('SHIELD');
+                                if (hasHsg && hasBatteryComp && isNotGasketOrShield) isMatched = true;
+                            }
+                            
+                            // 2. Door Assembly (Catches part # 30-3245 or flexible row text)
+                            if ((rawText.includes('DOOR') && rawText.includes('PUMP')) || rawText.includes('BATTERY PUMP') || rawText.includes('30-3245')) {
                                 if (part.name === 'DOOR AY, BATTERY, PUMP') isMatched = true;
                             }
-                            if ((rawText.includes('NEOPRENE') || (rawText.includes('SEAL') && rawText.includes('DSO'))) || rawText.includes('30-3381')) {
+                            
+                            // 3. Neoprene Seal (Catches part # 30-3381 or DSO/Neoprene combinations)
+                            if (rawText.includes('30-3381') || rawText.includes('NEOPRENE') || (rawText.includes('SEAL') && rawText.includes('DSO'))) {
                                 if (part.name === 'SEAL, DSO, NEOPRENE') isMatched = true;
                             }
+    
+                            // 4. Overlay Membrane Switch
                             if ((rawText.includes('OVERLAY') && rawText.includes('KEYPAD')) || rawText.includes('40-5482-51A')) {
                                 if (part.name === 'OVERLAY, MEMBRANE SWITCH, CE ENGLISH') isMatched = true;
                             }
-                            if (rawText.includes('MODEL 2120') && rawText.includes('BLUE') && part.name.includes('BLUE, RX ONLY')) isMatched = true;
-                            if (rawText.includes('MODEL 2120') && rawText.includes('DRK GREY') && part.name.includes('DRK GREY, RX ONLY')) isMatched = true;
+                            
+                            // 5. Blue Model Label
+                            if (rawText.includes('MODEL 2120') && rawText.includes('BLUE') && part.name.includes('BLUE, RX ONLY')) {
+                                isMatched = true;
+                            }
+                            
+                            // 6. Dark Grey Model Label
+                            if (rawText.includes('MODEL 2120') && rawText.includes('DRK GREY') && part.name.includes('DRK GREY, RX ONLY')) {
+                                isMatched = true;
+                            }
+                            
+                            // 7. Keypad Membrane Switch w/o Conn
                             if ((rawText.includes('KEYPAD') && (rawText.includes('MEMBRANE') || rawText.includes('W/O CONN'))) || rawText.includes('70-0229')) {
                                 if (part.name === 'KEYPAD, MEMBRANE SW, W/O CONN, CADD-SOLIS') isMatched = true;
                             }
+                            
+                            // 8. Set Label
                             if ((rawText.includes('LBL') && rawText.includes('SET')) || rawText.includes('40-6288-24A')) {
                                 if (part.name.includes('LBL, SET, DEVICE')) isMatched = true;
                             }
+                            
+                            // 9. Lens Pad Printed
                             if ((rawText.includes('LENS') && rawText.includes('PAD PRINTED')) || rawText.includes('40-5733-51A')) {
                                 if (part.name === 'LENS, PAD PRINTED, CADD-SOLIS') isMatched = true;
                             }
     
-                            if (part.num && part.num.trim() && rawText.includes(part.num.toUpperCase())) isMatched = true;
+                            // General part number fallback
+                            if (part.num && part.num.trim() && rawText.includes(part.num.toUpperCase())) {
+                                isMatched = true;
+                            }
     
                             if (isMatched && !selectedItems.has(part.name)) {
                                 selectedItems.add(part.name);
@@ -1611,6 +1636,7 @@ function showCurlinUploadModal(passedTheme) {
                 alert("Camera feed is still loading. Please wait a moment and try capturing again.");
                 return;
             }
+    
             let canvas = document.createElement('canvas');
             canvas.width = videoElement.videoWidth || 2560;
             canvas.height = videoElement.videoHeight || 1440;
@@ -1656,7 +1682,6 @@ function showCurlinUploadModal(passedTheme) {
             reader.readAsDataURL(file);
         };
     
-        // Global paste listener when modal is active (Ctrl+V screenshots)
         const handlePaste = async (e) => {
             let items = (e.clipboardData || e.originalEvent.clipboardData).items;
             for (let item of items) {
@@ -1672,7 +1697,6 @@ function showCurlinUploadModal(passedTheme) {
         };
         document.addEventListener('paste', handlePaste);
     
-        // Clean up paste listener when modal closes
         ov.addEventListener('DOMNodeRemoved', () => {
             document.removeEventListener('paste', handlePaste);
         });
