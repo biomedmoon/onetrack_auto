@@ -1199,7 +1199,7 @@ function showCurlinUploadModal(passedTheme) {
         console.error("CRITICAL ERROR inside showCurlinUploadModal:", e);
     }
 }
-    function showInfinityPartsModal(passedTheme) {
+    function showInfinityPartsModal(passedTheme, addHistoryItem, processTextSelection) {
         let activeTheme = passedTheme || document.getElementById('preset-notes-modal')?.getAttribute('data-theme') || 'light';
         let isDark = activeTheme === 'dark';
     
@@ -1211,94 +1211,287 @@ function showCurlinUploadModal(passedTheme) {
         ov.setAttribute('data-theme', activeTheme);
         ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:transparent;z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;pointer-events:none;';
     
-        let box = document.createElement('div');
-        box.className = 'onetrack-modal' + (compactMode ? ' onetrack-compact-mode' : '');
         let boxBg = isDark ? '#1e1e1e' : '#fff';
         let boxColor = isDark ? '#e0e0e0' : '#333';
-        box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:460px;display:flex;flex-direction:column;position:relative;pointer-events:auto;`;
-        
-        applyUIScale(box);
-        applySavedPosition(box);
-        applySavedScale(box);
+    
+        let box = document.createElement('div');
+        box.className = 'onetrack-modal' + (typeof compactMode !== 'undefined' && compactMode ? ' onetrack-compact-mode' : '');
+        box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.25);width:520px;max-height:92vh;display:flex;flex-direction:column;position:relative;pointer-events:auto;`;
+    
+        if (typeof applyUIScale === 'function') applyUIScale(box);
+        if (typeof applySavedPosition === 'function') applySavedPosition(box);
+        if (typeof applySavedScale === 'function') applySavedScale(box);
     
         let h = document.createElement('h3');
-        h.innerText = 'Select OEM Replaced Parts';
-        h.style.cssText = `margin-top:0;margin-bottom:12px;font-size:16px;color:${isDark ? '#fff' : '#222'};text-align:center;cursor:move;`;
-        makeDraggable(box, h);
+        h.innerText = 'Select Infinity OEM Replaced Parts & Scanner';
+        h.style.cssText = `margin-top:0;margin-bottom:10px;font-size:15px;color:${isDark ? '#fff' : '#222'};text-align:center;cursor:move;`;
+        if (typeof makeDraggable === 'function') makeDraggable(box, h);
         box.appendChild(h);
     
-        let listContainer = document.createElement('div');
-        listContainer.style.cssText = 'max-height:280px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;margin-bottom:12px;padding-right:4px;';
-    
         let parts = [
-            '25771-001 Backlight Difuser', '25795-001 LCD Display', 
-            '26503-001 Battery Assembly', '26542-001/80786-001 Infinity II Pump Cover', 
-            '27696-001 Infinity Bottom Housing', '28270-001/84239 Infinity Motor', 
-            '28483-001 Rotor Assembly', '42611 Canon Motor', 
-            '43763-101 Infinity II PCB Assembly', '56717-001/80782-001 Top Housing'
+            { num: '25771-001', name: 'Backlight Diffuser' },
+            { num: '25795-001', name: 'LCD Display' },
+            { num: '26503-001', name: 'Battery Assembly' },
+            { num: '26542-001', name: 'Infinity II Pump Cover (Alt: 80786-001)' },
+            { num: '27696-001', name: 'Infinity Bottom Housing' },
+            { num: '28270-001', name: 'Infinity Motor (Alt: 84239)' },
+            { num: '28483-001', name: 'Rotor Assembly' },
+            { num: '42611', name: 'Canon Motor' },
+            { num: '43763-101', name: 'Infinity II PCB Assembly' },
+            { num: '56717-001', name: 'Top Housing (Alt: 80782-001)' }
         ];
-        
+    
         let selectedItems = new Set();
+        let isExpandedView = false;
     
-        parts.forEach(part => {
-            let spaceIndex = part.indexOf(' ');
-            let partNum = part.substring(0, spaceIndex);
-            let partName = part.substring(spaceIndex + 1);
+        // --- TOP SCANNER & UPLOAD RECEPTACLE ---
+        let scannerControls = document.createElement('div');
+        scannerControls.style.cssText = 'display:flex;gap:8px;margin-bottom:8px;';
     
-            let itemBox = document.createElement('div');
-            itemBox.className = 'onetrack-btn';
-            
+        let scanToggleBtn = document.createElement('button');
+        scanToggleBtn.innerText = '📷 Open Document Scanner Viewfinder';
+        scanToggleBtn.style.cssText = 'flex:1;background:#008CBA;color:white;border:none;padding:8px;border-radius:4px;cursor:pointer;font-weight:bold;font-size:11px;';
+        scannerControls.appendChild(scanToggleBtn);
+        box.appendChild(scannerControls);
+    
+        // --- DROPZONE & CLIPBOARD PASTE RECEPTACLE ---
+        let dropZone = document.createElement('div');
+        dropZone.style.cssText = `border: 2px dashed ${isDark ? '#555' : '#aaa'}; border-radius: 6px; padding: 10px; text-align: center; margin-bottom: 8px; background: ${isDark ? '#252525' : '#f8f9fa'}; color: ${isDark ? '#ccc' : '#555'}; font-size: 11px; cursor: pointer; transition: background 0.2s;`;
+        dropZone.innerHTML = '📁 <b>Click to upload</b>, <b>drag & drop</b> invoice, or <b>Ctrl+V</b> paste screenshot';
+        
+        let hiddenFileInput = document.createElement('input');
+        hiddenFileInput.type = 'file';
+        hiddenFileInput.accept = 'image/*,application/pdf';
+        hiddenFileInput.style.display = 'none';
+        dropZone.appendChild(hiddenFileInput);
+        box.appendChild(dropZone);
+    
+        // --- WEBCAM CONTAINER WITH EXPAND VIEW ---
+        let webcamContainer = document.createElement('div');
+        webcamContainer.style.cssText = 'display:none;flex-direction:column;align-items:center;margin-bottom:8px;background:#111;padding:8px;border-radius:6px;';
+        
+        let videoElement = document.createElement('video');
+        videoElement.autoplay = true;
+        videoElement.playsInline = true;
+        videoElement.style.cssText = 'width:100%;max-height:200px;border-radius:4px;background:#000;object-fit:cover;transition:max-height 0.2s ease;';
+        webcamContainer.appendChild(videoElement);
+    
+        let camActionRow = document.createElement('div');
+        camActionRow.style.cssText = 'display:flex;gap:6px;width:100%;margin-top:6px;';
+    
+        let captureBtn = document.createElement('button');
+        captureBtn.innerText = '📸 Capture & Run OCR';
+        captureBtn.style.cssText = 'flex:2;background:#4CAF50;color:white;border:none;padding:6px;border-radius:4px;cursor:pointer;font-weight:bold;font-size:11px;';
+    
+        let expandCamBtn = document.createElement('button');
+        expandCamBtn.innerText = '🔍 Expand View';
+        expandCamBtn.style.cssText = 'flex:1;background:#555;color:white;border:none;padding:6px;border-radius:4px;cursor:pointer;font-size:11px;';
+    
+        camActionRow.appendChild(captureBtn);
+        camActionRow.appendChild(expandCamBtn);
+        webcamContainer.appendChild(camActionRow);
+        box.appendChild(webcamContainer);
+    
+        let mediaStream = null;
+    
+        expandCamBtn.onclick = () => {
+            isExpandedView = !isExpandedView;
+            videoElement.style.maxHeight = isExpandedView ? '400px' : '200px';
+            expandCamBtn.innerText = isExpandedView ? '📉 Normal View' : '🔍 Expand View';
+        };
+    
+        scanToggleBtn.onclick = async () => {
+            if (webcamContainer.style.display === 'flex') {
+                if (mediaStream) mediaStream.getTracks().forEach(t => t.stop());
+                webcamContainer.style.display = 'none';
+                scanToggleBtn.innerText = '📷 Open Document Scanner Viewfinder';
+            } else {
+                webcamContainer.style.display = 'flex';
+                scanToggleBtn.innerText = '❌ Close Viewfinder';
+                try {
+                    mediaStream = await navigator.mediaDevices.getUserMedia({ 
+                        video: { facingMode: 'environment', width: { ideal: 2560 }, height: { ideal: 1440 } } 
+                    });
+                    videoElement.srcObject = mediaStream;
+                } catch (err) {
+                    alert('Camera access denied or unavailable.');
+                    webcamContainer.style.display = 'none';
+                    scanToggleBtn.innerText = '📷 Open Document Scanner Viewfinder';
+                }
+            }
+        };
+    
+        // --- INFINITY TESSERACT OCR PARSER ---
+        async function processInfinityOCR(imageDataUrl) {
+            if (typeof showToast === 'function') showToast('⏳ Analyzing Infinity parts document...');
+            try {
+                if (typeof Tesseract === 'undefined') {
+                    await new Promise((resolve, reject) => {
+                        let script = document.createElement('script');
+                        script.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+                        script.onload = resolve;
+                        script.onerror = reject;
+                        document.head.appendChild(script);
+                    });
+                }
+    
+                let result = await Tesseract.recognize(imageDataUrl, 'eng', { 
+                    logger: m => console.log(m),
+                    tessedit_pageseg_mode: '6' // Optimized for tables/grids
+                });
+    
+                let rawText = result.data.text ? result.data.text.trim().toUpperCase() : '';
+                if (rawText) {
+                    let matchedCount = 0;
+    
+                    parts.forEach(p => {
+                        let fullStringKey = `${p.num} ${p.name}`.toUpperCase();
+                        let isMatched = false;
+    
+                        // Check exact part numbers which are explicitly printed on Moog/Infinity sheets
+                        if (rawText.includes(p.num.toUpperCase())) isMatched = true;
+    
+                        // Check alternative part numbers (if present in name string)
+                        if (p.name.includes('Alt: ')) {
+                            let altMatch = p.name.match(/Alt:\s*([0-9\-]+)/);
+                            if (altMatch && rawText.includes(altMatch[1])) isMatched = true;
+                        }
+    
+                        if (isMatched && !selectedItems.has(fullStringKey)) {
+                            selectedItems.add(fullStringKey);
+                            matchedCount++;
+                        }
+                    });
+    
+                    renderList();
+                    if (typeof showToast === 'function') showToast(`✓ OCR scanned! Auto-selected ${matchedCount} Infinity part(s).`);
+                } else {
+                    alert('Could not detect text from image.');
+                }
+            } catch (err) {
+                console.error('Infinity OCR Error:', err);
+                alert('Error running OCR engine.');
+            }
+        }
+    
+        captureBtn.onclick = async () => {
+            if (videoElement.readyState < videoElement.HAVE_CURRENT_DATA) {
+                alert("Camera feed is still loading. Please wait a moment.");
+                return;
+            }
+    
+            let canvas = document.createElement('canvas');
+            canvas.width = videoElement.videoWidth || 2560;
+            canvas.height = videoElement.videoHeight || 1440;
+            let ctx = canvas.getContext('2d');
+            ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+            let imageDataUrl = canvas.toDataURL('image/jpeg', 0.92);
+    
+            if (mediaStream) mediaStream.getTracks().forEach(t => t.stop());
+            webcamContainer.style.display = 'none';
+            scanToggleBtn.innerText = '📷 Open Document Scanner Viewfinder';
+    
+            await processInfinityOCR(imageDataUrl);
+        };
+    
+        dropZone.onclick = () => hiddenFileInput.click();
+    
+        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.style.borderColor = '#0366d6'; });
+        dropZone.addEventListener('dragleave', () => { dropZone.style.borderColor = isDark ? '#555' : '#aaa'; });
+        dropZone.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = isDark ? '#555' : '#aaa';
+            let file = e.dataTransfer.files[0];
+            if (file && file.type.startsWith('image/')) {
+                let reader = new FileReader();
+                reader.onload = async (event) => await processInfinityOCR(event.target.result);
+                reader.readAsDataURL(file);
+            }
+        });
+    
+        hiddenFileInput.onchange = (e) => {
+            let file = e.target.files[0];
+            if (!file) return;
+            let reader = new FileReader();
+            reader.onload = async (event) => await processInfinityOCR(event.target.result);
+            reader.readAsDataURL(file);
+        };
+    
+        const handlePaste = async (e) => {
+            let items = (e.clipboardData || e.originalEvent.clipboardData).items;
+            for (let item of items) {
+                if (item.type.indexOf('image') !== -1) {
+                    let blob = item.getAsFile();
+                    let reader = new FileReader();
+                    reader.onload = async (event) => await processInfinityOCR(event.target.result);
+                    reader.readAsDataURL(blob);
+                    e.preventDefault();
+                    break;
+                }
+            }
+        };
+        document.addEventListener('paste', handlePaste);
+        ov.addEventListener('DOMNodeRemoved', () => { document.removeEventListener('paste', handlePaste); });
+    
+        // --- LIST CONTAINER ---
+        let listContainer = document.createElement('div');
+        listContainer.style.cssText = 'max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;margin-bottom:10px;padding-right:4px;';
+    
+        function renderList() {
+            listContainer.innerHTML = '';
             let baseBg = isDark ? '#2a2a2a' : '#f8f9fa';
             let baseBorder = isDark ? '#444' : '#dee2e6';
             let baseColor = isDark ? '#ccc' : '#495057';
     
-            itemBox.style.cssText = `display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:${baseBg};border:1px solid ${baseBorder};border-radius:4px;cursor:pointer;font-size:11px;transition:all 0.15s ease;`;
+            parts.forEach(part => {
+                let fullKey = `${part.num} ${part.name}`;
+                let itemBox = document.createElement('div');
+                itemBox.className = 'onetrack-btn';
+                let isSelected = selectedItems.has(fullKey);
     
-            let numSpan = document.createElement('span');
-            numSpan.innerText = partNum;
-            numSpan.style.cssText = `font-weight:bold;color:${isDark ? '#fff' : '#212529'};font-family:monospace;`;
+                itemBox.style.cssText = `display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:${isSelected ? (isDark ? '#0d3b66' : '#e7f5ff') : baseBg};border:1px solid ${isSelected ? '#0366d6' : baseBorder};border-radius:4px;cursor:pointer;font-size:11px;transition:all 0.15s ease;`;
     
-            let nameSpan = document.createElement('span');
-            nameSpan.innerText = partName;
-            nameSpan.style.cssText = `color:${baseColor};text-align:right;max-width:60%;`;
+                let numSpan = document.createElement('span');
+                numSpan.innerText = part.num;
+                numSpan.style.cssText = `font-weight:bold;color:${isDark ? '#fff' : '#212529'};font-family:monospace;`;
     
-            itemBox.appendChild(numSpan);
-            itemBox.appendChild(nameSpan);
+                let nameSpan = document.createElement('span');
+                nameSpan.innerText = part.name;
+                nameSpan.style.cssText = `color:${baseColor};text-align:right;max-width:65%;`;
     
-            itemBox.onclick = () => {
-                if (selectedItems.has(part)) {
-                    selectedItems.delete(part);
-                    itemBox.style.background = baseBg;
-                    itemBox.style.borderColor = baseBorder;
-                    itemBox.style.color = baseColor;
-                } else {
-                    selectedItems.add(part);
-                    itemBox.style.background = isDark ? '#0d3b66' : '#e7f5ff';
-                    itemBox.style.borderColor = '#0366d6';
-                }
-            };
+                itemBox.appendChild(numSpan);
+                itemBox.appendChild(nameSpan);
     
-            listContainer.appendChild(itemBox);
-        });
+                itemBox.onclick = () => {
+                    if (selectedItems.has(fullKey)) {
+                        selectedItems.delete(fullKey);
+                        itemBox.style.background = baseBg;
+                        itemBox.style.borderColor = baseBorder;
+                    } else {
+                        selectedItems.add(fullKey);
+                        itemBox.style.background = isDark ? '#0d3b66' : '#e7f5ff';
+                        itemBox.style.borderColor = '#0366d6';
+                    }
+                };
+                listContainer.appendChild(itemBox);
+            });
+        }
     
+        renderList();
         box.appendChild(listContainer);
     
+        // --- ACTION BUTTONS ---
         let btnRow = document.createElement('div');
         btnRow.style.cssText = 'display:flex;justify-content:flex-end;gap:8px;';
     
         let cancelBtn = document.createElement('button');
         cancelBtn.innerText = 'Cancel';
-        cancelBtn.className = 'onetrack-btn';
         cancelBtn.style.cssText = isDark ? 'padding:8px 14px;background:#444;color:#e0e0e0;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;' : 'padding:8px 14px;background:#e0e0e0;color:#333;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;';
-        cancelBtn.onclick = () => {
-            ov.remove();
-            showMainModal(activeTheme);
-        };
+        cancelBtn.onclick = () => { ov.remove(); if (typeof showMainModal === 'function') showMainModal(activeTheme); };
     
         let okBtn = document.createElement('button');
-        okBtn.innerText = 'OK';
-        okBtn.className = 'onetrack-btn';
-        okBtn.style.cssText = 'padding:8px 16px;background:#0366d6;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;';
+        okBtn.innerText = 'Confirm Selection';
+        okBtn.style.cssText = 'padding:8px 16px;background:#28a745;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;';
         okBtn.onclick = () => {
             let selectedArray = Array.from(selectedItems);
             if (selectedArray.length > 0) {
@@ -1308,15 +1501,19 @@ function showCurlinUploadModal(passedTheme) {
                 });
                 let partsString = cleanNames.join(', ');
                 let resultText = `Per Moog Medical the following has been replaced: ${partsString}. The device has met the release criteria associated with the inline inspection, testing and final release elements.`;
-                addHistoryItem(resultText);
-                processTextSelection(resultText);
+                
+                ov.remove();
+                if (typeof addHistoryItem === 'function') addHistoryItem(resultText);
+                if (typeof processTextSelection === 'function') processTextSelection(resultText);
+            } else {
+                alert('Please select or scan at least one part.');
             }
-            ov.remove();
         };
     
         btnRow.appendChild(cancelBtn);
         btnRow.appendChild(okBtn);
         box.appendChild(btnRow);
+    
         ov.appendChild(box);
         document.body.appendChild(ov);
     }
