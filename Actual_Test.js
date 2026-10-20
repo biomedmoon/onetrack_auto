@@ -2345,24 +2345,28 @@ function showCurlinUploadModal(passedTheme) {
     
             // Clean up and format the selected part descriptions nicely
             let cleanedParts = arr.map(p => {
+                let upper = p.toUpperCase();
+                
+                // Custom clean transformations for specific parts
+                if (upper.includes('MODEL 2120') && upper.includes('BLUE')) return 'Model 2120 Device Label Blue';
+                if (upper.includes('MODEL 2120') && (upper.includes('DRK') || upper.includes('GREY'))) return 'Model 2120 Device Label Dark Grey';
+                if (upper.includes('LENS, PAD PRINTED')) return 'Printed Lens Pad';
+                if (upper.includes('OVERLAY, MEMBRANE SWITCH')) return 'Membrane Switch Overlay';
+                if (upper.includes('SEAL, DSO, NEOPRENE')) return 'DSO Seal';
+                if (upper.includes('SENSOR, DSO')) return 'DSO Sensor';
+                if (upper.includes('KEYPAD, MEMBRANE SW')) return 'Membrane Switch Keypad';
+                if (upper.includes('BATTERY, PUMP') && upper.includes('DOOR')) return 'Pump Battery Door';
+                
+                // General cleanup fallback for other parts
                 let cleaned = p
                     .replace(/\bCADD-SOLIS\b/gi, '')
                     .replace(/\bVIP\b/gi, '')
-                    .replace(/\bMODEL\s*2120\b/gi, '')
-                    .replace(/\b3RD\s*EDITION\b/gi, '')
-                    .replace(/\bw\/\s*cUL\b/gi, '')
-                    .replace(/\bRX\s*ONLY\b/gi, '')
                     .replace(/\b1\/EA\b/gi, '')
-                    .replace(/^LBL,\s*DEVICE,\s*PUMP,?\s*/i, '') // Strips leading device labels
-                    .replace(/^[A-Z0-9\-]{4,},\s*/g, '')         // Strips leading part codes if formatted at start
                     .replace(/,\s*,/g, ',')
                     .replace(/\s{2,}/g, ' ')
                     .trim();
-                
-                // Clean up trailing/leading punctuation
+                    
                 cleaned = cleaned.replace(/^,\s*|\s*,$/g, '').trim();
-                
-                // Fallback to original if overly stripped
                 return cleaned.length > 2 ? cleaned : p;
             });
     
