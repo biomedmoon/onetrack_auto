@@ -614,6 +614,15 @@
         sh.innerText = `Company: ${cc}`;
         sh.style.cssText = `font-size:11px;color:#fff;background:${badgeColor};text-align:center;font-weight:bold;padding:6px 8px;border-radius:4px;flex:1;`;
         hsRow.appendChild(sh);
+        let camBtn = document.createElement('button');
+        camBtn.innerHTML = '📷';
+        camBtn.title = 'Take damage photo & attach to OEM Document';
+        camBtn.style.cssText = 'font-size:14px;background:#008CBA;color:#fff;border:none;padding:4px 10px;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;';
+        camBtn.onclick = () => {
+            ov.remove();
+            showDamageCameraModal(activeTheme);
+        };
+        hsRow.appendChild(camBtn);
 
         let warrantyText = "";
         try {
@@ -802,7 +811,97 @@
         ov.appendChild(box);
         document.body.appendChild(ov);
     }
-
+    function showDamageCameraModal(passedTheme) {
+        let activeTheme = passedTheme || document.getElementById('preset-notes-modal')?.getAttribute('data-theme') || 'light';
+        let isDark = activeTheme === 'dark';
+        let serialNum = getSerialNumber() || 'Unknown_SN';
+    
+        let ov = document.createElement('div');
+        ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;';
+        
+        let box = document.createElement('div');
+        box.style.cssText = `background:${isDark ? '#1e1e1e' : '#fff'};color:${isDark ? '#e0e0e0' : '#333'};padding:20px;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.3);width:500px;display:flex;flex-direction:column;align-items:center;position:relative;`;
+    
+        let h = document.createElement('h3');
+        h.innerText = `📸 Capture Damage Photo — S/N: ${serialNum}`;
+        h.style.cssText = 'margin-top:0;margin-bottom:12px;font-size:15px;text-align:center;';
+        box.appendChild(h);
+    
+        let video = document.createElement('video');
+        video.autoplay = true;
+        video.playsInline = true;
+        video.style.cssText = 'width:100%;max-height:300px;border-radius:4px;background:#000;object-fit:cover;margin-bottom:12px;';
+        box.appendChild(video);
+    
+        let btnRow = document.createElement('div');
+        btnRow.style.cssText = 'display:flex;gap:8px;width:100%;';
+    
+        let snapBtn = document.createElement('button');
+        snapBtn.innerText = '📷 Take Snapshot';
+        snapBtn.style.cssText = 'flex:2;background:#28a745;color:white;border:none;padding:8px;border-radius:4px;cursor:pointer;font-weight:bold;font-size:12px;';
+    
+        let cancelBtn = document.createElement('button');
+        cancelBtn.innerText = 'Cancel';
+        cancelBtn.style.cssText = 'flex:1;background:#6c757d;color:white;border:none;padding:8px;border-radius:4px;cursor:pointer;font-size:12px;';
+    
+        btnRow.appendChild(snapBtn);
+        btnRow.appendChild(cancelBtn);
+        box.appendChild(btnRow);
+        ov.appendChild(box);
+        document.body.appendChild(ov);
+    
+        let mediaStream = null;
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 2560 }, height: { ideal: 1440 } } })
+            .then(stream => {
+                mediaStream = stream;
+                video.srcObject = stream;
+            })
+            .catch(err => {
+                alert('Camera access denied or unavailable.');
+                ov.remove();
+            });
+    
+        cancelBtn.onclick = () => {
+            if (mediaStream) mediaStream.getTracks().forEach(t => t.stop());
+            ov.remove();
+            showMainModal(activeTheme);
+        };
+    
+        snapBtn.onclick = () => {
+            let canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth || 1280;
+            canvas.height = video.videoHeight || 720;
+            let ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    
+            canvas.toBlob(blob => {
+                if (mediaStream) mediaStream.getTracks().forEach(t => t.stop());
+                ov.remove();
+    
+                // Prompt user for rest of filename, pre-filled with serial number
+                let userFilename = prompt('Enter description for damage photo:', 'Damage_Inspection');
+                if (!userFilename) userFilename = 'Damage';
+                let finalName = `${serialNum}_${userFilename.trim().replace(/\s+/g, '_')}.jpg`;
+    
+                let file = new File([blob], finalName, { type: 'image/jpeg' });
+    
+                // Automatically inject into OneTrack's "Choose File" input on the Add OEM Document modal
+                let fileInput = document.querySelector('input[type="file"]');
+                if (fileInput) {
+                    let dataTransfer = new DataTransfer();
+                    dataTransfer.items.add(file);
+                    fileInput.files = dataTransfer.files;
+                    fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+                    if (typeof showToast === 'function') showToast(`✓ Attached ${finalName} to OEM Doc field!`);
+                } else {
+                    alert(`Photo captured as "${finalName}", but please open the "Add OEM Document" modal first to auto-attach it!`);
+                }
+    
+                showMainModal(activeTheme);
+            }, 'image/jpeg', 0.92);
+        };
+    }
+    
     function showDeclineActionModal(passedTheme) {
         let activeTheme = passedTheme || document.getElementById('preset-notes-modal')?.getAttribute('data-theme') || 'light';
         let isDark = activeTheme === 'dark';
