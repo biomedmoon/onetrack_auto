@@ -1016,16 +1016,16 @@
                 "25771-001": "Backlight Diffuser",
                 "25795-001": "LCD Display",
                 "26503-001": "Battery Assembly",
-                "26542-001": "Infinity II Pump Cover",
                 "80786-001": "Infinity II Pump Cover",
+                "26542-001": "Infinity II Pump Cover",
                 "27696-001": "Infinity Bottom Housing",
-                "28270-001": "Infinity Motor",
                 "84239": "Infinity Motor",
+                "28270-001": "Infinity Motor",
                 "28483-001": "Rotor Assembly",
                 "42611": "Canon Motor",
                 "43763-101": "Infinity II PCB Assembly",
-                "56717-001": "Top Housing",
-                "80782-001": "Top Housing"
+                "80782-001": "Top Housing",
+                "56717-001": "Top Housing"
             };
     
             for (let [partNum, partName] of Object.entries(moogParts)) {
