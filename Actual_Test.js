@@ -1679,11 +1679,11 @@ function showCurlinUploadModal(passedTheme) {
     
             let partsString = arr.length > 0 ? arr.join(', ') : 'None';
             let template = sentenceTextarea.value.trim() || defaultTemplate;
-            
-            // Properly replace [PARTS] placeholder and clean up output
-            let summaryText = template.replace(/[PARTS]/gi, partsString);
+            let summaryText = template.replace(/\[PARTS\]/gi, partsString);
     
             ov.remove();
+            
+            // --- THESE TWO LINES ARE CRITICAL FOR SAVING & COPYING ---
             if (typeof addHistoryItem === 'function') addHistoryItem(summaryText);
             if (typeof processTextSelection === 'function') processTextSelection(summaryText);
         };
