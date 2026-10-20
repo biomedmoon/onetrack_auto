@@ -823,22 +823,58 @@
         box.className = 'onetrack-modal' + (typeof compactMode !== 'undefined' && compactMode ? ' onetrack-compact-mode' : '');
         let boxBg = isDark ? '#1e1e1e' : '#fff';
         let boxColor = isDark ? '#e0e0e0' : '#333';
-        box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.25);width:520px;display:flex;flex-direction:column;align-items:center;position:relative;pointer-events:auto;`;
+        
+        // Increased default width and layout sizing
+        box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 6px 24px rgba(0,0,0,0.3);width:750px;max-width:95vw;display:flex;flex-direction:column;align-items:center;position:relative;pointer-events:auto;`;
         
         if (typeof applyUIScale === 'function') applyUIScale(box);
         if (typeof applySavedPosition === 'function') applySavedPosition(box);
         if (typeof applySavedScale === 'function') applySavedScale(box);
     
+        let headerContainer = document.createElement('div');
+        headerContainer.style.cssText = 'display:flex;justify-content:space-between;align-items:center;width:100%;margin-bottom:12px;cursor:move;';
+    
         let h = document.createElement('h3');
         h.innerText = `📸 Capture Damage Photo — S/N: ${serialNum}`;
-        h.style.cssText = `margin-top:0;margin-bottom:12px;font-size:15px;color:${isDark ? '#fff' : '#222'};text-align:center;cursor:move;`;
-        if (typeof makeDraggable === 'function') makeDraggable(box, h);
-        box.appendChild(h);
+        h.style.cssText = `margin:0;font-size:16px;color:${isDark ? '#fff' : '#222'};`;
+        headerContainer.appendChild(h);
+    
+        // Zoom Controls (+ / -) for the camera window
+        let zoomControls = document.createElement('div');
+        zoomControls.style.cssText = 'display:flex;gap:4px;';
+        
+        let currentWidthScale = 750;
+        let zoomOutBtn = document.createElement('button');
+        zoomOutBtn.innerText = '−';
+        zoomOutBtn.title = 'Shrink Window';
+        zoomOutBtn.style.cssText = 'background:#555;color:#fff;border:none;width:24px;height:24px;border-radius:3px;cursor:pointer;font-weight:bold;';
+        
+        let zoomInBtn = document.createElement('button');
+        zoomInBtn.innerText = '+';
+        zoomInBtn.title = 'Enlarge Window';
+        zoomInBtn.style.cssText = 'background:#555;color:#fff;border:none;width:24px;height:24px;border-radius:3px;cursor:pointer;font-weight:bold;';
+    
+        zoomOutBtn.onclick = () => {
+            currentWidthScale = Math.max(500, currentWidthScale - 100);
+            box.style.width = currentWidthScale + 'px';
+        };
+        zoomInBtn.onclick = () => {
+            currentWidthScale = Math.min(1200, currentWidthScale + 100);
+            box.style.width = currentWidthScale + 'px';
+        };
+    
+        zoomControls.appendChild(zoomOutBtn);
+        zoomControls.appendChild(zoomInBtn);
+        headerContainer.appendChild(zoomControls);
+    
+        if (typeof makeDraggable === 'function') makeDraggable(box, headerContainer);
+        box.appendChild(headerContainer);
     
         let video = document.createElement('video');
         video.autoplay = true;
         video.playsInline = true;
-        video.style.cssText = 'width:100%;max-height:320px;border-radius:4px;background:#000;object-fit:cover;margin-bottom:12px;';
+        // Larger preview height so details are easily visible
+        video.style.cssText = 'width:100%;height:450px;max-height:70vh;border-radius:6px;background:#000;object-fit:cover;margin-bottom:14px;';
         box.appendChild(video);
     
         let btnRow = document.createElement('div');
@@ -846,11 +882,11 @@
     
         let snapBtn = document.createElement('button');
         snapBtn.innerText = '📷 Take High-Res Snapshot';
-        snapBtn.style.cssText = 'flex:2;background:#28a745;color:white;border:none;padding:8px;border-radius:4px;cursor:pointer;font-weight:bold;font-size:12px;';
+        snapBtn.style.cssText = 'flex:2;background:#28a745;color:white;border:none;padding:10px;border-radius:4px;cursor:pointer;font-weight:bold;font-size:13px;';
     
         let cancelBtn = document.createElement('button');
         cancelBtn.innerText = 'Cancel';
-        cancelBtn.style.cssText = 'flex:1;background:#6c757d;color:white;border:none;padding:8px;border-radius:4px;cursor:pointer;font-size:12px;';
+        cancelBtn.style.cssText = 'flex:1;background:#6c757d;color:white;border:none;padding:10px;border-radius:4px;cursor:pointer;font-size:13px;';
     
         btnRow.appendChild(snapBtn);
         btnRow.appendChild(cancelBtn);
@@ -875,7 +911,7 @@
                         video: { facingMode: 'environment', ...res }
                     });
                     video.srcObject = mediaStream;
-                    return; // Successfully acquired stream
+                    return; 
                 } catch (e) {
                     // Try next lower resolution tier
                 }
