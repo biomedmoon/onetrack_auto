@@ -1506,8 +1506,13 @@ function showCurlinUploadModal(passedTheme) {
                 webcamContainer.style.display = 'flex';
                 scanToggleBtn.innerText = '❌ Close Viewfinder';
                 try {
-                    mediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-                    videoElement.srcObject = mediaStream;
+                    mediaStream = await navigator.mediaDevices.getUserMedia({ 
+                        video: { 
+                            facingMode: 'environment',
+                            width: { ideal: 2560 }, 
+                            height: { ideal: 1440 }
+                        } 
+                    });
                 } catch (err) {
                     alert('Camera access denied or unavailable.');
                     webcamContainer.style.display = 'none';
@@ -1590,11 +1595,11 @@ function showCurlinUploadModal(passedTheme) {
     
         captureBtn.onclick = async () => {
             let canvas = document.createElement('canvas');
-            canvas.width = videoElement.videoWidth || 1280;
-            canvas.height = videoElement.videoHeight || 720;
+            canvas.width = videoElement.videoWidth || 2560;
+            canvas.height = videoElement.videoHeight || 1440;
             let ctx = canvas.getContext('2d');
             ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
-            let imageDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+            let imageDataUrl = canvas.toDataURL('image/jpeg', 0.92);
     
             if (mediaStream) mediaStream.getTracks().forEach(t => t.stop());
             webcamContainer.style.display = 'none';
