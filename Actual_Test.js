@@ -2338,17 +2338,7 @@ function showCurlinUploadModal(passedTheme) {
             let partsString = arr.length > 0 ? arr.join(', ') : 'None';
             let template = sentenceTextarea.value.trim() || defaultTemplate;
             
-            // Use an exact token replacement to prevent recursive string nesting bugs
-            let summaryText = template.replace(/\[PARTS\]/g, partsString);
-            
-            summaryText = summaryText
-                .replace(/,\s*CADD-SOLIS\b(?!\s*,)/gi, '')
-                .replace(/\s{2,}/g, ' ')
-                .replace(/\s+,/g, ',');
-    
-            ov.remove();
-    
-            // 1. Direct DOM Injection: Find any open "Actual Findings" or active form text field and insert instantly
+            // 1. Find the active "Actual Findings" field BEFORE closing the modal
             let targetInput = null;
             let activeEls = document.querySelectorAll('textarea, input[type="text"], [contenteditable="true"]');
             for (let el of activeEls) {
@@ -2361,11 +2351,19 @@ function showCurlinUploadModal(passedTheme) {
                 }
             }
     
-            // Fallback to currently focused element if no specific findings box is found
+            // Fallback to currently focused element if no specific findings box is matched
             if (!targetInput && document.activeElement && (document.activeElement.tagName === 'TEXTAREA' || document.activeElement.tagName === 'INPUT')) {
                 targetInput = document.activeElement;
             }
     
+            // 2. Prevent infinite nesting loops by ensuring we only replace [PARTS] once cleanly
+            let summaryText = template.replace(/\[PARTS\]/g, partsString);
+            summaryText = summaryText
+                .replace(/,\s*CADD-SOLIS\b(?!\s*,)/gi, '')
+                .replace(/\s{2,}/g, ' ')
+                .replace(/\s+,/g, ',');
+    
+            // 3. Inject directly into the active OneTrack field instantly
             if (targetInput) {
                 let appendMode = localStorage.getItem('preset_notes_append_mode') === 'true';
                 let existing = targetInput.value || '';
@@ -2378,7 +2376,7 @@ function showCurlinUploadModal(passedTheme) {
                 targetInput.dispatchEvent(new Event('change', { bubbles: true }));
                 if (typeof showToast === 'function') showToast('✓ Applied directly to Actual Findings!');
             } else {
-                // Backup clipboard write if no text field is currently open on screen
+                // Backup clipboard write if no text field is currently open
                 try {
                     await navigator.clipboard.writeText(summaryText);
                     if (typeof showToast === 'function') showToast('✓ Copied to clipboard!');
@@ -2387,7 +2385,8 @@ function showCurlinUploadModal(passedTheme) {
                 }
             }
     
-            // 2. Log to smart history
+            // 4. Close modal and log to smart history
+            ov.remove();
             if (typeof addHistoryItem === 'function') addHistoryItem(summaryText);
         };
     
