@@ -2327,67 +2327,30 @@ function showCurlinUploadModal(passedTheme) {
         confirmBtn.innerText = 'Confirm Selection';
         confirmBtn.style.cssText = 'padding:6px 14px;background:#28a745;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;';
     
-        confirmBtn.onclick = async () => {
+        confirmBtn.onclick = () => {
             let arr = Array.from(selectedItems);
             if (arr.length > 0) {
                 let now = Date.now();
                 arr.forEach(p => { usageCounts[p] = now; });
-                localStorage.setItem('solis_parts_usage', JSON.stringify(usageCounts));
+                localStorage.setItem('solis_parts_usage', JSON.stringify(usageCounts)); // (or infinity_parts_usage for Infinity)
             }
     
             let partsString = arr.length > 0 ? arr.join(', ') : 'None';
             let template = sentenceTextarea.value.trim() || defaultTemplate;
             
-            // 1. Find the active "Actual Findings" field BEFORE closing the modal
-            let targetInput = null;
-            let activeEls = document.querySelectorAll('textarea, input[type="text"], [contenteditable="true"]');
-            for (let el of activeEls) {
-                let placeholder = (el.placeholder || '').toLowerCase();
-                let className = (el.className || '').toLowerCase();
-                let parentText = (el.parentElement ? el.parentElement.innerText : '').toLowerCase();
-                if (placeholder.includes('finding') || className.includes('finding') || parentText.includes('actual findings')) {
-                    targetInput = el;
-                    break;
-                }
-            }
-    
-            // Fallback to currently focused element if no specific findings box is matched
-            if (!targetInput && document.activeElement && (document.activeElement.tagName === 'TEXTAREA' || document.activeElement.tagName === 'INPUT')) {
-                targetInput = document.activeElement;
-            }
-    
-            // 2. Prevent infinite nesting loops by ensuring we only replace [PARTS] once cleanly
             let summaryText = template.replace(/\[PARTS\]/g, partsString);
             summaryText = summaryText
                 .replace(/,\s*CADD-SOLIS\b(?!\s*,)/gi, '')
                 .replace(/\s{2,}/g, ' ')
                 .replace(/\s+,/g, ',');
     
-            // 3. Inject directly into the active OneTrack field instantly
-            if (targetInput) {
-                let appendMode = localStorage.getItem('preset_notes_append_mode') === 'true';
-                let existing = targetInput.value || '';
-                if (appendMode && existing.trim().length > 0) {
-                    targetInput.value = existing.trim() + ' ' + summaryText;
-                } else {
-                    targetInput.value = summaryText;
-                }
-                targetInput.dispatchEvent(new Event('input', { bubbles: true }));
-                targetInput.dispatchEvent(new Event('change', { bubbles: true }));
-                if (typeof showToast === 'function') showToast('✓ Applied directly to Actual Findings!');
-            } else {
-                // Backup clipboard write if no text field is currently open
-                try {
-                    await navigator.clipboard.writeText(summaryText);
-                    if (typeof showToast === 'function') showToast('✓ Copied to clipboard!');
-                } catch (err) {
-                    console.error('Clipboard write error:', err);
-                }
-            }
-    
-            // 4. Close modal and log to smart history
-            ov.remove();
+            // Pass directly to your existing processTextSelection function which handles field insertion & clipboard fallback
             if (typeof addHistoryItem === 'function') addHistoryItem(summaryText);
+            if (typeof processTextSelection === 'function') {
+                processTextSelection(summaryText);
+            } else {
+                ov.remove();
+            }
         };
     
         btnRow.appendChild(cancelBtn);
