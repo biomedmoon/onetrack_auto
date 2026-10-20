@@ -1216,7 +1216,7 @@ function showCurlinUploadModal(passedTheme) {
     
         let box = document.createElement('div');
         box.className = 'onetrack-modal' + (typeof compactMode !== 'undefined' && compactMode ? ' onetrack-compact-mode' : '');
-        box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.25);width:520px;max-height:92vh;display:flex;flex-direction:column;position:relative;pointer-events:auto;`;
+        box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.25);width:650px;max-height:92vh;display:flex;flex-direction:column;position:relative;pointer-events:auto;`;
     
         if (typeof applyUIScale === 'function') applyUIScale(box);
         if (typeof applySavedPosition === 'function') applySavedPosition(box);
@@ -1224,11 +1224,11 @@ function showCurlinUploadModal(passedTheme) {
     
         let h = document.createElement('h3');
         h.innerText = 'Select Infinity OEM Replaced Parts & Scanner';
-        h.style.cssText = `margin-top:0;margin-bottom:10px;font-size:15px;color:${isDark ? '#fff' : '#222'};text-align:center;cursor:move;`;
+        h.style.cssText = `margin-top:0;margin-bottom:12px;font-size:16px;color:${isDark ? '#fff' : '#222'};text-align:center;cursor:move;`;
         if (typeof makeDraggable === 'function') makeDraggable(box, h);
         box.appendChild(h);
     
-        let parts = [
+        let defaultInfinityParts = [
             { num: '25771-001', name: 'Backlight Diffuser' },
             { num: '25795-001', name: 'LCD Display' },
             { num: '26503-001', name: 'Battery Assembly' },
@@ -1241,7 +1241,11 @@ function showCurlinUploadModal(passedTheme) {
             { num: '56717-001', name: 'Top Housing (Alt: 80782-001)' }
         ];
     
+        let storedPartsJson = localStorage.getItem('infinity_custom_parts_list');
+        let partsList = storedPartsJson ? JSON.parse(storedPartsJson) : defaultInfinityParts;
+    
         let selectedItems = new Set();
+        let usageCounts = JSON.parse(localStorage.getItem('infinity_parts_usage') || '{}');
         let isExpandedView = false;
     
         // --- TOP SCANNER & UPLOAD RECEPTACLE ---
@@ -1256,8 +1260,8 @@ function showCurlinUploadModal(passedTheme) {
     
         // --- DROPZONE & CLIPBOARD PASTE RECEPTACLE ---
         let dropZone = document.createElement('div');
-        dropZone.style.cssText = `border: 2px dashed ${isDark ? '#555' : '#aaa'}; border-radius: 6px; padding: 10px; text-align: center; margin-bottom: 8px; background: ${isDark ? '#252525' : '#f8f9fa'}; color: ${isDark ? '#ccc' : '#555'}; font-size: 11px; cursor: pointer; transition: background 0.2s;`;
-        dropZone.innerHTML = '📁 <b>Click to upload</b>, <b>drag & drop</b> invoice, or <b>Ctrl+V</b> paste screenshot';
+        dropZone.style.cssText = `border: 2px dashed ${isDark ? '#555' : '#aaa'}; border-radius: 6px; padding: 12px; text-align: center; margin-bottom: 8px; background: ${isDark ? '#252525' : '#f8f9fa'}; color: ${isDark ? '#ccc' : '#555'}; font-size: 11px; cursor: pointer; transition: background 0.2s;`;
+        dropZone.innerHTML = '📁 <b>Click to upload</b>, <b>drag & drop</b> invoice, or <b>Ctrl+V</b> paste screenshot here for OCR';
         
         let hiddenFileInput = document.createElement('input');
         hiddenFileInput.type = 'file';
@@ -1321,7 +1325,7 @@ function showCurlinUploadModal(passedTheme) {
             }
         };
     
-        // --- INFINITY TESSERACT OCR PARSER ---
+        // --- INFINITY OCR PARSER (Fixed to sync UI checkboxes) ---
         async function processInfinityOCR(imageDataUrl) {
             if (typeof showToast === 'function') showToast('⏳ Analyzing Infinity parts document...');
             try {
@@ -1337,33 +1341,30 @@ function showCurlinUploadModal(passedTheme) {
     
                 let result = await Tesseract.recognize(imageDataUrl, 'eng', { 
                     logger: m => console.log(m),
-                    tessedit_pageseg_mode: '6' // Optimized for tables/grids
+                    tessedit_pageseg_mode: '6' 
                 });
     
                 let rawText = result.data.text ? result.data.text.trim().toUpperCase() : '';
                 if (rawText) {
                     let matchedCount = 0;
     
-                    parts.forEach(p => {
-                        let fullStringKey = `${p.num} ${p.name}`.toUpperCase();
+                    partsList.forEach(p => {
                         let isMatched = false;
     
-                        // Check exact part numbers which are explicitly printed on Moog/Infinity sheets
-                        if (rawText.includes(p.num.toUpperCase())) isMatched = true;
-    
-                        // Check alternative part numbers (if present in name string)
+                        if (p.num && rawText.includes(p.num.toUpperCase())) isMatched = true;
                         if (p.name.includes('Alt: ')) {
                             let altMatch = p.name.match(/Alt:\s*([0-9\-]+)/);
-                            if (altMatch && rawText.includes(altMatch[1])) isMatched = true;
+                            if (altMatch && rawText.includes(altMatch[1].toUpperCase())) isMatched = true;
                         }
+                        if (rawText.includes(p.name.toUpperCase())) isMatched = true;
     
-                        if (isMatched && !selectedItems.has(fullStringKey)) {
-                            selectedItems.add(fullStringKey);
+                        if (isMatched && !selectedItems.has(p.name)) {
+                            selectedItems.add(p.name);
                             matchedCount++;
                         }
                     });
     
-                    renderList();
+                    renderList(); // Refreshes UI so checkboxes instantly light up
                     if (typeof showToast === 'function') showToast(`✓ OCR scanned! Auto-selected ${matchedCount} Infinity part(s).`);
                 } else {
                     alert('Could not detect text from image.');
@@ -1395,7 +1396,6 @@ function showCurlinUploadModal(passedTheme) {
         };
     
         dropZone.onclick = () => hiddenFileInput.click();
-    
         dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.style.borderColor = '#0366d6'; });
         dropZone.addEventListener('dragleave', () => { dropZone.style.borderColor = isDark ? '#555' : '#aaa'; });
         dropZone.addEventListener('drop', async (e) => {
@@ -1433,85 +1433,262 @@ function showCurlinUploadModal(passedTheme) {
         document.addEventListener('paste', handlePaste);
         ov.addEventListener('DOMNodeRemoved', () => { document.removeEventListener('paste', handlePaste); });
     
-        // --- LIST CONTAINER ---
+        // --- CONTROLS ROW: SEARCH & SORT ---
+        let controlRow = document.createElement('div');
+        controlRow.style.cssText = 'display:flex;gap:8px;margin-bottom:8px;align-items:center;';
+    
+        let searchInput = document.createElement('input');
+        searchInput.type = 'text';
+        searchInput.placeholder = '🔍 Search part name or #...';
+        searchInput.style.cssText = `flex:1;padding:6px 8px;background:${isDark ? '#2a2a2a' : '#fff'};color:${boxColor};border:1px solid ${isDark ? '#444' : '#ccc'};border-radius:4px;font-size:11px;`;
+    
+        let sortSelect = document.createElement('select');
+        sortSelect.style.cssText = `background:${isDark ? '#2a2a2a' : '#fff'};color:${boxColor};border:1px solid ${isDark ? '#444' : '#ccc'};border-radius:4px;padding:6px;font-size:11px;cursor:pointer;`;
+    
+        let optAlpha = document.createElement('option');
+        optAlpha.value = 'alpha';
+        optAlpha.innerText = 'Alphabetical';
+    
+        let optRecent = document.createElement('option');
+        optRecent.value = 'recent';
+        optRecent.innerText = 'Most Recently Used';
+    
+        sortSelect.appendChild(optAlpha);
+        sortSelect.appendChild(optRecent);
+    
+        let currentSort = localStorage.getItem('infinity_parts_sort_pref') || 'alpha';
+        sortSelect.value = currentSort;
+    
+        controlRow.appendChild(searchInput);
+        controlRow.appendChild(sortSelect);
+        box.appendChild(controlRow);
+    
+        // --- QUICK ADD BAR ---
+        let addRow = document.createElement('div');
+        addRow.style.cssText = 'display:flex;gap:6px;margin-bottom:8px;align-items:center;';
+    
+        let newDescInput = document.createElement('input');
+        newDescInput.type = 'text';
+        newDescInput.placeholder = 'Part Description';
+        newDescInput.style.cssText = `flex:2;padding:6px;font-size:11px;background:${isDark ? '#2a2a2a' : '#fff'};color:${boxColor};border:1px solid ${isDark ? '#444' : '#ccc'};border-radius:4px;`;
+    
+        let newNumInput = document.createElement('input');
+        newNumInput.type = 'text';
+        newNumInput.placeholder = 'Part #';
+        newNumInput.style.cssText = `flex:1;padding:6px;font-size:11px;background:${isDark ? '#2a2a2a' : '#fff'};color:${boxColor};border:1px solid ${isDark ? '#444' : '#ccc'};border-radius:4px;`;
+    
+        let addBtn = document.createElement('button');
+        addBtn.innerText = '+ Add';
+        addBtn.style.cssText = 'padding:6px 12px;background:#0366d6;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;white-space:nowrap;';
+    
+        addBtn.onclick = () => {
+            let desc = newDescInput.value.trim();
+            let num = newNumInput.value.trim();
+            if (!desc) {
+                alert('Please enter a part description.');
+                newDescInput.focus();
+                return;
+            }
+            partsList.push({ num: num, name: desc });
+            localStorage.setItem('infinity_custom_parts_list', JSON.stringify(partsList));
+            newDescInput.value = '';
+            newNumInput.value = '';
+            renderList();
+        };
+    
+        addRow.appendChild(newDescInput);
+        addRow.appendChild(newNumInput);
+        addRow.appendChild(addBtn);
+        box.appendChild(addRow);
+    
+        // --- LIST CONTAINER WITH CHECKBOXES, EDIT, & DELETE ---
         let listContainer = document.createElement('div');
-        listContainer.style.cssText = 'max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;margin-bottom:10px;padding-right:4px;';
+        listContainer.style.cssText = 'max-height:180px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;margin-bottom:8px;padding-right:4px;';
     
         function renderList() {
             listContainer.innerHTML = '';
-            let baseBg = isDark ? '#2a2a2a' : '#f8f9fa';
-            let baseBorder = isDark ? '#444' : '#dee2e6';
-            let baseColor = isDark ? '#ccc' : '#495057';
+            let query = searchInput.value.toLowerCase();
     
-            parts.forEach(part => {
-                let fullKey = `${part.num} ${part.name}`;
+            let filtered = partsList.filter(p => p.name.toLowerCase().includes(query) || p.num.toLowerCase().includes(query));
+    
+            if (sortSelect.value === 'alpha') {
+                filtered.sort((a, b) => a.name.localeCompare(b.name));
+            } else {
+                filtered.sort((a, b) => (usageCounts[b.name] || 0) - (usageCounts[a.name] || 0));
+            }
+    
+            if (filtered.length === 0) {
+                let emptyMsg = document.createElement('div');
+                emptyMsg.innerText = 'No matching parts found.';
+                emptyMsg.style.cssText = 'text-align:center;padding:15px;font-size:11px;opacity:0.6;';
+                listContainer.appendChild(emptyMsg);
+                return;
+            }
+    
+            filtered.forEach((partObj) => {
                 let itemBox = document.createElement('div');
-                itemBox.className = 'onetrack-btn';
-                let isSelected = selectedItems.has(fullKey);
+                let baseBg = isDark ? '#2a2a2a' : '#f8f9fa';
+                let baseBorder = isDark ? '#444' : '#dee2e6';
+                let isSelected = selectedItems.has(partObj.name);
     
-                itemBox.style.cssText = `display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:${isSelected ? (isDark ? '#0d3b66' : '#e7f5ff') : baseBg};border:1px solid ${isSelected ? '#0366d6' : baseBorder};border-radius:4px;cursor:pointer;font-size:11px;transition:all 0.15s ease;`;
+                itemBox.style.cssText = `display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:${isSelected ? (isDark ? '#0d3b66' : '#e7f5ff') : baseBg};border:1px solid ${isSelected ? '#0366d6' : baseBorder};border-radius:4px;font-size:11px;transition:all 0.15s ease;`;
     
-                let numSpan = document.createElement('span');
-                numSpan.innerText = part.num;
-                numSpan.style.cssText = `font-weight:bold;color:${isDark ? '#fff' : '#212529'};font-family:monospace;`;
+                let leftInfo = document.createElement('div');
+                leftInfo.style.cssText = 'display:flex;align-items:center;gap:8px;flex:1;cursor:pointer;overflow:hidden;';
+    
+                let checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.checked = isSelected;
+                checkbox.style.cssText = 'cursor:pointer;margin:0;';
     
                 let nameSpan = document.createElement('span');
-                nameSpan.innerText = part.name;
-                nameSpan.style.cssText = `color:${baseColor};text-align:right;max-width:65%;`;
+                nameSpan.innerText = partObj.name;
+                nameSpan.style.cssText = `color:${isDark ? '#e0e0e0' : '#212529'};font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;`;
     
-                itemBox.appendChild(numSpan);
-                itemBox.appendChild(nameSpan);
+                leftInfo.appendChild(checkbox);
+                leftInfo.appendChild(nameSpan);
     
-                itemBox.onclick = () => {
-                    if (selectedItems.has(fullKey)) {
-                        selectedItems.delete(fullKey);
+                let rightInfo = document.createElement('div');
+                rightInfo.style.cssText = 'display:flex;align-items:center;gap:6px;flex-shrink:0;margin-left:8px;';
+    
+                let numSpan = document.createElement('span');
+                numSpan.innerText = partObj.num || '';
+                numSpan.style.cssText = `font-weight:bold;color:${isDark ? '#aaa' : '#666'};font-family:monospace;font-size:10px;min-width:75px;text-align:right;`;
+    
+                let editBtn = document.createElement('button');
+                editBtn.innerText = 'Edit';
+                editBtn.style.cssText = 'padding:2px 5px;background:#f0ad4e;color:#fff;border:none;border-radius:3px;cursor:pointer;font-size:10px;font-weight:bold;';
+    
+                let deleteBtn = document.createElement('button');
+                deleteBtn.innerText = 'Delete';
+                deleteBtn.style.cssText = 'padding:2px 5px;background:#d9534f;color:#fff;border:none;border-radius:3px;cursor:pointer;font-size:10px;font-weight:bold;';
+    
+                const toggleSelection = () => {
+                    if (selectedItems.has(partObj.name)) {
+                        selectedItems.delete(partObj.name);
+                        checkbox.checked = false;
                         itemBox.style.background = baseBg;
                         itemBox.style.borderColor = baseBorder;
                     } else {
-                        selectedItems.add(fullKey);
+                        selectedItems.add(partObj.name);
+                        checkbox.checked = true;
                         itemBox.style.background = isDark ? '#0d3b66' : '#e7f5ff';
                         itemBox.style.borderColor = '#0366d6';
                     }
                 };
+    
+                leftInfo.onclick = toggleSelection;
+                checkbox.onclick = (e) => {
+                    e.stopPropagation();
+                    toggleSelection();
+                };
+    
+                editBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    let newN = prompt('Edit Part Description:', partObj.name);
+                    if (newN !== null && newN.trim() !== '') {
+                        let newNum = prompt('Edit Part Number:', partObj.num);
+                        let originalName = partObj.name;
+                        partObj.name = newN.trim();
+                        partObj.num = newNum !== null ? newNum.trim() : partObj.num;
+    
+                        if (selectedItems.has(originalName)) {
+                            selectedItems.delete(originalName);
+                            selectedItems.add(partObj.name);
+                        }
+                        localStorage.setItem('infinity_custom_parts_list', JSON.stringify(partsList));
+                        renderList();
+                    }
+                };
+    
+                deleteBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    if (confirm(`Remove "${partObj.name}" from list?`)) {
+                        partsList = partsList.filter(p => p !== partObj);
+                        selectedItems.delete(partObj.name);
+                        localStorage.setItem('infinity_custom_parts_list', JSON.stringify(partsList));
+                        renderList();
+                    }
+                };
+    
+                rightInfo.appendChild(numSpan);
+                rightInfo.appendChild(editBtn);
+                rightInfo.appendChild(deleteBtn);
+    
+                itemBox.appendChild(leftInfo);
+                itemBox.appendChild(rightInfo);
                 listContainer.appendChild(itemBox);
             });
         }
     
+        searchInput.oninput = renderList;
+        sortSelect.onchange = () => {
+            localStorage.setItem('infinity_parts_sort_pref', sortSelect.value);
+            renderList();
+        };
+    
         renderList();
         box.appendChild(listContainer);
     
-        // --- ACTION BUTTONS ---
+        // --- SENTENCE STRUCTURE TEXTAREA ---
+        let sentenceLabel = document.createElement('label');
+        sentenceLabel.innerText = 'Customizable OEM Sentence Structure (Use [PARTS] for selections):';
+        sentenceLabel.style.cssText = `font-size:10px;font-weight:bold;color:${isDark ? '#aaa' : '#555'};margin-bottom:4px;display:block;`;
+        box.appendChild(sentenceLabel);
+    
+        let defaultTemplate = "Per Moog Medical the following has been replaced: [PARTS]. The device has met the release criteria associated with the inline inspection, testing and final release elements.";
+        let savedTemplate = localStorage.getItem('infinity_oem_sentence_template') || defaultTemplate;
+    
+        let sentenceTextarea = document.createElement('textarea');
+        sentenceTextarea.value = savedTemplate;
+        sentenceTextarea.style.cssText = `width:100%;height:55px;padding:6px;box-sizing:border-box;border:1px solid ${isDark ? '#444' : '#ccc'};border-radius:4px;background:${isDark ? '#2a2a2a' : '#fff'};color:${boxColor};font-size:11px;resize:vertical;font-family:inherit;margin-bottom:10px;`;
+    
+        sentenceTextarea.oninput = () => {
+            localStorage.setItem('infinity_oem_sentence_template', sentenceTextarea.value);
+        };
+        box.appendChild(sentenceTextarea);
+    
+        // --- ACTION BUTTON ROW ---
         let btnRow = document.createElement('div');
         btnRow.style.cssText = 'display:flex;justify-content:flex-end;gap:8px;';
     
         let cancelBtn = document.createElement('button');
         cancelBtn.innerText = 'Cancel';
-        cancelBtn.style.cssText = isDark ? 'padding:8px 14px;background:#444;color:#e0e0e0;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;' : 'padding:8px 14px;background:#e0e0e0;color:#333;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;';
-        cancelBtn.onclick = () => { ov.remove(); if (typeof showMainModal === 'function') showMainModal(activeTheme); };
+        cancelBtn.style.cssText = isDark ? 'padding:6px 12px;background:#444;color:#e0e0e0;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;' : 'padding:6px 12px;background:#dc3545;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;';
+        cancelBtn.onclick = () => ov.remove();
     
-        let okBtn = document.createElement('button');
-        okBtn.innerText = 'Confirm Selection';
-        okBtn.style.cssText = 'padding:8px 16px;background:#28a745;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;';
-        okBtn.onclick = () => {
-            let selectedArray = Array.from(selectedItems);
-            if (selectedArray.length > 0) {
-                let cleanNames = selectedArray.map(p => {
-                    let spIdx = p.indexOf(' ');
-                    return spIdx !== -1 ? p.substring(spIdx + 1) : p;
-                });
-                let partsString = cleanNames.join(', ');
-                let resultText = `Per Moog Medical the following has been replaced: ${partsString}. The device has met the release criteria associated with the inline inspection, testing and final release elements.`;
-                
-                ov.remove();
-                if (typeof addHistoryItem === 'function') addHistoryItem(resultText);
-                if (typeof processTextSelection === 'function') processTextSelection(resultText);
-            } else {
-                alert('Please select or scan at least one part.');
+        let backBtn = document.createElement('button');
+        backBtn.innerText = '← Back';
+        backBtn.style.cssText = isDark ? 'padding:6px 12px;background:#555;color:#e0e0e0;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;' : 'padding:6px 12px;background:#6c757d;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;';
+        backBtn.onclick = () => {
+            ov.remove();
+            if (typeof showMainModal === 'function') showMainModal(activeTheme);
+        };
+    
+        let confirmBtn = document.createElement('button');
+        confirmBtn.innerText = 'Confirm Selection';
+        confirmBtn.style.cssText = 'padding:6px 14px;background:#28a745;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;';
+    
+        confirmBtn.onclick = () => {
+            let arr = Array.from(selectedItems);
+            if (arr.length > 0) {
+                let now = Date.now();
+                arr.forEach(p => { usageCounts[p] = now; });
+                localStorage.setItem('infinity_parts_usage', JSON.stringify(usageCounts));
             }
+    
+            let partsString = arr.length > 0 ? arr.join(', ') : 'None';
+            let template = sentenceTextarea.value.trim() || defaultTemplate;
+            let summaryText = template.replace(/[PARTS]/gi, partsString);
+    
+            ov.remove();
+            if (typeof addHistoryItem === 'function') addHistoryItem(summaryText);
+            if (typeof processTextSelection === 'function') processTextSelection(summaryText);
         };
     
         btnRow.appendChild(cancelBtn);
-        btnRow.appendChild(okBtn);
+        btnRow.appendChild(backBtn);
+        btnRow.appendChild(confirmBtn);
         box.appendChild(btnRow);
     
         ov.appendChild(box);
