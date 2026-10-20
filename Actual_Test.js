@@ -1535,8 +1535,20 @@ function showCurlinUploadModal(passedTheme) {
                         document.head.appendChild(script);
                     });
                 }
-    
-                let result = await Tesseract.recognize(imageDataUrl, 'eng', { logger: m => console.log(m) });
+
+                let result = await Tesseract.recognize(
+                    imageDataUrl, 
+                    'eng', 
+                    { 
+                        logger: m => console.log(m),
+                        // PSM 3 keeps column structure intact without forcing block uniformity
+                        tessedit_pageseg_mode: '3', 
+                        
+                        // Disable optional interior component analysis which causes the 2px scaling errors
+                        tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-,()/. ',
+                    }
+                );
+
                 let rawText = result.data.text ? result.data.text.trim().toUpperCase() : '';
                 
                 if (rawText) {
