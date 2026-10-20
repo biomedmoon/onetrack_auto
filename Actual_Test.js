@@ -1676,7 +1676,8 @@ function showCurlinUploadModal(passedTheme) {
                 arr.forEach(p => { usageCounts[p] = now; });
                 localStorage.setItem('infinity_parts_usage', JSON.stringify(usageCounts));
             }
-    
+            
+            let cleanedParts = arr.map(p => p.replace(/\s*\(Alt:[^)]+\)/gi, '').trim());
             let partsString = arr.length > 0 ? arr.join(', ') : 'None';
             let template = sentenceTextarea.value.trim() || defaultTemplate;
             let summaryText = template.replace(/\[PARTS\]/gi, partsString);
