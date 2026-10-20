@@ -1678,7 +1678,7 @@ function showCurlinUploadModal(passedTheme) {
             }
             
             let cleanedParts = arr.map(p => p.replace(/\s*\(Alt:[^)]+\)/gi, '').trim());
-            let partsString = arr.length > 0 ? arr.join(', ') : 'None';
+            let partsString = cleanedParts.length > 0 ? cleanedParts.join(', ') : 'None';
             let template = sentenceTextarea.value.trim() || defaultTemplate;
             let summaryText = template.replace(/\[PARTS\]/gi, partsString);
     
