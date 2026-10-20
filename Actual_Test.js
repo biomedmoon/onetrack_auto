@@ -817,27 +817,35 @@
         let serialNum = getSerialNumber() || 'Unknown_SN';
     
         let ov = document.createElement('div');
-        ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;';
+        ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:transparent;z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;pointer-events:none;';
         
         let box = document.createElement('div');
-        box.style.cssText = `background:${isDark ? '#1e1e1e' : '#fff'};color:${isDark ? '#e0e0e0' : '#333'};padding:20px;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.3);width:500px;display:flex;flex-direction:column;align-items:center;position:relative;`;
+        box.className = 'onetrack-modal' + (typeof compactMode !== 'undefined' && compactMode ? ' onetrack-compact-mode' : '');
+        let boxBg = isDark ? '#1e1e1e' : '#fff';
+        let boxColor = isDark ? '#e0e0e0' : '#333';
+        box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.25);width:520px;display:flex;flex-direction:column;align-items:center;position:relative;pointer-events:auto;`;
+        
+        if (typeof applyUIScale === 'function') applyUIScale(box);
+        if (typeof applySavedPosition === 'function') applySavedPosition(box);
+        if (typeof applySavedScale === 'function') applySavedScale(box);
     
         let h = document.createElement('h3');
         h.innerText = `📸 Capture Damage Photo — S/N: ${serialNum}`;
-        h.style.cssText = 'margin-top:0;margin-bottom:12px;font-size:15px;text-align:center;';
+        h.style.cssText = `margin-top:0;margin-bottom:12px;font-size:15px;color:${isDark ? '#fff' : '#222'};text-align:center;cursor:move;`;
+        if (typeof makeDraggable === 'function') makeDraggable(box, h);
         box.appendChild(h);
     
         let video = document.createElement('video');
         video.autoplay = true;
         video.playsInline = true;
-        video.style.cssText = 'width:100%;max-height:300px;border-radius:4px;background:#000;object-fit:cover;margin-bottom:12px;';
+        video.style.cssText = 'width:100%;max-height:320px;border-radius:4px;background:#000;object-fit:cover;margin-bottom:12px;';
         box.appendChild(video);
     
         let btnRow = document.createElement('div');
         btnRow.style.cssText = 'display:flex;gap:8px;width:100%;';
     
         let snapBtn = document.createElement('button');
-        snapBtn.innerText = '📷 Take Snapshot';
+        snapBtn.innerText = '📷 Take High-Res Snapshot';
         snapBtn.style.cssText = 'flex:2;background:#28a745;color:white;border:none;padding:8px;border-radius:4px;cursor:pointer;font-weight:bold;font-size:12px;';
     
         let cancelBtn = document.createElement('button');
@@ -851,15 +859,32 @@
         document.body.appendChild(ov);
     
         let mediaStream = null;
-        navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 2560 }, height: { ideal: 1440 } } })
-            .then(stream => {
-                mediaStream = stream;
-                video.srcObject = stream;
-            })
-            .catch(err => {
-                alert('Camera access denied or unavailable.');
-                ov.remove();
-            });
+    
+        // Progressive resolution fallback chain: 4K -> 2K -> 1080p -> Default
+        const startCamera = async () => {
+            const resolutions = [
+                { width: { ideal: 3840 }, height: { ideal: 2160 } }, // 4K
+                { width: { ideal: 2560 }, height: { ideal: 1440 } }, // 2K (QHD)
+                { width: { ideal: 1920 }, height: { ideal: 1080 } }, // 1080p
+                {} // Any available default
+            ];
+    
+            for (let res of resolutions) {
+                try {
+                    mediaStream = await navigator.mediaDevices.getUserMedia({
+                        video: { facingMode: 'environment', ...res }
+                    });
+                    video.srcObject = mediaStream;
+                    return; // Successfully acquired stream
+                } catch (e) {
+                    // Try next lower resolution tier
+                }
+            }
+            alert('Camera access denied or unavailable.');
+            ov.remove();
+        };
+    
+        startCamera();
     
         cancelBtn.onclick = () => {
             if (mediaStream) mediaStream.getTracks().forEach(t => t.stop());
@@ -869,8 +894,10 @@
     
         snapBtn.onclick = () => {
             let canvas = document.createElement('canvas');
-            canvas.width = video.videoWidth || 1280;
-            canvas.height = video.videoHeight || 720;
+            let trackSettings = mediaStream ? mediaStream.getVideoTracks()[0].getSettings() : {};
+            canvas.width = trackSettings.width || video.videoWidth || 2560;
+            canvas.height = trackSettings.height || video.videoHeight || 1440;
+            
             let ctx = canvas.getContext('2d');
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     
@@ -878,27 +905,38 @@
                 if (mediaStream) mediaStream.getTracks().forEach(t => t.stop());
                 ov.remove();
     
-                // Prompt user for rest of filename, pre-filled with serial number
-                let userFilename = prompt('Enter description for damage photo:', 'Damage_Inspection');
-                if (!userFilename) userFilename = 'Damage';
-                let finalName = `${serialNum}_${userFilename.trim().replace(/\s+/g, '_')}.jpg`;
+                let userPromptInput = prompt('Enter description for damage photo:', 'Damage Inspection');
+                if (!userPromptInput) userPromptInput = 'Damage Inspection';
+                
+                let descriptiveText = userPromptInput.trim();
+                let safeFilenameText = descriptiveText.replace(/\s+/g, '_');
+                let finalFileName = `${serialNum}_${safeFilenameText}.jpg`;
     
-                let file = new File([blob], finalName, { type: 'image/jpeg' });
+                let file = new File([blob], finalFileName, { type: 'image/jpeg' });
     
-                // Automatically inject into OneTrack's "Choose File" input on the Add OEM Document modal
+                // 1. Attach file to OneTrack's Choose File input[cite: 1]
                 let fileInput = document.querySelector('input[type="file"]');
                 if (fileInput) {
                     let dataTransfer = new DataTransfer();
                     dataTransfer.items.add(file);
                     fileInput.files = dataTransfer.files;
                     fileInput.dispatchEvent(new Event('change', { bubbles: true }));
-                    if (typeof showToast === 'function') showToast(`✓ Attached ${finalName} to OEM Doc field!`);
-                } else {
-                    alert(`Photo captured as "${finalName}", but please open the "Add OEM Document" modal first to auto-attach it!`);
+                }
+    
+                // 2. Populate OneTrack's #TiltleInput field[cite: 1]
+                let titleInput = document.getElementById('TiltleInput');
+                if (titleInput) {
+                    titleInput.value = descriptiveText;
+                    titleInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    titleInput.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+    
+                if (typeof showToast === 'function') {
+                    showToast(`✓ Attached high-res photo & filled title!`);
                 }
     
                 showMainModal(activeTheme);
-            }, 'image/jpeg', 0.92);
+            }, 'image/jpeg', 0.95);
         };
     }
     
