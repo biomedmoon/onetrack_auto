@@ -824,8 +824,8 @@
         let boxBg = isDark ? '#1e1e1e' : '#fff';
         let boxColor = isDark ? '#e0e0e0' : '#333';
         
-        // Increased default width and layout sizing
-        box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 6px 24px rgba(0,0,0,0.3);width:750px;max-width:95vw;display:flex;flex-direction:column;align-items:center;position:relative;pointer-events:auto;`;
+        // Spacious default width (850px) to give the camera feed room to breathe
+        box.style.cssText = `background:${boxBg};color:${boxColor};padding:22px;border-radius:10px;box-shadow:0 8px 30px rgba(0,0,0,0.35);width:850px;max-width:96vw;display:flex;flex-direction:column;align-items:center;position:relative;pointer-events:auto;`;
         
         if (typeof applyUIScale === 'function') applyUIScale(box);
         if (typeof applySavedPosition === 'function') applySavedPosition(box);
@@ -836,34 +836,39 @@
     
         let h = document.createElement('h3');
         h.innerText = `📸 Capture Damage Photo — S/N: ${serialNum}`;
-        h.style.cssText = `margin:0;font-size:16px;color:${isDark ? '#fff' : '#222'};`;
+        h.style.cssText = `margin:0;font-size:16px;font-weight:bold;color:${isDark ? '#fff' : '#222'};`;
         headerContainer.appendChild(h);
     
-        // Zoom Controls (+ / -) for the camera window
+        // Zoom & Size Controls in the header
         let zoomControls = document.createElement('div');
-        zoomControls.style.cssText = 'display:flex;gap:4px;';
+        zoomControls.style.cssText = 'display:flex;gap:6px;align-items:center;';
         
-        let currentWidthScale = 750;
+        let currentWidth = 850;
+        let sizeIndicator = document.createElement('span');
+        sizeIndicator.innerText = '850px';
+        sizeIndicator.style.cssText = `font-size:11px;color:${isDark ? '#aaa' : '#666'};margin-right:4px;font-family:monospace;`;
+    
         let zoomOutBtn = document.createElement('button');
-        zoomOutBtn.innerText = '−';
-        zoomOutBtn.title = 'Shrink Window';
-        zoomOutBtn.style.cssText = 'background:#555;color:#fff;border:none;width:24px;height:24px;border-radius:3px;cursor:pointer;font-weight:bold;';
+        zoomOutBtn.innerText = '− Shrink';
+        zoomOutBtn.style.cssText = 'background:#555;color:#fff;border:none;padding:4px 8px;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;';
         
         let zoomInBtn = document.createElement('button');
-        zoomInBtn.innerText = '+';
-        zoomInBtn.title = 'Enlarge Window';
-        zoomInBtn.style.cssText = 'background:#555;color:#fff;border:none;width:24px;height:24px;border-radius:3px;cursor:pointer;font-weight:bold;';
+        zoomInBtn.innerText = '+ Enlarge';
+        zoomInBtn.style.cssText = 'background:#0366d6;color:#fff;border:none;padding:4px 8px;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;';
     
         zoomOutBtn.onclick = () => {
-            currentWidthScale = Math.max(500, currentWidthScale - 100);
-            box.style.width = currentWidthScale + 'px';
+            currentWidth = Math.max(600, currentWidth - 120);
+            box.style.width = currentWidth + 'px';
+            sizeIndicator.innerText = currentWidth + 'px';
         };
         zoomInBtn.onclick = () => {
-            currentWidthScale = Math.min(1200, currentWidthScale + 100);
-            box.style.width = currentWidthScale + 'px';
+            currentWidth = Math.min(1250, currentWidth + 120);
+            box.style.width = currentWidth + 'px';
+            sizeIndicator.innerText = currentWidth + 'px';
         };
     
         zoomControls.appendChild(zoomOutBtn);
+        zoomControls.appendChild(sizeIndicator);
         zoomControls.appendChild(zoomInBtn);
         headerContainer.appendChild(zoomControls);
     
@@ -873,20 +878,20 @@
         let video = document.createElement('video');
         video.autoplay = true;
         video.playsInline = true;
-        // Larger preview height so details are easily visible
-        video.style.cssText = 'width:100%;height:450px;max-height:70vh;border-radius:6px;background:#000;object-fit:cover;margin-bottom:14px;';
+        // Generous default height (520px) so the preview isn't cramped vertically
+        video.style.cssText = 'width:100%;height:520px;max-height:75vh;border-radius:6px;background:#000;object-fit:cover;margin-bottom:14px;box-shadow:inset 0 0 10px rgba(0,0,0,0.5);';
         box.appendChild(video);
     
         let btnRow = document.createElement('div');
-        btnRow.style.cssText = 'display:flex;gap:8px;width:100%;';
+        btnRow.style.cssText = 'display:flex;gap:10px;width:100%;';
     
         let snapBtn = document.createElement('button');
         snapBtn.innerText = '📷 Take High-Res Snapshot';
-        snapBtn.style.cssText = 'flex:2;background:#28a745;color:white;border:none;padding:10px;border-radius:4px;cursor:pointer;font-weight:bold;font-size:13px;';
+        snapBtn.style.cssText = 'flex:2;background:#28a745;color:white;border:none;padding:12px;border-radius:6px;cursor:pointer;font-weight:bold;font-size:14px;box-shadow:0 2px 6px rgba(40,167,69,0.3);';
     
         let cancelBtn = document.createElement('button');
         cancelBtn.innerText = 'Cancel';
-        cancelBtn.style.cssText = 'flex:1;background:#6c757d;color:white;border:none;padding:10px;border-radius:4px;cursor:pointer;font-size:13px;';
+        cancelBtn.style.cssText = 'flex:1;background:#6c757d;color:white;border:none;padding:12px;border-radius:6px;cursor:pointer;font-size:14px;';
     
         btnRow.appendChild(snapBtn);
         btnRow.appendChild(cancelBtn);
@@ -913,7 +918,7 @@
                     video.srcObject = mediaStream;
                     return; 
                 } catch (e) {
-                    // Try next lower resolution tier
+                    // Try next lower tier
                 }
             }
             alert('Camera access denied or unavailable.');
