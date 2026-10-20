@@ -1595,6 +1595,10 @@ function showCurlinUploadModal(passedTheme) {
         }
     
         captureBtn.onclick = async () => {
+            if (videoElement.readyState < videoElement.HAVE_CURRENT_DATA) {
+                alert("Camera feed is still loading. Please wait a moment and try capturing again.");
+                return;
+            }
             let canvas = document.createElement('canvas');
             canvas.width = videoElement.videoWidth || 2560;
             canvas.height = videoElement.videoHeight || 1440;
