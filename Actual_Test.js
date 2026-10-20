@@ -1325,7 +1325,7 @@ function showCurlinUploadModal(passedTheme) {
             }
         };
     
-        // --- INFINITY OCR PARSER (Fixed to sync UI checkboxes) ---
+        // --- INFINITY OCR PARSER ---
         async function processInfinityOCR(imageDataUrl) {
             if (typeof showToast === 'function') showToast('⏳ Analyzing Infinity parts document...');
             try {
@@ -1364,7 +1364,7 @@ function showCurlinUploadModal(passedTheme) {
                         }
                     });
     
-                    renderList(); // Refreshes UI so checkboxes instantly light up
+                    renderList();
                     if (typeof showToast === 'function') showToast(`✓ OCR scanned! Auto-selected ${matchedCount} Infinity part(s).`);
                 } else {
                     alert('Could not detect text from image.');
@@ -1679,6 +1679,8 @@ function showCurlinUploadModal(passedTheme) {
     
             let partsString = arr.length > 0 ? arr.join(', ') : 'None';
             let template = sentenceTextarea.value.trim() || defaultTemplate;
+            
+            // Properly replace [PARTS] placeholder and clean up output
             let summaryText = template.replace(/[PARTS]/gi, partsString);
     
             ov.remove();
