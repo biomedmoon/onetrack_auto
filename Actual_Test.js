@@ -838,7 +838,6 @@
         h.style.cssText = `margin:0;font-size:15px;font-weight:bold;color:${isDark ? '#fff' : '#222'};`;
         headerContainer.appendChild(h);
     
-        // Controls Row (Size & Devices)
         let topControls = document.createElement('div');
         topControls.style.cssText = 'display:flex;gap:8px;align-items:center;';
         
@@ -866,9 +865,8 @@
         if (typeof makeDraggable === 'function') makeDraggable(box, headerContainer);
         box.appendChild(headerContainer);
     
-        // Video Preview container with optional contrast/brightness filter support
         let videoContainer = document.createElement('div');
-        videoContainer.style.cssText = 'position:relative;width:100%;height:480px;background:#000;border-radius:6px;overflow:hidden;margin-bottom:10px;';
+        videoContainer.style.cssText = 'position:relative;width:100%;height:480px;background:#000;border-radius:6px;overflow:hidden;margin-bottom:10px;cursor:crosshair;';
     
         let video = document.createElement('video');
         video.autoplay = true;
@@ -877,7 +875,12 @@
         videoContainer.appendChild(video);
         box.appendChild(videoContainer);
     
-        // Quick adjustment sub-bar (Brightness / Contrast for OCR / damaged labels)
+        // Focus / Blur helper indicator when clicking to focus
+        let focusIndicator = document.createElement('div');
+        focusIndicator.style.cssText = 'position:absolute;border:2px solid #28a745;width:40px;height:40px;border-radius:50%;transform:translate(-50%, -50%);pointer-events:none;display:none;transition:all 0.2s ease;';
+        videoContainer.appendChild(focusIndicator);
+    
+        // Filter adjustment bar
         let filterBar = document.createElement('div');
         filterBar.style.cssText = 'display:flex;gap:12px;width:100%;margin-bottom:12px;font-size:11px;align-items:center;justify-content:center;opacity:0.85;';
         filterBar.innerHTML = `
@@ -920,15 +923,29 @@
         const startCamera = async (deviceId = null) => {
             if (mediaStream) mediaStream.getTracks().forEach(t => t.stop());
             
-            const constraints = deviceId ? { video: { deviceId: { exact: deviceId } } } : {
-                video: { facingMode: 'environment', width: { ideal: 2560 }, height: { ideal: 1440 } }
+            // Request continuous autofocus mode where supported by hardware constraints
+            const constraints = deviceId ? { 
+                video: { deviceId: { exact: deviceId }, focusMode: 'continuous' } 
+            } : {
+                video: { 
+                    facingMode: 'environment', 
+                    width: { ideal: 2560 }, 
+                    height: { ideal: 1440 },
+                    focusMode: { ideal: 'continuous' }
+                }
             };
     
             try {
                 mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
                 video.srcObject = mediaStream;
-                
-                // Populate camera list if empty
+    
+                // Attempt advanced track capability tuning (Focus Mode) if exposed by the browser API
+                let track = mediaStream.getVideoTracks()[0];
+                let capabilities = track.getCapabilities ? track.getCapabilities() : {};
+                if (capabilities.focusMode && capabilities.focusMode.includes('continuous')) {
+                    await track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(() => {});
+                }
+    
                 if (camSelect.options.length <= 1) {
                     let devices = await navigator.mediaDevices.enumerateDevices();
                     let videoDevices = devices.filter(d => d.kind === 'videoinput');
@@ -943,6 +960,31 @@
             } catch (e) {
                 alert('Camera access denied or unavailable.');
                 ov.remove();
+            }
+        };
+    
+        // Tap-to-Focus trigger on the video container preview
+        videoContainer.onclick = async (e) => {
+            let rect = videoContainer.getBoundingClientRect();
+            let x = e.clientX - rect.left;
+            let y = e.clientY - rect.top;
+    
+            focusIndicator.style.left = x + 'px';
+            focusIndicator.style.top = y + 'px';
+            focusIndicator.style.display = 'block';
+            focusIndicator.style.transform = 'translate(-50%, -50%) scale(1.3)';
+            setTimeout(() => { focusIndicator.style.transform = 'translate(-50%, -50%) scale(1)'; }, 200);
+            setTimeout(() => { focusIndicator.style.display = 'none'; }, 600);
+    
+            if (mediaStream) {
+                let track = mediaStream.getVideoTracks()[0];
+                let capabilities = track.getCapabilities ? track.getCapabilities() : {};
+                // Trigger manual focus constraint adjustment if supported by device hardware
+                if (capabilities.focusMode && capabilities.focusMode.includes('manual')) {
+                    try {
+                        await track.applyConstraints({ advanced: [{ focusMode: 'manual' }] });
+                    } catch (err) {}
+                }
             }
         };
     
@@ -962,7 +1004,6 @@
             canvas.height = trackSettings.height || video.videoHeight || 1440;
             
             let ctx = canvas.getContext('2d');
-            // Apply active CSS brightness/contrast filters directly into the captured image blob for crystal clear OCR
             ctx.filter = `brightness(${brightInput.value}%) contrast(${contrastInput.value}%)`;
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     
@@ -995,7 +1036,7 @@
                 }
     
                 if (typeof showToast === 'function') {
-                    showToast(`✓ Attached processed snapshot & filled title!`);
+                    showToast(`✓ Attached focused snapshot & filled title!`);
                 }
     
                 showMainModal(activeTheme);
