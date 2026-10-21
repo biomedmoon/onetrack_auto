@@ -824,7 +824,6 @@
         let boxBg = isDark ? '#1e1e1e' : '#fff';
         let boxColor = isDark ? '#e0e0e0' : '#333';
         
-        // Spacious default width (850px) to give the camera feed room to breathe
         box.style.cssText = `background:${boxBg};color:${boxColor};padding:22px;border-radius:10px;box-shadow:0 8px 30px rgba(0,0,0,0.35);width:850px;max-width:96vw;display:flex;flex-direction:column;align-items:center;position:relative;pointer-events:auto;`;
         
         if (typeof applyUIScale === 'function') applyUIScale(box);
@@ -832,66 +831,83 @@
         if (typeof applySavedScale === 'function') applySavedScale(box);
     
         let headerContainer = document.createElement('div');
-        headerContainer.style.cssText = 'display:flex;justify-content:space-between;align-items:center;width:100%;margin-bottom:12px;cursor:move;';
+        headerContainer.style.cssText = 'display:flex;justify-content:space-between;align-items:center;width:100%;margin-bottom:10px;cursor:move;';
     
         let h = document.createElement('h3');
-        h.innerText = `📸 Capture Damage Photo — S/N: ${serialNum}`;
-        h.style.cssText = `margin:0;font-size:16px;font-weight:bold;color:${isDark ? '#fff' : '#222'};`;
+        h.innerText = `📸 Damage & OCR Capture — S/N: ${serialNum}`;
+        h.style.cssText = `margin:0;font-size:15px;font-weight:bold;color:${isDark ? '#fff' : '#222'};`;
         headerContainer.appendChild(h);
     
-        // Zoom & Size Controls in the header
-        let zoomControls = document.createElement('div');
-        zoomControls.style.cssText = 'display:flex;gap:6px;align-items:center;';
+        // Controls Row (Size & Devices)
+        let topControls = document.createElement('div');
+        topControls.style.cssText = 'display:flex;gap:8px;align-items:center;';
         
-        let currentWidth = 850;
-        let sizeIndicator = document.createElement('span');
-        sizeIndicator.innerText = '850px';
-        sizeIndicator.style.cssText = `font-size:11px;color:${isDark ? '#aaa' : '#666'};margin-right:4px;font-family:monospace;`;
+        let camSelect = document.createElement('select');
+        camSelect.style.cssText = 'background:#333;color:#fff;border:none;padding:4px 6px;border-radius:4px;font-size:11px;max-width:140px;cursor:pointer;';
+        camSelect.title = 'Select Camera Device';
     
+        let currentWidth = 850;
         let zoomOutBtn = document.createElement('button');
-        zoomOutBtn.innerText = '− Shrink';
-        zoomOutBtn.style.cssText = 'background:#555;color:#fff;border:none;padding:4px 8px;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;';
+        zoomOutBtn.innerText = '−';
+        zoomOutBtn.style.cssText = 'background:#555;color:#fff;border:none;width:24px;height:24px;border-radius:4px;cursor:pointer;font-weight:bold;';
         
         let zoomInBtn = document.createElement('button');
-        zoomInBtn.innerText = '+ Enlarge';
-        zoomInBtn.style.cssText = 'background:#0366d6;color:#fff;border:none;padding:4px 8px;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;';
+        zoomInBtn.innerText = '+';
+        zoomInBtn.style.cssText = 'background:#0366d6;color:#fff;border:none;width:24px;height:24px;border-radius:4px;cursor:pointer;font-weight:bold;';
     
-        zoomOutBtn.onclick = () => {
-            currentWidth = Math.max(600, currentWidth - 120);
-            box.style.width = currentWidth + 'px';
-            sizeIndicator.innerText = currentWidth + 'px';
-        };
-        zoomInBtn.onclick = () => {
-            currentWidth = Math.min(1250, currentWidth + 120);
-            box.style.width = currentWidth + 'px';
-            sizeIndicator.innerText = currentWidth + 'px';
-        };
+        zoomOutBtn.onclick = () => { currentWidth = Math.max(600, currentWidth - 100); box.style.width = currentWidth + 'px'; };
+        zoomInBtn.onclick = () => { currentWidth = Math.min(1200, currentWidth + 100); box.style.width = currentWidth + 'px'; };
     
-        zoomControls.appendChild(zoomOutBtn);
-        zoomControls.appendChild(sizeIndicator);
-        zoomControls.appendChild(zoomInBtn);
-        headerContainer.appendChild(zoomControls);
+        topControls.appendChild(camSelect);
+        topControls.appendChild(zoomOutBtn);
+        topControls.appendChild(zoomInBtn);
+        headerContainer.appendChild(topControls);
     
         if (typeof makeDraggable === 'function') makeDraggable(box, headerContainer);
         box.appendChild(headerContainer);
     
+        // Video Preview container with optional contrast/brightness filter support
+        let videoContainer = document.createElement('div');
+        videoContainer.style.cssText = 'position:relative;width:100%;height:480px;background:#000;border-radius:6px;overflow:hidden;margin-bottom:10px;';
+    
         let video = document.createElement('video');
         video.autoplay = true;
         video.playsInline = true;
-        // Generous default height (520px) so the preview isn't cramped vertically
-        video.style.cssText = 'width:100%;height:520px;max-height:75vh;border-radius:6px;background:#000;object-fit:cover;margin-bottom:14px;box-shadow:inset 0 0 10px rgba(0,0,0,0.5);';
-        box.appendChild(video);
+        video.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+        videoContainer.appendChild(video);
+        box.appendChild(videoContainer);
+    
+        // Quick adjustment sub-bar (Brightness / Contrast for OCR / damaged labels)
+        let filterBar = document.createElement('div');
+        filterBar.style.cssText = 'display:flex;gap:12px;width:100%;margin-bottom:12px;font-size:11px;align-items:center;justify-content:center;opacity:0.85;';
+        filterBar.innerHTML = `
+            <label>Brightness: <input type="range" id="camBrightness" min="50" max="150" value="100" style="width:90px;cursor:pointer;vertical-align:middle;"></label>
+            <label>Contrast: <input type="range" id="camContrast" min="50" max="180" value="100" style="width:90px;cursor:pointer;vertical-align:middle;"></label>
+            <button id="camResetFilter" style="background:#444;color:#fff;border:none;padding:2px 6px;border-radius:3px;cursor:pointer;">Reset Filters</button>
+        `;
+        box.appendChild(filterBar);
+    
+        let brightInput = filterBar.querySelector('#camBrightness');
+        let contrastInput = filterBar.querySelector('#camContrast');
+        let updateFilters = () => {
+            video.style.filter = `brightness(${brightInput.value}%) contrast(${contrastInput.value}%)`;
+        };
+        brightInput.oninput = updateFilters;
+        contrastInput.oninput = updateFilters;
+        filterBar.querySelector('#camResetFilter').onclick = () => {
+            brightInput.value = 100; contrastInput.value = 100; updateFilters();
+        };
     
         let btnRow = document.createElement('div');
         btnRow.style.cssText = 'display:flex;gap:10px;width:100%;';
     
         let snapBtn = document.createElement('button');
         snapBtn.innerText = '📷 Take High-Res Snapshot';
-        snapBtn.style.cssText = 'flex:2;background:#28a745;color:white;border:none;padding:12px;border-radius:6px;cursor:pointer;font-weight:bold;font-size:14px;box-shadow:0 2px 6px rgba(40,167,69,0.3);';
+        snapBtn.style.cssText = 'flex:2;background:#28a745;color:white;border:none;padding:10px;border-radius:6px;cursor:pointer;font-weight:bold;font-size:13px;';
     
         let cancelBtn = document.createElement('button');
         cancelBtn.innerText = 'Cancel';
-        cancelBtn.style.cssText = 'flex:1;background:#6c757d;color:white;border:none;padding:12px;border-radius:6px;cursor:pointer;font-size:14px;';
+        cancelBtn.style.cssText = 'flex:1;background:#6c757d;color:white;border:none;padding:10px;border-radius:6px;cursor:pointer;font-size:13px;';
     
         btnRow.appendChild(snapBtn);
         btnRow.appendChild(cancelBtn);
@@ -901,30 +917,36 @@
     
         let mediaStream = null;
     
-        // Progressive resolution fallback chain: 4K -> 2K -> 1080p -> Default
-        const startCamera = async () => {
-            const resolutions = [
-                { width: { ideal: 3840 }, height: { ideal: 2160 } }, // 4K
-                { width: { ideal: 2560 }, height: { ideal: 1440 } }, // 2K (QHD)
-                { width: { ideal: 1920 }, height: { ideal: 1080 } }, // 1080p
-                {} // Any available default
-            ];
+        const startCamera = async (deviceId = null) => {
+            if (mediaStream) mediaStream.getTracks().forEach(t => t.stop());
+            
+            const constraints = deviceId ? { video: { deviceId: { exact: deviceId } } } : {
+                video: { facingMode: 'environment', width: { ideal: 2560 }, height: { ideal: 1440 } }
+            };
     
-            for (let res of resolutions) {
-                try {
-                    mediaStream = await navigator.mediaDevices.getUserMedia({
-                        video: { facingMode: 'environment', ...res }
+            try {
+                mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+                video.srcObject = mediaStream;
+                
+                // Populate camera list if empty
+                if (camSelect.options.length <= 1) {
+                    let devices = await navigator.mediaDevices.enumerateDevices();
+                    let videoDevices = devices.filter(d => d.kind === 'videoinput');
+                    camSelect.innerHTML = '';
+                    videoDevices.forEach((dev, idx) => {
+                        let opt = document.createElement('option');
+                        opt.value = dev.deviceId;
+                        opt.innerText = dev.label || `Camera ${idx + 1}`;
+                        camSelect.appendChild(opt);
                     });
-                    video.srcObject = mediaStream;
-                    return; 
-                } catch (e) {
-                    // Try next lower tier
                 }
+            } catch (e) {
+                alert('Camera access denied or unavailable.');
+                ov.remove();
             }
-            alert('Camera access denied or unavailable.');
-            ov.remove();
         };
     
+        camSelect.onchange = () => startCamera(camSelect.value);
         startCamera();
     
         cancelBtn.onclick = () => {
@@ -940,13 +962,15 @@
             canvas.height = trackSettings.height || video.videoHeight || 1440;
             
             let ctx = canvas.getContext('2d');
+            // Apply active CSS brightness/contrast filters directly into the captured image blob for crystal clear OCR
+            ctx.filter = `brightness(${brightInput.value}%) contrast(${contrastInput.value}%)`;
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     
             canvas.toBlob(blob => {
                 if (mediaStream) mediaStream.getTracks().forEach(t => t.stop());
                 ov.remove();
     
-                let userPromptInput = prompt('Enter description for damage photo:', 'Damage Inspection');
+                let userPromptInput = prompt('Enter description for damage/OCR photo:', 'Damage Inspection');
                 if (!userPromptInput) userPromptInput = 'Damage Inspection';
                 
                 let descriptiveText = userPromptInput.trim();
@@ -955,7 +979,6 @@
     
                 let file = new File([blob], finalFileName, { type: 'image/jpeg' });
     
-                // 1. Attach file to OneTrack's Choose File input[cite: 1]
                 let fileInput = document.querySelector('input[type="file"]');
                 if (fileInput) {
                     let dataTransfer = new DataTransfer();
@@ -964,7 +987,6 @@
                     fileInput.dispatchEvent(new Event('change', { bubbles: true }));
                 }
     
-                // 2. Populate OneTrack's #TiltleInput field[cite: 1]
                 let titleInput = document.getElementById('TiltleInput');
                 if (titleInput) {
                     titleInput.value = descriptiveText;
@@ -973,7 +995,7 @@
                 }
     
                 if (typeof showToast === 'function') {
-                    showToast(`✓ Attached high-res photo & filled title!`);
+                    showToast(`✓ Attached processed snapshot & filled title!`);
                 }
     
                 showMainModal(activeTheme);
