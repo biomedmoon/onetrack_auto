@@ -2107,21 +2107,58 @@ function showCurlinUploadModal(passedTheme) {
         dropZone.appendChild(hiddenFileInput);
         box.appendChild(dropZone);
     
-        // --- WEBCAM CONTAINER WITH EXPAND VIEW ---
+        // --- ENHANCED WEBCAM CONTAINER WITH OCR & FOCUS CONTROLS ---
         let webcamContainer = document.createElement('div');
-        webcamContainer.style.cssText = 'display:none;flex-direction:column;align-items:center;margin-bottom:8px;background:#111;padding:8px;border-radius:6px;';
+        webcamContainer.style.cssText = 'display:none;flex-direction:column;align-items:center;margin-bottom:8px;background:#111;padding:10px;border-radius:6px;';
         
+        let camSelect = document.createElement('select');
+        camSelect.style.cssText = 'background:#222;color:#fff;border:1px solid #444;padding:4px 6px;border-radius:4px;font-size:11px;width:100%;margin-bottom:6px;cursor:pointer;';
+        camSelect.title = 'Select Camera Device';
+        webcamContainer.appendChild(camSelect);
+
+        let videoWrapper = document.createElement('div');
+        videoWrapper.style.cssText = 'position:relative;width:100%;max-height:220px;background:#000;border-radius:4px;overflow:hidden;cursor:crosshair;';
+
         let videoElement = document.createElement('video');
         videoElement.autoplay = true;
         videoElement.playsInline = true;
-        videoElement.style.cssText = 'width:100%;max-height:200px;border-radius:4px;background:#000;object-fit:cover;transition:max-height 0.2s ease;';
-        webcamContainer.appendChild(videoElement);
-    
+        videoElement.style.cssText = 'width:100%;height:100%;object-fit:cover;transition:max-height 0.2s ease;';
+        videoWrapper.appendChild(videoElement);
+
+        let focusIndicator = document.createElement('div');
+        focusIndicator.style.cssText = 'position:absolute;border:2px solid #28a745;width:35px;height:35px;border-radius:50%;transform:translate(-50%, -50%);pointer-events:none;display:none;transition:all 0.2s ease;z-index:5;';
+        videoWrapper.appendChild(focusIndicator);
+        webcamContainer.appendChild(videoWrapper);
+
+        // Filter Bar for Brightness, Contrast & High-Contrast Mono OCR Mode
+        let filterBar = document.createElement('div');
+        filterBar.style.cssText = 'display:flex;gap:8px;width:100%;margin-top:8px;font-size:10px;color:#ccc;align-items:center;justify-content:center;flex-wrap:wrap;';
+        filterBar.innerHTML = `
+            <label>Bright: <input type="range" id="ocrBright" min="50" max="150" value="100" style="width:70px;vertical-align:middle;cursor:pointer;"></label>
+            <label>Contrast: <input type="range" id="ocrContrast" min="50" max="200" value="110" style="width:70px;vertical-align:middle;cursor:pointer;"></label>
+            <label style="cursor:pointer;color:#4CAF50;font-weight:bold;"><input type="checkbox" id="ocrGrayCheck" style="vertical-align:middle;margin-right:2px;">OCR Mono</label>
+        `;
+        webcamContainer.appendChild(filterBar);
+
+        let brightSlider = filterBar.querySelector('#ocrBright');
+        let contrastSlider = filterBar.querySelector('#ocrContrast');
+        let grayCheck = filterBar.querySelector('#ocrGrayCheck');
+
+        let updateVideoFilters = () => {
+            let b = brightSlider.value;
+            let c = contrastSlider.value;
+            let mono = grayCheck.checked ? 'grayscale(100%) contrast(190%)' : '';
+            videoElement.style.filter = `brightness(${b}%) contrast(${c}%) ${mono}`;
+        };
+        brightSlider.oninput = updateVideoFilters;
+        contrastSlider.oninput = updateVideoFilters;
+        grayCheck.onchange = updateVideoFilters;
+
         let camActionRow = document.createElement('div');
-        camActionRow.style.cssText = 'display:flex;gap:6px;width:100%;margin-top:6px;';
+        camActionRow.style.cssText = 'display:flex;gap:6px;width:100%;margin-top:8px;';
     
         let captureBtn = document.createElement('button');
-        captureBtn.innerText = '📸 Capture & Run OCR';
+        captureBtn.innerText = '📸 Capture Snapshot & Run OCR';
         captureBtn.style.cssText = 'flex:2;background:#4CAF50;color:white;border:none;padding:6px;border-radius:4px;cursor:pointer;font-weight:bold;font-size:11px;';
     
         let expandCamBtn = document.createElement('button');
@@ -2138,13 +2175,79 @@ function showCurlinUploadModal(passedTheme) {
         expandCamBtn.onclick = () => {
             isExpandedView = !isExpandedView;
             if (isExpandedView) {
-                videoElement.style.maxHeight = '400px';
+                videoWrapper.style.maxHeight = '420px';
+                videoElement.style.maxHeight = '420px';
                 expandCamBtn.innerText = '📉 Normal View';
             } else {
-                videoElement.style.maxHeight = '200px';
+                videoWrapper.style.maxHeight = '220px';
+                videoElement.style.maxHeight = '220px';
                 expandCamBtn.innerText = '🔍 Expand View';
             }
         };
+
+        videoWrapper.onclick = async () => {
+            focusIndicator.style.display = 'block';
+            setTimeout(() => { focusIndicator.style.display = 'none'; }, 500);
+            if (mediaStream) {
+                let track = mediaStream.getVideoTracks()[0];
+                let caps = track.getCapabilities ? track.getCapabilities() : {};
+                if (caps.focusMode && caps.focusMode.includes('continuous')) {
+                    try { await track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }); } catch (e) {}
+                }
+            }
+        };
+
+        const startCamera = async (deviceId = null) => {
+            if (mediaStream) mediaStream.getTracks().forEach(t => t.stop());
+            
+            const resolutions = [
+                { width: { ideal: 3840 }, height: { ideal: 2160 } }, // 4K
+                { width: { ideal: 2560 }, height: { ideal: 1440 } }, // 2K
+                { width: { ideal: 1920 }, height: { ideal: 1080 } }, // 1080p
+                {}
+            ];
+
+            for (let res of resolutions) {
+                try {
+                    let constraints = deviceId ? { 
+                        video: { deviceId: { exact: deviceId }, focusMode: 'continuous', ...res } 
+                    } : {
+                        video: { facingMode: 'environment', focusMode: { ideal: 'continuous' }, ...res }
+                    };
+
+                    mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+                    videoElement.srcObject = mediaStream;
+                    updateVideoFilters();
+
+                    let track = mediaStream.getVideoTracks()[0];
+                    let caps = track.getCapabilities ? track.getCapabilities() : {};
+                    if (caps.focusMode && caps.focusMode.includes('continuous')) {
+                        await track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(() => {});
+                    }
+
+                    if (camSelect.options.length <= 1) {
+                        let devices = await navigator.mediaDevices.enumerateDevices();
+                        let videoDevices = devices.filter(d => d.kind === 'videoinput');
+                        camSelect.innerHTML = '';
+                        videoDevices.forEach((dev, idx) => {
+                            let opt = document.createElement('option');
+                            opt.value = dev.deviceId;
+                            opt.innerText = dev.label || `Camera ${idx + 1}`;
+                            if (dev.deviceId === deviceId) opt.selected = true;
+                            camSelect.appendChild(opt);
+                        });
+                    }
+                    return;
+                } catch (e) {
+                    // Try next lower resolution tier
+                }
+            }
+            alert('Camera access denied or unavailable.');
+            webcamContainer.style.display = 'none';
+            scanToggleBtn.innerText = '📷 Open Document Scanner Viewfinder';
+        };
+
+        camSelect.onchange = () => startCamera(camSelect.value);
     
         scanToggleBtn.onclick = async () => {
             if (webcamContainer.style.display === 'flex') {
@@ -2154,20 +2257,7 @@ function showCurlinUploadModal(passedTheme) {
             } else {
                 webcamContainer.style.display = 'flex';
                 scanToggleBtn.innerText = '❌ Close Viewfinder';
-                try {
-                    mediaStream = await navigator.mediaDevices.getUserMedia({ 
-                        video: { 
-                            facingMode: 'environment', 
-                            width: { ideal: 2560 }, 
-                            height: { ideal: 1440 } 
-                        } 
-                    });
-                    videoElement.srcObject = mediaStream;
-                } catch (err) {
-                    alert('Camera access denied or unavailable.');
-                    webcamContainer.style.display = 'none';
-                    scanToggleBtn.innerText = '📷 Open Document Scanner Viewfinder';
-                }
+                await startCamera();
             }
         };
     
@@ -2184,18 +2274,17 @@ function showCurlinUploadModal(passedTheme) {
                     });
                 }
     
-                // --- PSM 6 FORCED UNIFORM TABLE BLOCK PARSING ---
                 let result = await Tesseract.recognize(
                     imageDataUrl, 
                     'eng', 
                     { 
                         logger: m => console.log(m),
-                        tessedit_pageseg_mode: '6' // Optimizes OCR specifically for grid/table layouts
+                        tessedit_pageseg_mode: '6' 
                     }
                 );
     
                 let rawText = result.data.text ? result.data.text.trim().toUpperCase() : '';
-                console.log("--- TESSERACT RAW OCR TEXT --- \n", rawText); // Check F12 console if anything drops!
+                console.log("--- TESSERACT RAW OCR TEXT --- \n", rawText);
                 
                 if (rawText) {
                     let matchedCount = 0;
@@ -2209,9 +2298,6 @@ function showCurlinUploadModal(passedTheme) {
                             let cleanPartName = partNameUpper.replace(/[\s,\-\/]+/g, ' ');
                             if (cleanScanText.includes(cleanPartName)) isMatched = true;
     
-                            // --- CLEVER FALLBACK & FUZZY TOKEN RULES ---
-    
-                            // 1. HSG, Battery Compartment (Requires housing term + battery compartment context)
                             if (part.name === 'HSG, BATTERY COMPARTMENT') {
                                 let hasHsg = rawText.includes('HSG') || rawText.includes('HOUSING');
                                 let hasBatteryComp = rawText.includes('BATTERY') && rawText.includes('COMPARTMENT');
@@ -2219,47 +2305,38 @@ function showCurlinUploadModal(passedTheme) {
                                 if (hasHsg && hasBatteryComp && isNotShield) isMatched = true;
                             }
                             
-                            // 2. Door Assembly (Catches flexible row variations or split words)
                             if ((rawText.includes('DOOR') && rawText.includes('PUMP')) || rawText.includes('BATTERY PUMP') || rawText.includes('30-3245')) {
                                 if (part.name === 'DOOR AY, BATTERY, PUMP') isMatched = true;
                             }
                             
-                            // 3. Neoprene Seal (Neoprene is completely unique to this part)
                             if (rawText.includes('NEOPRENE') || rawText.includes('NEOPR') || rawText.includes('30-3381')) {
                                 if (part.name === 'SEAL, DSO, NEOPRENE') isMatched = true;
                             }
     
-                            // 4. Overlay Membrane Switch
                             if ((rawText.includes('OVERLAY') && rawText.includes('KEYPAD')) || rawText.includes('40-5482-51A')) {
                                 if (part.name === 'OVERLAY, MEMBRANE SWITCH, CE ENGLISH') isMatched = true;
                             }
                             
-                            // 5. Blue Model Label
                             if (rawText.includes('MODEL 2120') && rawText.includes('BLUE') && part.name.includes('BLUE, RX ONLY')) {
                                 isMatched = true;
                             }
                             
-                            // 6. Dark Grey Model Label
                             if (rawText.includes('MODEL 2120') && (rawText.includes('DRK') || rawText.includes('GREY')) && part.name.includes('DRK GREY, RX ONLY')) {
                                 isMatched = true;
                             }
                             
-                            // 7. Keypad Membrane Switch w/o Conn
                             if ((rawText.includes('KEYPAD') && (rawText.includes('MEMBRANE') || rawText.includes('CONN'))) || rawText.includes('70-0229')) {
                                 if (part.name === 'KEYPAD, MEMBRANE SW, W/O CONN, CADD-SOLIS') isMatched = true;
                             }
                             
-                            // 8. Set Label
                             if ((rawText.includes('LBL') && rawText.includes('SET')) || rawText.includes('40-6288-24A')) {
                                 if (part.name.includes('LBL, SET, DEVICE')) isMatched = true;
                             }
                             
-                            // 9. Lens Pad Printed
                             if ((rawText.includes('LENS') && rawText.includes('PRINTED')) || rawText.includes('40-5733-51A')) {
                                 if (part.name === 'LENS, PAD PRINTED, CADD-SOLIS') isMatched = true;
                             }
     
-                            // General part number fallback
                             if (part.num && part.num.trim() && rawText.includes(part.num.toUpperCase())) {
                                 isMatched = true;
                             }
@@ -2289,11 +2366,15 @@ function showCurlinUploadModal(passedTheme) {
             }
     
             let canvas = document.createElement('canvas');
-            canvas.width = videoElement.videoWidth || 2560;
-            canvas.height = videoElement.videoHeight || 1440;
+            let trackSettings = mediaStream ? mediaStream.getVideoTracks()[0].getSettings() : {};
+            canvas.width = trackSettings.width || videoElement.videoWidth || 2560;
+            canvas.height = trackSettings.height || videoElement.videoHeight || 1440;
+
             let ctx = canvas.getContext('2d');
+            let monoFilter = grayCheck.checked ? 'grayscale(100%) contrast(190%)' : '';
+            ctx.filter = `brightness(${brightSlider.value}%) contrast(${contrastSlider.value}%) ${monoFilter}`;
             ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
-            let imageDataUrl = canvas.toDataURL('image/jpeg', 0.92);
+            let imageDataUrl = canvas.toDataURL('image/jpeg', 0.98);
     
             if (mediaStream) mediaStream.getTracks().forEach(t => t.stop());
             webcamContainer.style.display = 'none';
@@ -2596,11 +2677,9 @@ function showCurlinUploadModal(passedTheme) {
                 localStorage.setItem('solis_parts_usage', JSON.stringify(usageCounts));
             }
     
-            // Clean up and format the selected part descriptions nicely
             let cleanedParts = arr.map(p => {
                 let upper = p.toUpperCase();
                 
-                // Custom clean transformations for specific parts
                 if (upper.includes('MODEL 2120') && upper.includes('BLUE')) return 'Model 2120 Device Label Blue';
                 if (upper.includes('MODEL 2120') && (upper.includes('DRK') || upper.includes('GREY'))) return 'Model 2120 Device Label Dark Grey';
                 if (upper.includes('LENS, PAD PRINTED')) return 'Printed Lens Pad';
@@ -2610,7 +2689,6 @@ function showCurlinUploadModal(passedTheme) {
                 if (upper.includes('KEYPAD, MEMBRANE SW')) return 'Membrane Switch Keypad';
                 if (upper.includes('BATTERY, PUMP') && upper.includes('DOOR')) return 'Pump Battery Door';
                 
-                // General cleanup fallback for other parts
                 let cleaned = p
                     .replace(/\bCADD-SOLIS\b/gi, '')
                     .replace(/\bVIP\b/gi, '')
@@ -2626,7 +2704,7 @@ function showCurlinUploadModal(passedTheme) {
             let partsString = cleanedParts.length > 0 ? cleanedParts.join(', ') : 'None';
             let template = sentenceTextarea.value.trim() || defaultTemplate;
             
-            let summaryText = template.replace(/\[PARTS\]/g, partsString);
+            let summaryText = template.replace(/[PARTS]/g, partsString);
             
             summaryText = summaryText
                 .replace(/,\s*CADD-SOLIS\b(?!\s*,)/gi, '')
