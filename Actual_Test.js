@@ -873,39 +873,54 @@
         video.playsInline = true;
         video.style.cssText = 'width:100%;height:100%;object-fit:cover;';
         videoContainer.appendChild(video);
+    
+        // Optional OCR alignment framing guide overlay
+        let ocrGuideBox = document.createElement('div');
+        ocrGuideBox.style.cssText = 'position:absolute;top:15%;left:15%;width:70%;height:70%;border:2px dashed rgba(40,167,69,0.7);border-radius:6px;pointer-events:none;display:flex;align-items:flex-start;justify-content:center;padding:6px;color:rgba(255,255,255,0.8);font-size:11px;font-weight:bold;text-shadow:0 1px 3px rgba(0,0,0,0.8);';
+        ocrGuideBox.innerText = '🎯 Align OCR Label / Text Here';
+        videoContainer.appendChild(ocrGuideBox);
+    
         box.appendChild(videoContainer);
     
-        // Focus / Blur helper indicator when clicking to focus
         let focusIndicator = document.createElement('div');
-        focusIndicator.style.cssText = 'position:absolute;border:2px solid #28a745;width:40px;height:40px;border-radius:50%;transform:translate(-50%, -50%);pointer-events:none;display:none;transition:all 0.2s ease;';
+        focusIndicator.style.cssText = 'position:absolute;border:2px solid #28a745;width:40px;height:40px;border-radius:50%;transform:translate(-50%, -50%);pointer-events:none;display:none;transition:all 0.2s ease;z-index:5;';
         videoContainer.appendChild(focusIndicator);
     
-        // Filter adjustment bar
+        // Filter & OCR Optimization Bar
         let filterBar = document.createElement('div');
-        filterBar.style.cssText = 'display:flex;gap:12px;width:100%;margin-bottom:12px;font-size:11px;align-items:center;justify-content:center;opacity:0.85;';
+        filterBar.style.cssText = 'display:flex;gap:10px;width:100%;margin-bottom:12px;font-size:11px;align-items:center;justify-content:center;opacity:0.9;flex-wrap:wrap;';
         filterBar.innerHTML = `
-            <label>Brightness: <input type="range" id="camBrightness" min="50" max="150" value="100" style="width:90px;cursor:pointer;vertical-align:middle;"></label>
-            <label>Contrast: <input type="range" id="camContrast" min="50" max="180" value="100" style="width:90px;cursor:pointer;vertical-align:middle;"></label>
-            <button id="camResetFilter" style="background:#444;color:#fff;border:none;padding:2px 6px;border-radius:3px;cursor:pointer;">Reset Filters</button>
+            <label>Brightness: <input type="range" id="camBrightness" min="50" max="150" value="100" style="width:80px;cursor:pointer;vertical-align:middle;"></label>
+            <label>Contrast: <input type="range" id="camContrast" min="50" max="200" value="110" style="width:80px;cursor:pointer;vertical-align:middle;"></label>
+            <label style="cursor:pointer;font-weight:bold;color:#0366d6;"><input type="checkbox" id="ocrModeCheck" style="vertical-align:middle;margin-right:3px;">🔲 OCR High-Contrast Mode</label>
+            <button id="camResetFilter" style="background:#444;color:#fff;border:none;padding:2px 6px;border-radius:3px;cursor:pointer;">Reset</button>
         `;
         box.appendChild(filterBar);
     
         let brightInput = filterBar.querySelector('#camBrightness');
         let contrastInput = filterBar.querySelector('#camContrast');
+        let ocrModeCheck = filterBar.querySelector('#ocrModeCheck');
+    
         let updateFilters = () => {
-            video.style.filter = `brightness(${brightInput.value}%) contrast(${contrastInput.value}%)`;
+            let b = brightInput.value;
+            let c = contrastInput.value;
+            let grayscale = ocrModeCheck.checked ? 'grayscale(100%) contrast(180%)' : '';
+            video.style.filter = `brightness(${b}%) contrast(${c}%) ${grayscale}`;
         };
+    
         brightInput.oninput = updateFilters;
         contrastInput.oninput = updateFilters;
+        ocrModeCheck.onchange = updateFilters;
         filterBar.querySelector('#camResetFilter').onclick = () => {
-            brightInput.value = 100; contrastInput.value = 100; updateFilters();
+            brightInput.value = 100; contrastInput.value = 110; ocrModeCheck.checked = false; updateFilters();
         };
+        updateFilters(); // Apply initial defaults
     
         let btnRow = document.createElement('div');
         btnRow.style.cssText = 'display:flex;gap:10px;width:100%;';
     
         let snapBtn = document.createElement('button');
-        snapBtn.innerText = '📷 Take High-Res Snapshot';
+        snapBtn.innerText = '📷 Take Snapshot & Attach';
         snapBtn.style.cssText = 'flex:2;background:#28a745;color:white;border:none;padding:10px;border-radius:6px;cursor:pointer;font-weight:bold;font-size:13px;';
     
         let cancelBtn = document.createElement('button');
@@ -923,7 +938,6 @@
         const startCamera = async (deviceId = null) => {
             if (mediaStream) mediaStream.getTracks().forEach(t => t.stop());
             
-            // Request continuous autofocus mode where supported by hardware constraints
             const constraints = deviceId ? { 
                 video: { deviceId: { exact: deviceId }, focusMode: 'continuous' } 
             } : {
@@ -939,7 +953,6 @@
                 mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
                 video.srcObject = mediaStream;
     
-                // Attempt advanced track capability tuning (Focus Mode) if exposed by the browser API
                 let track = mediaStream.getVideoTracks()[0];
                 let capabilities = track.getCapabilities ? track.getCapabilities() : {};
                 if (capabilities.focusMode && capabilities.focusMode.includes('continuous')) {
@@ -963,7 +976,6 @@
             }
         };
     
-        // Tap-to-Focus trigger on the video container preview
         videoContainer.onclick = async (e) => {
             let rect = videoContainer.getBoundingClientRect();
             let x = e.clientX - rect.left;
@@ -979,7 +991,6 @@
             if (mediaStream) {
                 let track = mediaStream.getVideoTracks()[0];
                 let capabilities = track.getCapabilities ? track.getCapabilities() : {};
-                // Trigger manual focus constraint adjustment if supported by device hardware
                 if (capabilities.focusMode && capabilities.focusMode.includes('manual')) {
                     try {
                         await track.applyConstraints({ advanced: [{ focusMode: 'manual' }] });
@@ -1004,15 +1015,16 @@
             canvas.height = trackSettings.height || video.videoHeight || 1440;
             
             let ctx = canvas.getContext('2d');
-            ctx.filter = `brightness(${brightInput.value}%) contrast(${contrastInput.value}%)`;
+            let grayscaleFilter = ocrModeCheck.checked ? 'grayscale(100%) contrast(180%)' : '';
+            ctx.filter = `brightness(${brightInput.value}%) contrast(${contrastInput.value}%) ${grayscaleFilter}`;
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     
             canvas.toBlob(blob => {
                 if (mediaStream) mediaStream.getTracks().forEach(t => t.stop());
                 ov.remove();
     
-                let userPromptInput = prompt('Enter description for damage/OCR photo:', 'Damage Inspection');
-                if (!userPromptInput) userPromptInput = 'Damage Inspection';
+                let userPromptInput = prompt('Enter description for captured document/photo:', 'OCR Document');
+                if (!userPromptInput) userPromptInput = 'OCR Document';
                 
                 let descriptiveText = userPromptInput.trim();
                 let safeFilenameText = descriptiveText.replace(/\s+/g, '_');
@@ -1036,11 +1048,11 @@
                 }
     
                 if (typeof showToast === 'function') {
-                    showToast(`✓ Attached focused snapshot & filled title!`);
+                    showToast(`✓ Attached optimized snapshot & filled title!`);
                 }
     
                 showMainModal(activeTheme);
-            }, 'image/jpeg', 0.95);
+            }, 'image/jpeg', 0.98);
         };
     }
     
