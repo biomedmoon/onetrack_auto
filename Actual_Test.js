@@ -2285,7 +2285,7 @@ function showCurlinUploadModal(passedTheme) {
             };
         }
     
-        expandCamBtn.onclick = showStandaloneOCRScannerModule; // Launches the uncoupled full modal!
+        expandCamBtn.onclick = showStandaloneOCRScannerModal; // Launches the uncoupled full modal!
     
         async function processImageForOCR(imageDataUrl) {
             if (typeof showToast === 'function') showToast('⏳ Loading OCR engine & analyzing document...');
