@@ -2107,53 +2107,24 @@ function showCurlinUploadModal(passedTheme) {
         dropZone.appendChild(hiddenFileInput);
         box.appendChild(dropZone);
     
-        // --- ENHANCED WEBCAM CONTAINER WITH OCR & FOCUS CONTROLS ---
+        // --- WEBCAM CONTAINER (Compact inline trigger) ---
         let webcamContainer = document.createElement('div');
         webcamContainer.style.cssText = 'display:none;flex-direction:column;align-items:center;margin-bottom:8px;background:#111;padding:10px;border-radius:6px;';
         
-        let camSelect = document.createElement('select');
-        camSelect.style.cssText = 'background:#222;color:#fff;border:1px solid #444;padding:4px 6px;border-radius:4px;font-size:11px;width:100%;margin-bottom:6px;cursor:pointer;';
-        camSelect.title = 'Select Camera Device';
-        webcamContainer.appendChild(camSelect);
-
         let videoWrapper = document.createElement('div');
         videoWrapper.style.cssText = 'position:relative;width:100%;max-height:220px;background:#000;border-radius:4px;overflow:hidden;cursor:crosshair;';
-
+    
         let videoElement = document.createElement('video');
         videoElement.autoplay = true;
         videoElement.playsInline = true;
-        videoElement.style.cssText = 'width:100%;height:100%;object-fit:cover;transition:max-height 0.2s ease;';
+        videoElement.style.cssText = 'width:100%;height:100%;object-fit:cover;';
         videoWrapper.appendChild(videoElement);
-
+    
         let focusIndicator = document.createElement('div');
         focusIndicator.style.cssText = 'position:absolute;border:2px solid #28a745;width:35px;height:35px;border-radius:50%;transform:translate(-50%, -50%);pointer-events:none;display:none;transition:all 0.2s ease;z-index:5;';
         videoWrapper.appendChild(focusIndicator);
         webcamContainer.appendChild(videoWrapper);
-
-        // Filter Bar for Brightness, Contrast & High-Contrast Mono OCR Mode
-        let filterBar = document.createElement('div');
-        filterBar.style.cssText = 'display:flex;gap:8px;width:100%;margin-top:8px;font-size:10px;color:#ccc;align-items:center;justify-content:center;flex-wrap:wrap;';
-        filterBar.innerHTML = `
-            <label>Bright: <input type="range" id="ocrBright" min="50" max="150" value="100" style="width:70px;vertical-align:middle;cursor:pointer;"></label>
-            <label>Contrast: <input type="range" id="ocrContrast" min="50" max="200" value="110" style="width:70px;vertical-align:middle;cursor:pointer;"></label>
-            <label style="cursor:pointer;color:#4CAF50;font-weight:bold;"><input type="checkbox" id="ocrGrayCheck" style="vertical-align:middle;margin-right:2px;">OCR Mono</label>
-        `;
-        webcamContainer.appendChild(filterBar);
-
-        let brightSlider = filterBar.querySelector('#ocrBright');
-        let contrastSlider = filterBar.querySelector('#ocrContrast');
-        let grayCheck = filterBar.querySelector('#ocrGrayCheck');
-
-        let updateVideoFilters = () => {
-            let b = brightSlider.value;
-            let c = contrastSlider.value;
-            let mono = grayCheck.checked ? 'grayscale(100%) contrast(190%)' : '';
-            videoElement.style.filter = `brightness(${b}%) contrast(${c}%) ${mono}`;
-        };
-        brightSlider.oninput = updateVideoFilters;
-        contrastSlider.oninput = updateVideoFilters;
-        grayCheck.onchange = updateVideoFilters;
-
+    
         let camActionRow = document.createElement('div');
         camActionRow.style.cssText = 'display:flex;gap:6px;width:100%;margin-top:8px;';
     
@@ -2161,9 +2132,10 @@ function showCurlinUploadModal(passedTheme) {
         captureBtn.innerText = '📸 Capture Snapshot & Run OCR';
         captureBtn.style.cssText = 'flex:2;background:#4CAF50;color:white;border:none;padding:6px;border-radius:4px;cursor:pointer;font-weight:bold;font-size:11px;';
     
+        // --- EXPAND VIEW BUTTON: UNCOUPLES INTO STANDALONE MODAL ---
         let expandCamBtn = document.createElement('button');
-        expandCamBtn.innerText = '🔍 Expand View';
-        expandCamBtn.style.cssText = 'flex:1;background:#555;color:white;border:none;padding:6px;border-radius:4px;cursor:pointer;font-size:11px;';
+        expandCamBtn.innerText = '🔍 Expand View (Standalone)';
+        expandCamBtn.style.cssText = 'flex:1;background:#0366d6;color:white;border:none;padding:6px;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;';
     
         camActionRow.appendChild(captureBtn);
         camActionRow.appendChild(expandCamBtn);
@@ -2172,94 +2144,148 @@ function showCurlinUploadModal(passedTheme) {
     
         let mediaStream = null;
     
-        expandCamBtn.onclick = () => {
-            isExpandedView = !isExpandedView;
-            if (isExpandedView) {
-                videoWrapper.style.maxHeight = '420px';
-                videoElement.style.maxHeight = '420px';
-                expandCamBtn.innerText = '📉 Normal View';
-            } else {
-                videoWrapper.style.maxHeight = '220px';
-                videoElement.style.maxHeight = '220px';
-                expandCamBtn.innerText = '🔍 Expand View';
-            }
-        };
-
-        videoWrapper.onclick = async () => {
-            focusIndicator.style.display = 'block';
-            setTimeout(() => { focusIndicator.style.display = 'none'; }, 500);
-            if (mediaStream) {
-                let track = mediaStream.getVideoTracks()[0];
-                let caps = track.getCapabilities ? track.getCapabilities() : {};
-                if (caps.focusMode && caps.focusMode.includes('continuous')) {
-                    try { await track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }); } catch (e) {}
-                }
-            }
-        };
-
-        const startCamera = async (deviceId = null) => {
+        // Standalone Expanded View Camera Modal Builder
+        function showStandaloneOCRScannerModal() {
             if (mediaStream) mediaStream.getTracks().forEach(t => t.stop());
+            webcamContainer.style.display = 'none';
+            scanToggleBtn.innerText = '📷 Open Document Scanner Viewfinder';
+            ov.remove(); // Hide parts modal temporarily while scanning
+    
+            let scanOv = document.createElement('div');
+            scanOv.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:transparent;z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;pointer-events:none;';
             
-            const resolutions = [
-                { width: { ideal: 3840 }, height: { ideal: 2160 } }, // 4K
-                { width: { ideal: 2560 }, height: { ideal: 1440 } }, // 2K
-                { width: { ideal: 1920 }, height: { ideal: 1080 } }, // 1080p
-                {}
-            ];
-
-            for (let res of resolutions) {
+            let scanBox = document.createElement('div');
+            scanBox.className = 'onetrack-modal';
+            scanBox.style.cssText = `background:${boxBg};color:${boxColor};padding:22px;border-radius:10px;box-shadow:0 8px 30px rgba(0,0,0,0.35);width:850px;max-width:96vw;display:flex;flex-direction:column;align-items:center;position:relative;pointer-events:auto;`;
+            
+            let scHeader = document.createElement('div');
+            scHeader.style.cssText = 'display:flex;justify-content:space-between;align-items:center;width:100%;margin-bottom:10px;cursor:move;';
+    
+            let scTitle = document.createElement('h3');
+            scTitle.innerText = `🔍 Full-Screen OCR Document Scanner`;
+            scTitle.style.cssText = `margin:0;font-size:15px;font-weight:bold;color:${isDark ? '#fff' : '#222'};`;
+            scHeader.appendChild(scTitle);
+    
+            let camSelect = document.createElement('select');
+            camSelect.style.cssText = 'background:#333;color:#fff;border:none;padding:4px 6px;border-radius:4px;font-size:11px;max-width:160px;cursor:pointer;';
+            scHeader.appendChild(camSelect);
+            if (typeof makeDraggable === 'function') makeDraggable(scanBox, scHeader);
+            scanBox.appendChild(scHeader);
+    
+            let bigVideoContainer = document.createElement('div');
+            bigVideoContainer.style.cssText = 'position:relative;width:100%;height:460px;background:#000;border-radius:6px;overflow:hidden;margin-bottom:10px;cursor:crosshair;';
+    
+            let bigVideo = document.createElement('video');
+            bigVideo.autoplay = true;
+            bigVideo.playsInline = true;
+            bigVideo.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+            bigVideoContainer.appendChild(bigVideo);
+    
+            let ocrGuideBox = document.createElement('div');
+            ocrGuideBox.style.cssText = 'position:absolute;top:15%;left:15%;width:70%;height:70%;border:2px dashed rgba(40,167,69,0.7);border-radius:6px;pointer-events:none;display:flex;align-items:flex-start;justify-content:center;padding:6px;color:rgba(255,255,255,0.8);font-size:11px;font-weight:bold;text-shadow:0 1px 3px rgba(0,0,0,0.8);';
+            ocrGuideBox.innerText = '🎯 Align Label / Text Here for OCR';
+            bigVideoContainer.appendChild(ocrGuideBox);
+            scanBox.appendChild(bigVideoContainer);
+    
+            // Filter Controls Bar
+            let filterBar = document.createElement('div');
+            filterBar.style.cssText = 'display:flex;gap:10px;width:100%;margin-bottom:12px;font-size:11px;align-items:center;justify-content:center;flex-wrap:wrap;';
+            filterBar.innerHTML = `
+                <label>Brightness: <input type="range" id="scanBright" min="50" max="150" value="100" style="width:80px;cursor:pointer;vertical-align:middle;"></label>
+                <label>Contrast: <input type="range" id="scanContrast" min="50" max="200" value="110" style="width:80px;cursor:pointer;vertical-align:middle;"></label>
+                <label style="cursor:pointer;font-weight:bold;color:#4CAF50;"><input type="checkbox" id="scanGray" style="vertical-align:middle;margin-right:3px;">OCR Mono</label>
+            `;
+            scanBox.appendChild(filterBar);
+    
+            let sBright = filterBar.querySelector('#scanBright');
+            let sContrast = filterBar.querySelector('#scanContrast');
+            let sGray = filterBar.querySelector('#scanGray');
+    
+            let updateBigFilters = () => {
+                let mono = sGray.checked ? 'grayscale(100%) contrast(190%)' : '';
+                bigVideo.style.filter = `brightness(${sBright.value}%) contrast(${sContrast.value}%) ${mono}`;
+            };
+            sBright.oninput = updateBigFilters;
+            sContrast.oninput = updateBigFilters;
+            sGray.onchange = updateBigFilters;
+    
+            let btnRow = document.createElement('div');
+            btnRow.style.cssText = 'display:flex;gap:10px;width:100%;';
+    
+            let bigSnapBtn = document.createElement('button');
+            bigSnapBtn.innerText = '📸 Capture & Run OCR';
+            bigSnapBtn.style.cssText = 'flex:2;background:#28a745;color:white;border:none;padding:10px;border-radius:6px;cursor:pointer;font-weight:bold;font-size:13px;';
+    
+            let bigCancelBtn = document.createElement('button');
+            bigCancelBtn.innerText = 'Cancel / Return to Parts';
+            bigCancelBtn.style.cssText = 'flex:1;background:#6c757d;color:white;border:none;padding:10px;border-radius:6px;cursor:pointer;font-size:13px;';
+    
+            btnRow.appendChild(bigSnapBtn);
+            btnRow.appendChild(bigCancelBtn);
+            scanBox.appendChild(btnRow);
+            scanOv.appendChild(scanBox);
+            document.body.appendChild(scanOv);
+    
+            let activeStream = null;
+            const initBigCam = async (devId = null) => {
+                if (activeStream) activeStream.getTracks().forEach(t => t.stop());
                 try {
-                    let constraints = deviceId ? { 
-                        video: { deviceId: { exact: deviceId }, focusMode: 'continuous', ...res } 
-                    } : {
-                        video: { facingMode: 'environment', focusMode: { ideal: 'continuous' }, ...res }
-                    };
-
-                    mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
-                    videoElement.srcObject = mediaStream;
-                    updateVideoFilters();
-
-                    let track = mediaStream.getVideoTracks()[0];
-                    let caps = track.getCapabilities ? track.getCapabilities() : {};
-                    if (caps.focusMode && caps.focusMode.includes('continuous')) {
-                        await track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(() => {});
-                    }
-
+                    activeStream = await navigator.mediaDevices.getUserMedia({
+                        video: devId ? { deviceId: { exact: devId }, focusMode: 'continuous' } : { facingMode: 'environment', width: { ideal: 2560 }, height: { ideal: 1440 }, focusMode: { ideal: 'continuous' } }
+                    });
+                    bigVideo.srcObject = activeStream;
+                    updateBigFilters();
+    
                     if (camSelect.options.length <= 1) {
                         let devices = await navigator.mediaDevices.enumerateDevices();
-                        let videoDevices = devices.filter(d => d.kind === 'videoinput');
+                        let vDevs = devices.filter(d => d.kind === 'videoinput');
                         camSelect.innerHTML = '';
-                        videoDevices.forEach((dev, idx) => {
+                        vDevs.forEach((d, i) => {
                             let opt = document.createElement('option');
-                            opt.value = dev.deviceId;
-                            opt.innerText = dev.label || `Camera ${idx + 1}`;
-                            if (dev.deviceId === deviceId) opt.selected = true;
+                            opt.value = d.deviceId;
+                            opt.innerText = d.label || `Camera ${i + 1}`;
+                            if (d.deviceId === devId) opt.selected = true;
                             camSelect.appendChild(opt);
                         });
                     }
-                    return;
-                } catch (e) {
-                    // Try next lower resolution tier
+                } catch (err) {
+                    alert('Camera access denied or unavailable.');
+                    scanOv.remove();
+                    showSolisPartsModal(activeTheme, addHistoryItem, processTextSelection);
                 }
-            }
-            alert('Camera access denied or unavailable.');
-            webcamContainer.style.display = 'none';
-            scanToggleBtn.innerText = '📷 Open Document Scanner Viewfinder';
-        };
-
-        camSelect.onchange = () => startCamera(camSelect.value);
+            };
     
-        scanToggleBtn.onclick = async () => {
-            if (webcamContainer.style.display === 'flex') {
-                if (mediaStream) mediaStream.getTracks().forEach(t => t.stop());
-                webcamContainer.style.display = 'none';
-                scanToggleBtn.innerText = '📷 Open Document Scanner Viewfinder';
-            } else {
-                webcamContainer.style.display = 'flex';
-                scanToggleBtn.innerText = '❌ Close Viewfinder';
-                await startCamera();
-            }
-        };
+            camSelect.onchange = () => initBigCam(camSelect.value);
+            initBigCam();
+    
+            bigCancelBtn.onclick = () => {
+                if (activeStream) activeStream.getTracks().forEach(t => t.stop());
+                scanOv.remove();
+                showSolisPartsModal(activeTheme, addHistoryItem, processTextSelection);
+            };
+    
+            bigSnapBtn.onclick = async () => {
+                let canvas = document.createElement('canvas');
+                let settings = activeStream ? activeStream.getVideoTracks()[0].getSettings() : {};
+                canvas.width = settings.width || bigVideo.videoWidth || 2560;
+                canvas.height = settings.height || bigVideo.videoHeight || 1440;
+    
+                let ctx = canvas.getContext('2d');
+                let monoFilter = sGray.checked ? 'grayscale(100%) contrast(190%)' : '';
+                ctx.filter = `brightness(${sBright.value}%) contrast(${sContrast.value}%) ${monoFilter}`;
+                ctx.drawImage(bigVideo, 0, 0, canvas.width, canvas.height);
+                let imgDataUrl = canvas.toDataURL('image/jpeg', 0.98);
+    
+                if (activeStream) activeStream.getTracks().forEach(t => t.stop());
+                scanOv.remove();
+    
+                // Re-open parts modal and process OCR result
+                showSolisPartsModal(activeTheme, addHistoryItem, processTextSelection);
+                await processImageForOCR(imgDataUrl);
+            };
+        }
+    
+        expandCamBtn.onclick = showStandaloneOCRScannerModule; // Launches the uncoupled full modal!
     
         async function processImageForOCR(imageDataUrl) {
             if (typeof showToast === 'function') showToast('⏳ Loading OCR engine & analyzing document...');
