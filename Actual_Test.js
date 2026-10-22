@@ -1734,7 +1734,6 @@ function showCurlinUploadModal(passedTheme) {
             };
         }
     
-        // --- INFINITY OCR PARSER ---
         async function processInfinityOCR(imageDataUrl) {
             if (typeof showToast === 'function') showToast('⏳ Analyzing Infinity parts document...');
             try {
@@ -1748,24 +1747,46 @@ function showCurlinUploadModal(passedTheme) {
                     });
                 }
     
-                let result = await Tesseract.recognize(imageDataUrl, 'eng', { 
-                    logger: m => console.log(m),
-                    tessedit_pageseg_mode: '6' 
-                });
+                let result = await Tesseract.recognize(
+                    imageDataUrl, 
+                    'eng', 
+                    { 
+                        logger: m => console.log(m), 
+                        tessedit_pageseg_mode: '6' 
+                    }
+                );
     
                 let rawText = result.data.text ? result.data.text.trim().toUpperCase() : '';
+                console.log("--- INFINITY RAW OCR TEXT --- \n", rawText);
+    
                 if (rawText) {
                     let matchedCount = 0;
+                    let cleanScanText = rawText.replace(/[\s,\-\/]+/g, ' ');
     
                     partsList.forEach(p => {
                         let isMatched = false;
     
-                        if (p.num && rawText.includes(p.num.toUpperCase())) isMatched = true;
-                        if (p.name.includes('Alt: ')) {
-                            let altMatch = p.name.match(/Alt:\s*([0-9\-]+)/);
-                            if (altMatch && rawText.includes(altMatch[1].toUpperCase())) isMatched = true;
+                        // 1. Exact Part Number match
+                        if (p.num && p.num.trim()) {
+                            let cleanPartNum = p.num.trim().toUpperCase();
+                            if (rawText.includes(cleanPartNum) || cleanScanText.includes(cleanPartNum.replace(/[\s,\-\/]+/g, ' '))) {
+                                isMatched = true;
+                            }
                         }
-                        if (rawText.includes(p.name.toUpperCase())) isMatched = true;
+    
+                        // 2. Check Alternate Part Numbers
+                        if (p.name.includes('Alt:')) {
+                            let altMatch = p.name.match(/Alt:\s*([0-9\-]+)/i);
+                            if (altMatch && altMatch[1]) {
+                                let altNum = altMatch[1].trim().toUpperCase();
+                                if (rawText.includes(altNum)) isMatched = true;
+                            }
+                        }
+    
+                        // 3. Fallback text name matching
+                        if (p.name && rawText.includes(p.name.toUpperCase())) {
+                            isMatched = true;
+                        }
     
                         if (isMatched && !selectedItems.has(p.name)) {
                             selectedItems.add(p.name);
