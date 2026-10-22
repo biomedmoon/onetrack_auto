@@ -1286,6 +1286,7 @@
                 "42611": "Canon Motor",
                 "43763-101": "Infinity II PCB Assembly",
                 "80782-001": "Top Housing",
+                "80782-005": "Top Housing (Orange)",
                 "56717-001": "Top Housing"
             };
     
@@ -1499,8 +1500,8 @@ function showCurlinUploadModal(passedTheme) {
             { num: '28483-001', name: 'Rotor Assembly' },
             { num: '42611', name: 'Canon Motor' },
             { num: '43763-101', name: 'Infinity II PCB Assembly' },
-            { num: '80782-005', name: 'Top Housing' },
-            { num: '80782-001', name: 'Top Housing (Alt: 56717-001)' }
+            { num: '80782-005', name: 'Top Housing (Orange)' },
+            { num: '80782-001', name: 'Top Housing' }
         ];
     
         let storedPartsJson = localStorage.getItem('infinity_custom_parts_list');
