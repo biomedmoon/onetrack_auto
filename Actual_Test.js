@@ -1592,9 +1592,37 @@ function showCurlinUploadModal(passedTheme) {
             scTitle.style.cssText = `margin:0;font-size:15px;font-weight:bold;color:${isDark ? '#fff' : '#222'};`;
             scHeader.appendChild(scTitle);
     
+            // --- TOP RIGHT CONTROLS CONTAINER ---
+            let topControls = document.createElement('div');
+            topControls.style.cssText = 'display:flex;gap:8px;align-items:center;';
+    
             let camSelect = document.createElement('select');
-            camSelect.style.cssText = 'background:#333;color:#fff;border:none;padding:4px 6px;border-radius:4px;font-size:11px;max-width:160px;cursor:pointer;';
-            scHeader.appendChild(camSelect);
+            camSelect.style.cssText = 'background:#333;color:#fff;border:none;padding:4px 6px;border-radius:4px;font-size:11px;max-width:140px;cursor:pointer;';
+            camSelect.title = 'Select Camera Device';
+    
+            let currentWidth = 850;
+            let zoomOutBtn = document.createElement('button');
+            zoomOutBtn.innerText = '−';
+            zoomOutBtn.style.cssText = 'background:#555;color:#fff;border:none;width:24px;height:24px;border-radius:4px;cursor:pointer;font-weight:bold;';
+            
+            let zoomInBtn = document.createElement('button');
+            zoomInBtn.innerText = '+';
+            zoomInBtn.style.cssText = 'background:#0366d6;color:#fff;border:none;width:24px;height:24px;border-radius:4px;cursor:pointer;font-weight:bold;';
+    
+            zoomOutBtn.onclick = () => {
+                currentWidth = Math.max(600, currentWidth - 100);
+                scanBox.style.width = currentWidth + 'px';
+            };
+            zoomInBtn.onclick = () => {
+                currentWidth = Math.min(1200, currentWidth + 100);
+                scanBox.style.width = currentWidth + 'px';
+            };
+    
+            topControls.appendChild(camSelect);
+            topControls.appendChild(zoomOutBtn);
+            topControls.appendChild(zoomInBtn);
+            scHeader.appendChild(topControls);
+    
             if (typeof makeDraggable === 'function') makeDraggable(scanBox, scHeader);
             scanBox.appendChild(scHeader);
     
