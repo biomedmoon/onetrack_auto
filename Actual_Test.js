@@ -1513,9 +1513,19 @@ function showCurlinUploadModal(passedTheme) {
         let scannerControls = document.createElement('div');
         scannerControls.style.cssText = 'display:flex;gap:8px;margin-bottom:8px;';
     
+        // --- TOP SCANNER & UPLOAD RECEPTACLE ---
+        let scannerControls = document.createElement('div');
+        scannerControls.style.cssText = 'display:flex;gap:8px;margin-bottom:8px;';
+    
         let scanToggleBtn = document.createElement('button');
         scanToggleBtn.innerText = '📷 Open Document Scanner Viewfinder';
         scanToggleBtn.style.cssText = 'flex:1;background:#008CBA;color:white;border:none;padding:8px;border-radius:4px;cursor:pointer;font-weight:bold;font-size:11px;';
+        
+        // Wire the button directly to open the standalone OCR scanner modal
+        scanToggleBtn.onclick = () => {
+            showStandaloneOCRScannerModal();
+        };
+    
         scannerControls.appendChild(scanToggleBtn);
         box.appendChild(scannerControls);
     
