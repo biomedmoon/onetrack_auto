@@ -2453,32 +2453,59 @@ function showCurlinUploadModal(passedTheme) {
             };
     
             bigSnapBtn.onclick = async () => {
-                // Ensure the video element has actually loaded valid metadata/dimensions
-                if (bigVideo.videoWidth === 0 || bigVideo.videoHeight === 0) {
-                    alert('Camera stream is still initializing. Please wait a second and try capturing again.');
-                    return;
-                }
-    
-                // Force a micro-frame yield to ensure the buffer is fully flushed
-                await new Promise(resolve => requestAnimationFrame(resolve));
-    
                 let canvas = document.createElement('canvas');
-                canvas.width = bigVideo.videoWidth;
-                canvas.height = bigVideo.videoHeight;
+                let settings = activeStream ? activeStream.getVideoTracks()[0].getSettings() : {};
+                canvas.width = settings.width || bigVideo.videoWidth || 2560;
+                canvas.height = settings.height || bigVideo.videoHeight || 1440;
     
                 let ctx = canvas.getContext('2d');
                 let monoFilter = sGray.checked ? 'grayscale(100%) contrast(190%)' : '';
                 ctx.filter = `brightness(${sBright.value}%) contrast(${sContrast.value}%) ${monoFilter}`;
                 
-                // Draw the actual fully-rendered video frame
                 ctx.drawImage(bigVideo, 0, 0, canvas.width, canvas.height);
                 let imgDataUrl = canvas.toDataURL('image/jpeg', 0.98);
     
                 if (activeStream) activeStream.getTracks().forEach(t => t.stop());
                 scanOv.remove();
     
-                // Now safely pass the validated high-res image into Tesseract
-                await processAndOpenWithOCR(imgDataUrl, activeTheme, addHistoryItem, processTextSelection);
+                // 1. Re-open the modal immediately so the UI is back and responsive
+                showSolisPartsModal(activeTheme, addHistoryItem, processTextSelection, []);
+    
+                // 2. Run OCR in the background, then update the checkboxes once it finds matches
+                if (typeof showToast === 'function') showToast('⏳ Running background OCR match...');
+                try {
+                    if (typeof Tesseract === 'undefined') {
+                        await new Promise((resolve, reject) => {
+                            let script = document.createElement('script');
+                            script.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+                            script.onload = resolve; script.onerror = reject;
+                            document.head.appendChild(script);
+                        });
+                    }
+                    let result = await Tesseract.recognize(imgDataUrl, 'eng', { tessedit_pageseg_mode: '6' });
+                    let rawText = result.data.text ? result.data.text.trim().toUpperCase() : '';
+                    
+                    if (rawText) {
+                        let storedPartsJson = localStorage.getItem('solis_custom_parts_list');
+                        let partsList = storedPartsJson ? JSON.parse(storedPartsJson) : defaultParts;
+                        let matchedPartNames = [];
+    
+                        partsList.forEach(p => {
+                            let isMatched = false;
+                            if (p.num && rawText.includes(p.num.toUpperCase())) isMatched = true;
+                            if (rawText.includes(p.name.toUpperCase())) isMatched = true;
+                            if (isMatched) matchedPartNames.push(p.name);
+                        });
+    
+                        if (matchedPartNames.length > 0) {
+                            // Refresh/re-render the modal with the newly discovered matches checked!
+                            showSolisPartsModal(activeTheme, addHistoryItem, processTextSelection, matchedPartNames);
+                            if (typeof showToast === 'function') showToast(`✓ Auto-selected ${matchedPartNames.length} part(s)!`);
+                        }
+                    }
+                } catch (err) {
+                    console.error('Background OCR Error:', err);
+                }
             };
         }
     
