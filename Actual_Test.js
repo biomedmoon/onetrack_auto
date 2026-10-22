@@ -2453,26 +2453,31 @@ function showCurlinUploadModal(passedTheme) {
             };
     
             bigSnapBtn.onclick = async () => {
-                // Guarantee we capture the actual video frame dimensions safely
-                let w = bigVideo.videoWidth || 2560;
-                let h = bigVideo.videoHeight || 1440;
+                // Ensure the video element has actually loaded valid metadata/dimensions
+                if (bigVideo.videoWidth === 0 || bigVideo.videoHeight === 0) {
+                    alert('Camera stream is still initializing. Please wait a second and try capturing again.');
+                    return;
+                }
+    
+                // Force a micro-frame yield to ensure the buffer is fully flushed
+                await new Promise(resolve => requestAnimationFrame(resolve));
     
                 let canvas = document.createElement('canvas');
-                canvas.width = w;
-                canvas.height = h;
+                canvas.width = bigVideo.videoWidth;
+                canvas.height = bigVideo.videoHeight;
     
                 let ctx = canvas.getContext('2d');
                 let monoFilter = sGray.checked ? 'grayscale(100%) contrast(190%)' : '';
                 ctx.filter = `brightness(${sBright.value}%) contrast(${sContrast.value}%) ${monoFilter}`;
                 
-                // Draw the full video frame
-                ctx.drawImage(bigVideo, 0, 0, w, h);
+                // Draw the actual fully-rendered video frame
+                ctx.drawImage(bigVideo, 0, 0, canvas.width, canvas.height);
                 let imgDataUrl = canvas.toDataURL('image/jpeg', 0.98);
     
                 if (activeStream) activeStream.getTracks().forEach(t => t.stop());
                 scanOv.remove();
     
-                // Process OCR and pass the matched array back into the parts modal
+                // Now safely pass the validated high-res image into Tesseract
                 await processAndOpenWithOCR(imgDataUrl, activeTheme, addHistoryItem, processTextSelection);
             };
         }
