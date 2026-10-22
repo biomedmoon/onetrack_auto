@@ -1,10 +1,12 @@
 // ==UserScript==
 // @name         OneTrack Automation & Helper - Actual_Findings
 // @namespace    http://tampermonkey.net/
-// @version      1.4.1
+// @version      1.5.0
 // @description  Automates workflows, UI enhancements, hotkeys, and persistent settings.
 // @author       jekosol
 // @match        *://*/*
+// @require      https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js
+// @require      https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js
 // @grant        GM_xmlhttpRequest
 // @grant        GM_getValue
 // @grant        GM_setValue
@@ -24,7 +26,7 @@
             localStorage.setItem(key, val);
         };
     }
-    const CURRENT_VERSION = '1.4.1';
+    const CURRENT_VERSION = '1.5.0';
     // --- ENVIRONMENT AUTO-DETECTION ---
     const isTestEnv = typeof GM_info !== 'undefined' && GM_info && GM_info.script && GM_info.script.name.includes('Test');
     const CONFIG = {
@@ -35,9 +37,7 @@
     };
     const RELEASE_NOTES = [
         "Added customizable Toggles: Dark/Light Mode, Compact UI, Import/Export backup.",
-        "Added user-configurable hotkeys via settings menu.",
-        "Added dedicated Global Common Phrases editor accessible from any device screen.",
-        "Added PDF text extractor for MOOG Invoices",
+        "Added Damage Cam and OCR support for Infinity and Solis Devices.",
         "Added Feedback (option file attachment) Feature within Advanced Settings tab"
     ];
 
@@ -422,20 +422,27 @@
     function processTextSelection(text) {
         let appendMode = localStorage.getItem('preset_notes_append_mode') === 'true';
         let targetInput = null;
+        
+        // Exclude our own preset-notes-modal so we don't accidentally target our own template textarea
         let modalDialogs = document.querySelectorAll('.ant-modal, [role="dialog"], div[style*="z-index"]');
         for (let dialog of modalDialogs) {
+            if (dialog.id === 'preset-notes-modal') continue; // Skip our parts modal!
+            
             let ta = dialog.querySelector('textarea, input[type="text"]');
             if (ta && ta.offsetParent !== null) {
                 targetInput = ta;
                 break;
             }
         }
+        
         if (!targetInput) {
             let activeEl = document.activeElement;
-            if (activeEl && (activeEl.tagName === 'TEXTAREA' || activeEl.tagName === 'INPUT')) {
+            // Also ensure we don't grab the template box if it happens to be focused
+            if (activeEl && (activeEl.tagName === 'TEXTAREA' || activeEl.tagName === 'INPUT') && activeEl.id !== 'sentenceTextarea') {
                 targetInput = activeEl;
             }
         }
+        
         if (targetInput) {
             targetInput.focus();
             let existing = targetInput.value || '';
@@ -447,10 +454,11 @@
             targetInput.dispatchEvent(new Event('input', { bubbles: true }));
             targetInput.dispatchEvent(new Event('change', { bubbles: true }));
             targetInput.dispatchEvent(new Event('blur', { bubbles: true }));
-            showToast("✓ Applied to field & copied!");
+            if (typeof showToast === 'function') showToast("✓ Applied to field & copied!");
         } else {
-            showToast("✓ Copied to clipboard only!");
+            if (typeof showToast === 'function') showToast("✓ Copied to clipboard only!");
         }
+        
         let tempInput = document.createElement('textarea');
         tempInput.value = text;
         document.body.appendChild(tempInput);
@@ -604,6 +612,15 @@
         sh.innerText = `Company: ${cc}`;
         sh.style.cssText = `font-size:11px;color:#fff;background:${badgeColor};text-align:center;font-weight:bold;padding:6px 8px;border-radius:4px;flex:1;`;
         hsRow.appendChild(sh);
+        let camBtn = document.createElement('button');
+        camBtn.innerHTML = '📷';
+        camBtn.title = 'Take damage photo & attach to OEM Document';
+        camBtn.style.cssText = 'font-size:14px;background:#008CBA;color:#fff;border:none;padding:4px 10px;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;';
+        camBtn.onclick = () => {
+            ov.remove();
+            showDamageCameraModal(activeTheme);
+        };
+        hsRow.appendChild(camBtn);
 
         let warrantyText = "";
         try {
@@ -696,6 +713,18 @@
             cont.appendChild(curlinPdfBtn);
         }
 
+        if (/solis/i.test(dt)) {
+            let solisOemBtn = document.createElement('button');
+            solisOemBtn.innerText = '🔧 Solis OEM Replaced Parts Selection...';
+            solisOemBtn.className = 'onetrack-btn';
+            solisOemBtn.style.cssText = 'display:block;width:100%;padding:8px 10px;margin:4px 0;background:#e2f0cb;color:#2b542c;border:1px solid #b5d89c;border-radius:4px;cursor:pointer;font-size:12px;text-align:left;font-weight:bold;line-height:1.4;';
+            solisOemBtn.onclick = () => {
+                ov.remove(); 
+                showSolisPartsModal(activeTheme, addHistoryItem, processTextSelection);
+            };
+            cont.appendChild(solisOemBtn);
+        }
+        
         if (/enteralite\s*infinity/i.test(dt)) {
             let infBtn = document.createElement('button');
             infBtn.innerText = '⚡ Infinity Flat Rate Repair Calculation';
@@ -780,7 +809,251 @@
         ov.appendChild(box);
         document.body.appendChild(ov);
     }
-
+    function showDamageCameraModal(passedTheme) {
+        let activeTheme = passedTheme || document.getElementById('preset-notes-modal')?.getAttribute('data-theme') || 'light';
+        let isDark = activeTheme === 'dark';
+        let serialNum = getSerialNumber() || 'Unknown_SN';
+    
+        let ov = document.createElement('div');
+        ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:transparent;z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;pointer-events:none;';
+        
+        let box = document.createElement('div');
+        box.className = 'onetrack-modal' + (typeof compactMode !== 'undefined' && compactMode ? ' onetrack-compact-mode' : '');
+        let boxBg = isDark ? '#1e1e1e' : '#fff';
+        let boxColor = isDark ? '#e0e0e0' : '#333';
+        
+        box.style.cssText = `background:${boxBg};color:${boxColor};padding:22px;border-radius:10px;box-shadow:0 8px 30px rgba(0,0,0,0.35);width:850px;max-width:96vw;display:flex;flex-direction:column;align-items:center;position:relative;pointer-events:auto;`;
+        
+        if (typeof applyUIScale === 'function') applyUIScale(box);
+        if (typeof applySavedPosition === 'function') applySavedPosition(box);
+        if (typeof applySavedScale === 'function') applySavedScale(box);
+    
+        let headerContainer = document.createElement('div');
+        headerContainer.style.cssText = 'display:flex;justify-content:space-between;align-items:center;width:100%;margin-bottom:10px;cursor:move;';
+    
+        let h = document.createElement('h3');
+        h.innerText = `📸 Damage & OCR Capture — S/N: ${serialNum}`;
+        h.style.cssText = `margin:0;font-size:15px;font-weight:bold;color:${isDark ? '#fff' : '#222'};`;
+        headerContainer.appendChild(h);
+    
+        let topControls = document.createElement('div');
+        topControls.style.cssText = 'display:flex;gap:8px;align-items:center;';
+        
+        let camSelect = document.createElement('select');
+        camSelect.style.cssText = 'background:#333;color:#fff;border:none;padding:4px 6px;border-radius:4px;font-size:11px;max-width:140px;cursor:pointer;';
+        camSelect.title = 'Select Camera Device';
+    
+        let currentWidth = 850;
+        let zoomOutBtn = document.createElement('button');
+        zoomOutBtn.innerText = '−';
+        zoomOutBtn.style.cssText = 'background:#555;color:#fff;border:none;width:24px;height:24px;border-radius:4px;cursor:pointer;font-weight:bold;';
+        
+        let zoomInBtn = document.createElement('button');
+        zoomInBtn.innerText = '+';
+        zoomInBtn.style.cssText = 'background:#0366d6;color:#fff;border:none;width:24px;height:24px;border-radius:4px;cursor:pointer;font-weight:bold;';
+    
+        zoomOutBtn.onclick = () => { currentWidth = Math.max(600, currentWidth - 100); box.style.width = currentWidth + 'px'; };
+        zoomInBtn.onclick = () => { currentWidth = Math.min(1200, currentWidth + 100); box.style.width = currentWidth + 'px'; };
+    
+        topControls.appendChild(camSelect);
+        topControls.appendChild(zoomOutBtn);
+        topControls.appendChild(zoomInBtn);
+        headerContainer.appendChild(topControls);
+    
+        if (typeof makeDraggable === 'function') makeDraggable(box, headerContainer);
+        box.appendChild(headerContainer);
+    
+        let videoContainer = document.createElement('div');
+        videoContainer.style.cssText = 'position:relative;width:100%;height:480px;background:#000;border-radius:6px;overflow:hidden;margin-bottom:10px;cursor:crosshair;';
+    
+        let video = document.createElement('video');
+        video.autoplay = true;
+        video.playsInline = true;
+        video.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+        videoContainer.appendChild(video);
+    
+        // Optional OCR alignment framing guide overlay
+        let ocrGuideBox = document.createElement('div');
+        ocrGuideBox.style.cssText = 'position:absolute;top:15%;left:15%;width:70%;height:70%;border:2px dashed rgba(40,167,69,0.7);border-radius:6px;pointer-events:none;display:flex;align-items:flex-start;justify-content:center;padding:6px;color:rgba(255,255,255,0.8);font-size:11px;font-weight:bold;text-shadow:0 1px 3px rgba(0,0,0,0.8);';
+        ocrGuideBox.innerText = '🎯 Align OCR Label / Text Here';
+        videoContainer.appendChild(ocrGuideBox);
+    
+        box.appendChild(videoContainer);
+    
+        let focusIndicator = document.createElement('div');
+        focusIndicator.style.cssText = 'position:absolute;border:2px solid #28a745;width:40px;height:40px;border-radius:50%;transform:translate(-50%, -50%);pointer-events:none;display:none;transition:all 0.2s ease;z-index:5;';
+        videoContainer.appendChild(focusIndicator);
+    
+        // Filter & OCR Optimization Bar
+        let filterBar = document.createElement('div');
+        filterBar.style.cssText = 'display:flex;gap:10px;width:100%;margin-bottom:12px;font-size:11px;align-items:center;justify-content:center;opacity:0.9;flex-wrap:wrap;';
+        filterBar.innerHTML = `
+            <label>Brightness: <input type="range" id="camBrightness" min="50" max="150" value="100" style="width:80px;cursor:pointer;vertical-align:middle;"></label>
+            <label>Contrast: <input type="range" id="camContrast" min="50" max="200" value="110" style="width:80px;cursor:pointer;vertical-align:middle;"></label>
+            <label style="cursor:pointer;font-weight:bold;color:#0366d6;"><input type="checkbox" id="ocrModeCheck" style="vertical-align:middle;margin-right:3px;">🔲 OCR High-Contrast Mode</label>
+            <button id="camResetFilter" style="background:#444;color:#fff;border:none;padding:2px 6px;border-radius:3px;cursor:pointer;">Reset</button>
+        `;
+        box.appendChild(filterBar);
+    
+        let brightInput = filterBar.querySelector('#camBrightness');
+        let contrastInput = filterBar.querySelector('#camContrast');
+        let ocrModeCheck = filterBar.querySelector('#ocrModeCheck');
+    
+        let updateFilters = () => {
+            let b = brightInput.value;
+            let c = contrastInput.value;
+            let grayscale = ocrModeCheck.checked ? 'grayscale(100%) contrast(180%)' : '';
+            video.style.filter = `brightness(${b}%) contrast(${c}%) ${grayscale}`;
+        };
+    
+        brightInput.oninput = updateFilters;
+        contrastInput.oninput = updateFilters;
+        ocrModeCheck.onchange = updateFilters;
+        filterBar.querySelector('#camResetFilter').onclick = () => {
+            brightInput.value = 100; contrastInput.value = 110; ocrModeCheck.checked = false; updateFilters();
+        };
+        updateFilters(); // Apply initial defaults
+    
+        let btnRow = document.createElement('div');
+        btnRow.style.cssText = 'display:flex;gap:10px;width:100%;';
+    
+        let snapBtn = document.createElement('button');
+        snapBtn.innerText = '📷 Take Snapshot & Attach';
+        snapBtn.style.cssText = 'flex:2;background:#28a745;color:white;border:none;padding:10px;border-radius:6px;cursor:pointer;font-weight:bold;font-size:13px;';
+    
+        let cancelBtn = document.createElement('button');
+        cancelBtn.innerText = 'Cancel';
+        cancelBtn.style.cssText = 'flex:1;background:#6c757d;color:white;border:none;padding:10px;border-radius:6px;cursor:pointer;font-size:13px;';
+    
+        btnRow.appendChild(snapBtn);
+        btnRow.appendChild(cancelBtn);
+        box.appendChild(btnRow);
+        ov.appendChild(box);
+        document.body.appendChild(ov);
+    
+        let mediaStream = null;
+    
+        const startCamera = async (deviceId = null) => {
+            if (mediaStream) mediaStream.getTracks().forEach(t => t.stop());
+            
+            const constraints = deviceId ? { 
+                video: { deviceId: { exact: deviceId }, focusMode: 'continuous' } 
+            } : {
+                video: { 
+                    facingMode: 'environment', 
+                    width: { ideal: 2560 }, 
+                    height: { ideal: 1440 },
+                    focusMode: { ideal: 'continuous' }
+                }
+            };
+    
+            try {
+                mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+                video.srcObject = mediaStream;
+    
+                let track = mediaStream.getVideoTracks()[0];
+                let capabilities = track.getCapabilities ? track.getCapabilities() : {};
+                if (capabilities.focusMode && capabilities.focusMode.includes('continuous')) {
+                    await track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(() => {});
+                }
+    
+                if (camSelect.options.length <= 1) {
+                    let devices = await navigator.mediaDevices.enumerateDevices();
+                    let videoDevices = devices.filter(d => d.kind === 'videoinput');
+                    camSelect.innerHTML = '';
+                    videoDevices.forEach((dev, idx) => {
+                        let opt = document.createElement('option');
+                        opt.value = dev.deviceId;
+                        opt.innerText = dev.label || `Camera ${idx + 1}`;
+                        camSelect.appendChild(opt);
+                    });
+                }
+            } catch (e) {
+                alert('Camera access denied or unavailable.');
+                ov.remove();
+            }
+        };
+    
+        videoContainer.onclick = async (e) => {
+            let rect = videoContainer.getBoundingClientRect();
+            let x = e.clientX - rect.left;
+            let y = e.clientY - rect.top;
+    
+            focusIndicator.style.left = x + 'px';
+            focusIndicator.style.top = y + 'px';
+            focusIndicator.style.display = 'block';
+            focusIndicator.style.transform = 'translate(-50%, -50%) scale(1.3)';
+            setTimeout(() => { focusIndicator.style.transform = 'translate(-50%, -50%) scale(1)'; }, 200);
+            setTimeout(() => { focusIndicator.style.display = 'none'; }, 600);
+    
+            if (mediaStream) {
+                let track = mediaStream.getVideoTracks()[0];
+                let capabilities = track.getCapabilities ? track.getCapabilities() : {};
+                if (capabilities.focusMode && capabilities.focusMode.includes('manual')) {
+                    try {
+                        await track.applyConstraints({ advanced: [{ focusMode: 'manual' }] });
+                    } catch (err) {}
+                }
+            }
+        };
+    
+        camSelect.onchange = () => startCamera(camSelect.value);
+        startCamera();
+    
+        cancelBtn.onclick = () => {
+            if (mediaStream) mediaStream.getTracks().forEach(t => t.stop());
+            ov.remove();
+            showMainModal(activeTheme);
+        };
+    
+        snapBtn.onclick = () => {
+            let canvas = document.createElement('canvas');
+            let trackSettings = mediaStream ? mediaStream.getVideoTracks()[0].getSettings() : {};
+            canvas.width = trackSettings.width || video.videoWidth || 2560;
+            canvas.height = trackSettings.height || video.videoHeight || 1440;
+            
+            let ctx = canvas.getContext('2d');
+            let grayscaleFilter = ocrModeCheck.checked ? 'grayscale(100%) contrast(180%)' : '';
+            ctx.filter = `brightness(${brightInput.value}%) contrast(${contrastInput.value}%) ${grayscaleFilter}`;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    
+            canvas.toBlob(blob => {
+                if (mediaStream) mediaStream.getTracks().forEach(t => t.stop());
+                ov.remove();
+    
+                let userPromptInput = prompt('Enter description for captured document/photo:', 'OCR Document');
+                if (!userPromptInput) userPromptInput = 'OCR Document';
+                
+                let descriptiveText = userPromptInput.trim();
+                let safeFilenameText = descriptiveText.replace(/\s+/g, '_');
+                let finalFileName = `${serialNum}_${safeFilenameText}.jpg`;
+    
+                let file = new File([blob], finalFileName, { type: 'image/jpeg' });
+    
+                let fileInput = document.querySelector('input[type="file"]');
+                if (fileInput) {
+                    let dataTransfer = new DataTransfer();
+                    dataTransfer.items.add(file);
+                    fileInput.files = dataTransfer.files;
+                    fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+    
+                let titleInput = document.getElementById('TiltleInput');
+                if (titleInput) {
+                    titleInput.value = descriptiveText;
+                    titleInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    titleInput.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+    
+                if (typeof showToast === 'function') {
+                    showToast(`✓ Attached optimized snapshot & filled title!`);
+                }
+    
+                showMainModal(activeTheme);
+            }, 'image/jpeg', 0.98);
+        };
+    }
+    
     function showDeclineActionModal(passedTheme) {
         let activeTheme = passedTheme || document.getElementById('preset-notes-modal')?.getAttribute('data-theme') || 'light';
         let isDark = activeTheme === 'dark';
@@ -1002,16 +1275,17 @@
                 "25771-001": "Backlight Diffuser",
                 "25795-001": "LCD Display",
                 "26503-001": "Battery Assembly",
-                "26542-001": "Infinity II Pump Cover",
                 "80786-001": "Infinity II Pump Cover",
+                "26542-001": "Infinity II Pump Cover",
                 "27696-001": "Infinity Bottom Housing",
-                "28270-001": "Infinity Motor",
                 "84239": "Infinity Motor",
+                "28270-001": "Infinity Motor",
                 "28483-001": "Rotor Assembly",
                 "42611": "Canon Motor",
                 "43763-101": "Infinity II PCB Assembly",
-                "56717-001": "Top Housing",
-                "80782-001": "Top Housing"
+                "80782-001": "Top Housing",
+                "80782-005": "Top Housing (Orange)",
+                "56717-001": "Top Housing"
             };
     
             for (let [partNum, partName] of Object.entries(moogParts)) {
@@ -1029,32 +1303,27 @@
         );
     }
 
+    let pdfLibLoadingPromise = null;
+    
     async function extractTextFromPDFFile(file) {
         if (!window.pdfjsLib) {
-            await new Promise((resolve, reject) => {
-                let script = document.createElement('script');
-                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
-                script.onload = () => {
-                    window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-                    resolve();
-                };
-                script.onerror = reject;
-                document.head.appendChild(script);
-            });
+            throw new Error("PDF.js library is not loaded. Please check Tampermonkey @require headers.");
         }
-    
+        
+        // Explicitly set workerSrc to the matching CDN worker version
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        
         let arrayBuffer = await file.arrayBuffer();
         let loadingTask = window.pdfjsLib.getDocument({ data: arrayBuffer });
         let pdfDoc = await loadingTask.promise;
         let fullText = '';
-    
+        
         for (let i = 1; i <= pdfDoc.numPages; i++) {
             let page = await pdfDoc.getPage(i);
             let textContent = await page.getTextContent();
             let pageText = textContent.items.map(item => item.str).join(' ');
             fullText += pageText + '\n';
         }
-    
         return fullText;
     }
 function showCurlinUploadModal(passedTheme) {
@@ -1098,7 +1367,6 @@ function showCurlinUploadModal(passedTheme) {
         dropZone.addEventListener('drop', async (e) => {
             e.preventDefault();
             e.stopPropagation();
-            
             let dt = e.dataTransfer;
             let files = dt.files;
             if (files && files.length > 0) {
@@ -1106,6 +1374,22 @@ function showCurlinUploadModal(passedTheme) {
                 if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
                     dropZone.innerHTML = '<b>Reading PDF file... Please wait.</b>';
                     try {
+                        if (!window.pdfjsLib) {
+                            await new Promise((resolve, reject) => {
+                                let script = document.createElement('script');
+                                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+                                script.onload = () => {
+                                    if (window.pdfjsLib) {
+                                        window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+                                        resolve();
+                                    } else {
+                                        reject(new Error("pdfjsLib failed to initialize"));
+                                    }
+                                };
+                                script.onerror = reject;
+                                document.head.appendChild(script);
+                            });
+                        }
                         let extractedText = await extractTextFromPDFFile(file);
                         textArea.value = extractedText;
                         dropZone.innerHTML = '<b>✓ PDF Loaded Successfully!</b><br><span style="font-size:10px;opacity:0.8;">Review text below or click process.</span>';
@@ -1175,7 +1459,7 @@ function showCurlinUploadModal(passedTheme) {
         console.error("CRITICAL ERROR inside showCurlinUploadModal:", e);
     }
 }
-    function showInfinityPartsModal(passedTheme) {
+    function showInfinityPartsModal(passedTheme, addHistoryItem, processTextSelection) {
         let activeTheme = passedTheme || document.getElementById('preset-notes-modal')?.getAttribute('data-theme') || 'light';
         let isDark = activeTheme === 'dark';
     
@@ -1187,112 +1471,1531 @@ function showCurlinUploadModal(passedTheme) {
         ov.setAttribute('data-theme', activeTheme);
         ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:transparent;z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;pointer-events:none;';
     
-        let box = document.createElement('div');
-        box.className = 'onetrack-modal' + (compactMode ? ' onetrack-compact-mode' : '');
         let boxBg = isDark ? '#1e1e1e' : '#fff';
         let boxColor = isDark ? '#e0e0e0' : '#333';
-        box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:460px;display:flex;flex-direction:column;position:relative;pointer-events:auto;`;
-        
-        applyUIScale(box);
-        applySavedPosition(box);
-        applySavedScale(box);
+    
+        let box = document.createElement('div');
+        box.className = 'onetrack-modal' + (typeof compactMode !== 'undefined' && compactMode ? ' onetrack-compact-mode' : '');
+        box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.25);width:650px;max-height:92vh;display:flex;flex-direction:column;position:relative;pointer-events:auto;`;
+    
+        if (typeof applyUIScale === 'function') applyUIScale(box);
+        if (typeof applySavedPosition === 'function') applySavedPosition(box);
+        if (typeof applySavedScale === 'function') applySavedScale(box);
     
         let h = document.createElement('h3');
-        h.innerText = 'Select OEM Replaced Parts';
+        h.innerText = 'Select Infinity OEM Replaced Parts & Scanner';
         h.style.cssText = `margin-top:0;margin-bottom:12px;font-size:16px;color:${isDark ? '#fff' : '#222'};text-align:center;cursor:move;`;
-        makeDraggable(box, h);
+        if (typeof makeDraggable === 'function') makeDraggable(box, h);
         box.appendChild(h);
     
-        let listContainer = document.createElement('div');
-        listContainer.style.cssText = 'max-height:280px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;margin-bottom:12px;padding-right:4px;';
-    
-        let parts = [
-            '25771-001 Backlight Difuser', '25795-001 LCD Display', 
-            '26503-001 Battery Assembly', '26542-001/80786-001 Infinity II Pump Cover', 
-            '27696-001 Infinity Bottom Housing', '28270-001/84239 Infinity Motor', 
-            '28483-001 Rotor Assembly', '42611 Canon Motor', 
-            '43763-101 Infinity II PCB Assembly', '56717-001/80782-001 Top Housing'
+        let defaultInfinityParts = [
+            { num: '25771-001', name: 'Backlight Diffuser' },
+            { num: '25795-001', name: 'LCD Display' },
+            { num: '26503-001', name: 'Battery Assembly' },
+            { num: '80786-001', name: 'Infinity II Pump Cover (Alt: 26542-001)' },
+            { num: '27696-001', name: 'Infinity Bottom Housing' },
+            { num: '84239', name: 'Infinity Motor (Alt: 28270-001)' },
+            { num: '28483-001', name: 'Rotor Assembly' },
+            { num: '42611', name: 'Canon Motor' },
+            { num: '43763-101', name: 'Infinity II PCB Assembly' },
+            { num: '80782-005', name: 'Top Housing (Orange)' },
+            { num: '80782-001', name: 'Top Housing' }
         ];
-        
+    
+        let storedPartsJson = localStorage.getItem('infinity_custom_parts_list');
+        let partsList = storedPartsJson ? JSON.parse(storedPartsJson) : defaultInfinityParts;
+    
         let selectedItems = new Set();
+        let usageCounts = JSON.parse(localStorage.getItem('infinity_parts_usage') || '{}');
+        let isExpandedView = false;
     
-        parts.forEach(part => {
-            let spaceIndex = part.indexOf(' ');
-            let partNum = part.substring(0, spaceIndex);
-            let partName = part.substring(spaceIndex + 1);
+        // --- TOP SCANNER & UPLOAD RECEPTACLE ---
+        let scannerControls = document.createElement('div');
+        scannerControls.style.cssText = 'display:flex;gap:8px;margin-bottom:8px;';
     
-            let itemBox = document.createElement('div');
-            itemBox.className = 'onetrack-btn';
+        let scanToggleBtn = document.createElement('button');
+        scanToggleBtn.innerText = '📷 Open Document Scanner Viewfinder';
+        scanToggleBtn.style.cssText = 'flex:1;background:#008CBA;color:white;border:none;padding:8px;border-radius:4px;cursor:pointer;font-weight:bold;font-size:11px;';
+        
+        // Wire the button directly to open the standalone OCR scanner modal
+        scanToggleBtn.onclick = () => {
+            // Capture current modal position before opening the scanner
+            let rect = box.getBoundingClientRect();
+            let currentLeft = rect.left;
+            let currentTop = rect.top;
             
-            let baseBg = isDark ? '#2a2a2a' : '#f8f9fa';
-            let baseBorder = isDark ? '#444' : '#dee2e6';
-            let baseColor = isDark ? '#ccc' : '#495057';
+            showStandaloneOCRScannerModal(currentLeft, currentTop);
+        };
     
-            itemBox.style.cssText = `display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:${baseBg};border:1px solid ${baseBorder};border-radius:4px;cursor:pointer;font-size:11px;transition:all 0.15s ease;`;
+        scannerControls.appendChild(scanToggleBtn);
+        box.appendChild(scannerControls);
     
-            let numSpan = document.createElement('span');
-            numSpan.innerText = partNum;
-            numSpan.style.cssText = `font-weight:bold;color:${isDark ? '#fff' : '#212529'};font-family:monospace;`;
+        // --- DROPZONE & CLIPBOARD PASTE RECEPTACLE ---
+        let dropZone = document.createElement('div');
+        dropZone.style.cssText = `border: 2px dashed ${isDark ? '#555' : '#aaa'}; border-radius: 6px; padding: 12px; text-align: center; margin-bottom: 8px; background: ${isDark ? '#252525' : '#f8f9fa'}; color: ${isDark ? '#ccc' : '#555'}; font-size: 11px; cursor: pointer; transition: background 0.2s;`;
+        dropZone.innerHTML = '📁 <b>Click to upload</b>, <b>drag & drop</b> invoice, or <b>Ctrl+V</b> paste screenshot here for OCR';
+        
+        let hiddenFileInput = document.createElement('input');
+        hiddenFileInput.type = 'file';
+        hiddenFileInput.accept = 'image/*,application/pdf';
+        hiddenFileInput.style.display = 'none';
+        dropZone.appendChild(hiddenFileInput);
+        box.appendChild(dropZone);
     
-            let nameSpan = document.createElement('span');
-            nameSpan.innerText = partName;
-            nameSpan.style.cssText = `color:${baseColor};text-align:right;max-width:60%;`;
+        // --- WEBCAM CONTAINER WITH EXPAND VIEW ---
+        let webcamContainer = document.createElement('div');
+        webcamContainer.style.cssText = 'display:none;flex-direction:column;align-items:center;margin-bottom:8px;background:#111;padding:8px;border-radius:6px;';
+        
+        let videoElement = document.createElement('video');
+        videoElement.autoplay = true;
+        videoElement.playsInline = true;
+        videoElement.style.cssText = 'width:100%;max-height:200px;border-radius:4px;background:#000;object-fit:cover;transition:max-height 0.2s ease;';
+        webcamContainer.appendChild(videoElement);
     
-            itemBox.appendChild(numSpan);
-            itemBox.appendChild(nameSpan);
+        let camActionRow = document.createElement('div');
+        camActionRow.style.cssText = 'display:flex;gap:6px;width:100%;margin-top:6px;';
     
-            itemBox.onclick = () => {
-                if (selectedItems.has(part)) {
-                    selectedItems.delete(part);
-                    itemBox.style.background = baseBg;
-                    itemBox.style.borderColor = baseBorder;
-                    itemBox.style.color = baseColor;
-                } else {
-                    selectedItems.add(part);
-                    itemBox.style.background = isDark ? '#0d3b66' : '#e7f5ff';
-                    itemBox.style.borderColor = '#0366d6';
+        let captureBtn = document.createElement('button');
+        captureBtn.innerText = '📸 Capture & Run OCR';
+        captureBtn.style.cssText = 'flex:2;background:#4CAF50;color:white;border:none;padding:6px;border-radius:4px;cursor:pointer;font-weight:bold;font-size:11px;';
+    
+        let expandCamBtn = document.createElement('button');
+        expandCamBtn.innerText = '🔍 Expand View';
+        expandCamBtn.style.cssText = 'flex:1;background:#555;color:white;border:none;padding:6px;border-radius:4px;cursor:pointer;font-size:11px;';
+    
+        camActionRow.appendChild(captureBtn);
+        camActionRow.appendChild(expandCamBtn);
+        webcamContainer.appendChild(camActionRow);
+        box.appendChild(webcamContainer);
+    
+        let mediaStream = null;
+    
+        expandCamBtn.onclick = () => {
+            isExpandedView = !isExpandedView;
+            videoElement.style.maxHeight = isExpandedView ? '400px' : '200px';
+            expandCamBtn.innerText = isExpandedView ? '📉 Normal View' : '🔍 Expand View';
+        };
+    
+        scanToggleBtn.onclick = () => {
+            // Capture current modal position before opening the scanner
+            let rect = box.getBoundingClientRect();
+            let currentLeft = rect.left;
+            let currentTop = rect.top;
+            
+            showStandaloneOCRScannerModal(currentLeft, currentTop);
+        };
+    
+        // Standalone Full-Screen OCR Scanner Modal Builder
+        function showStandaloneOCRScannerModal(initLeft, initTop) {
+            let scanOv = document.createElement('div');
+            scanOv.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:transparent;z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;pointer-events:none;'; 
+            
+            let scanBox = document.createElement('div');
+            scanBox.className = 'onetrack-modal';
+            
+            // Use the passed coordinates if available, otherwise default to center screen
+            let positionStyle = (initLeft !== undefined && initTop !== undefined) 
+                ? `position:fixed;left:${initLeft}px;top:${initTop}px;transform:none;` 
+                : 'position:fixed;top:50%;left:50%;transform:translate(-50%, -50%);';
+
+            scanBox.style.cssText = `background:${boxBg};color:${boxColor};padding:22px;border-radius:10px;box-shadow:0 8px 30px rgba(0,0,0,0.35);width:850px;max-width:96vw;display:flex;flex-direction:column;align-items:center;position:relative;pointer-events:auto;${positionStyle}`;
+            let scHeader = document.createElement('div');
+            scHeader.style.cssText = 'display:flex;justify-content:space-between;align-items:center;width:100%;margin-bottom:10px;cursor:move;';
+    
+            let scTitle = document.createElement('h3');
+            scTitle.innerText = `🔍 Full-Screen OCR Document Scanner`;
+            scTitle.style.cssText = `margin:0;font-size:15px;font-weight:bold;color:${isDark ? '#fff' : '#222'};`;
+            scHeader.appendChild(scTitle);
+    
+            // --- TOP RIGHT CONTROLS CONTAINER ---
+            let topControls = document.createElement('div');
+            topControls.style.cssText = 'display:flex;gap:6px;align-items:center;flex-shrink:0;';
+    
+            let camSelect = document.createElement('select');
+            camSelect.style.cssText = 'background:#333;color:#fff;border:none;padding:4px 6px;border-radius:4px;font-size:11px;max-width:130px;cursor:pointer;';
+            camSelect.title = 'Select Camera Device';
+    
+            let currentWidth = 850;
+            let zoomOutBtn = document.createElement('button');
+            zoomOutBtn.innerText = '−';
+            zoomOutBtn.style.cssText = 'background:#555;color:#fff;border:none;width:24px;height:24px;border-radius:4px;cursor:pointer;font-weight:bold;display:flex;align-items:center;justify-content:center;';
+            
+            let zoomInBtn = document.createElement('button');
+            zoomInBtn.innerText = '+';
+            zoomInBtn.style.cssText = 'background:#0366d6;color:#fff;border:none;width:24px;height:24px;border-radius:4px;cursor:pointer;font-weight:bold;display:flex;align-items:center;justify-content:center;';
+    
+            zoomOutBtn.onclick = () => {
+                currentWidth = Math.max(600, currentWidth - 100);
+                scanBox.style.width = currentWidth + 'px';
+            };
+            zoomInBtn.onclick = () => {
+                currentWidth = Math.min(1200, currentWidth + 100);
+                scanBox.style.width = currentWidth + 'px';
+            };
+    
+            topControls.appendChild(camSelect);
+            topControls.appendChild(zoomOutBtn);
+            topControls.appendChild(zoomInBtn);
+            scHeader.appendChild(topControls);
+    
+            if (typeof makeDraggable === 'function') makeDraggable(scanBox, scHeader);
+            scanBox.appendChild(scHeader);
+    
+            let bigVideoContainer = document.createElement('div');
+            bigVideoContainer.style.cssText = 'position:relative;width:100%;height:460px;background:#000;border-radius:6px;overflow:hidden;margin-bottom:10px;cursor:crosshair;';
+    
+            let bigVideo = document.createElement('video');
+            bigVideo.autoplay = true;
+            bigVideo.playsInline = true;
+            bigVideo.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+            bigVideoContainer.appendChild(bigVideo);
+    
+            let ocrGuideBox = document.createElement('div');
+            ocrGuideBox.style.cssText = 'position:absolute;top:15%;left:15%;width:70%;height:70%;border:2px dashed rgba(40,167,69,0.7);border-radius:6px;pointer-events:none;display:flex;align-items:flex-start;justify-content:center;padding:6px;color:rgba(255,255,255,0.8);font-size:11px;font-weight:bold;text-shadow:0 1px 3px rgba(0,0,0,0.8);';
+            ocrGuideBox.innerText = '🎯 Align Label / Text Here for OCR';
+            bigVideoContainer.appendChild(ocrGuideBox);
+            scanBox.appendChild(bigVideoContainer);
+    
+            let filterBar = document.createElement('div');
+            filterBar.style.cssText = 'display:flex;gap:10px;width:100%;margin-bottom:12px;font-size:11px;align-items:center;justify-content:center;flex-wrap:wrap;';
+            filterBar.innerHTML = `
+                <label>Brightness: <input type="range" id="scanBright" min="50" max="150" value="100" style="width:80px;cursor:pointer;vertical-align:middle;"></label>
+                <label>Contrast: <input type="range" id="scanContrast" min="50" max="200" value="110" style="width:80px;cursor:pointer;vertical-align:middle;"></label>
+                <label style="cursor:pointer;font-weight:bold;color:#4CAF50;"><input type="checkbox" id="scanGray" style="vertical-align:middle;margin-right:3px;">OCR Mono</label>
+            `;
+            scanBox.appendChild(filterBar);
+    
+            let sBright = filterBar.querySelector('#scanBright');
+            let sContrast = filterBar.querySelector('#scanContrast');
+            let sGray = filterBar.querySelector('#scanGray');
+    
+            let updateBigFilters = () => {
+                let mono = sGray.checked ? 'grayscale(100%) contrast(190%)' : '';
+                bigVideo.style.filter = `brightness(${sBright.value}%) contrast(${sContrast.value}%) ${mono}`;
+            };
+            sBright.oninput = updateBigFilters;
+            sContrast.oninput = updateBigFilters;
+            sGray.onchange = updateBigFilters;
+    
+            let btnRow = document.createElement('div');
+            btnRow.style.cssText = 'display:flex;gap:10px;width:100%;';
+    
+            let bigSnapBtn = document.createElement('button');
+            bigSnapBtn.innerText = '📸 Capture & Run OCR';
+            bigSnapBtn.style.cssText = 'flex:2;background:#28a745;color:white;border:none;padding:10px;border-radius:6px;cursor:pointer;font-weight:bold;font-size:13px;';
+    
+            let bigCancelBtn = document.createElement('button');
+            bigCancelBtn.innerText = 'Close Scanner';
+            bigCancelBtn.style.cssText = 'flex:1;background:#6c757d;color:white;border:none;padding:10px;border-radius:6px;cursor:pointer;font-size:13px;';
+    
+            btnRow.appendChild(bigSnapBtn);
+            btnRow.appendChild(bigCancelBtn);
+            scanBox.appendChild(btnRow);
+            scanOv.appendChild(scanBox);
+            document.body.appendChild(scanOv);
+    
+            let activeStream = null;
+            const initBigCam = async (devId = null) => {
+                if (activeStream) activeStream.getTracks().forEach(t => t.stop());
+                try {
+                    activeStream = await navigator.mediaDevices.getUserMedia({
+                        video: devId ? { deviceId: { exact: devId }, focusMode: 'continuous' } : { facingMode: 'environment', width: { ideal: 2560 }, height: { ideal: 1440 }, focusMode: { ideal: 'continuous' } }
+                    });
+                    bigVideo.srcObject = activeStream;
+                    updateBigFilters();
+    
+                    if (camSelect.options.length <= 1) {
+                        let devices = await navigator.mediaDevices.enumerateDevices();
+                        let vDevs = devices.filter(d => d.kind === 'videoinput');
+                        camSelect.innerHTML = '';
+                        vDevs.forEach((d, i) => {
+                            let opt = document.createElement('option');
+                            opt.value = d.deviceId;
+                            opt.innerText = d.label || `Camera ${i + 1}`;
+                            if (d.deviceId === devId) opt.selected = true;
+                            camSelect.appendChild(opt);
+                        });
+                    }
+                } catch (err) {
+                    alert('Camera access denied or unavailable.');
+                    scanOv.remove();
                 }
             };
     
-            listContainer.appendChild(itemBox);
+            camSelect.onchange = () => initBigCam(camSelect.value);
+            initBigCam();
+    
+            bigCancelBtn.onclick = () => {
+                if (activeStream) activeStream.getTracks().forEach(t => t.stop());
+                scanOv.remove();
+            };
+    
+            bigSnapBtn.onclick = async () => {
+                let canvas = document.createElement('canvas');
+                let settings = activeStream ? activeStream.getVideoTracks()[0].getSettings() : {};
+                canvas.width = settings.width || bigVideo.videoWidth || 2560;
+                canvas.height = settings.height || bigVideo.videoHeight || 1440;
+    
+                let ctx = canvas.getContext('2d');
+                let monoFilter = sGray.checked ? 'grayscale(100%) contrast(190%)' : '';
+                ctx.filter = `brightness(${sBright.value}%) contrast(${sContrast.value}%) ${monoFilter}`;
+                ctx.drawImage(bigVideo, 0, 0, canvas.width, canvas.height);
+                let imgDataUrl = canvas.toDataURL('image/jpeg', 0.98);
+    
+                if (activeStream) activeStream.getTracks().forEach(t => t.stop());
+                scanOv.remove();
+    
+                await processInfinityOCR(imgDataUrl);
+            };
+        }
+    
+        async function processInfinityOCR(imageDataUrl) {
+            if (typeof showToast === 'function') showToast('⏳ Analyzing Infinity parts document...');
+            try {
+                if (typeof Tesseract === 'undefined') {
+                    await new Promise((resolve, reject) => {
+                        let script = document.createElement('script');
+                        script.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+                        script.onload = resolve;
+                        script.onerror = reject;
+                        document.head.appendChild(script);
+                    });
+                }
+    
+                let result = await Tesseract.recognize(
+                    imageDataUrl, 
+                    'eng', 
+                    { 
+                        logger: m => console.log(m), 
+                        tessedit_pageseg_mode: '6' 
+                    }
+                );
+    
+                let rawText = result.data.text ? result.data.text.trim().toUpperCase() : '';
+                console.log("--- INFINITY RAW OCR TEXT --- \n", rawText);
+    
+                if (rawText) {
+                    let matchedCount = 0;
+                    let cleanScanText = rawText.replace(/[\s,\-\/]+/g, ' ');
+    
+                    partsList.forEach(p => {
+                        let isMatched = false;
+    
+                        // 1. Exact Part Number match
+                        if (p.num && p.num.trim()) {
+                            let cleanPartNum = p.num.trim().toUpperCase();
+                            if (rawText.includes(cleanPartNum) || cleanScanText.includes(cleanPartNum.replace(/[\s,\-\/]+/g, ' '))) {
+                                isMatched = true;
+                            }
+                        }
+    
+                        // 2. Check Alternate Part Numbers
+                        if (p.name.includes('Alt:')) {
+                            let altMatch = p.name.match(/Alt:\s*([0-9\-]+)/i);
+                            if (altMatch && altMatch[1]) {
+                                let altNum = altMatch[1].trim().toUpperCase();
+                                if (rawText.includes(altNum)) isMatched = true;
+                            }
+                        }
+    
+                        // 3. Fallback text name matching
+                        if (p.name && rawText.includes(p.name.toUpperCase())) {
+                            isMatched = true;
+                        }
+    
+                        if (isMatched && !selectedItems.has(p.name)) {
+                            selectedItems.add(p.name);
+                            matchedCount++;
+                        }
+                    });
+    
+                    renderList();
+                    if (typeof showToast === 'function') showToast(`✓ OCR scanned! Auto-selected ${matchedCount} Infinity part(s).`);
+                } else {
+                    alert('Could not detect text from image.');
+                }
+            } catch (err) {
+                console.error('Infinity OCR Error:', err);
+                alert('Error running OCR engine.');
+            }
+        }
+    
+        captureBtn.onclick = async () => {
+            if (videoElement.readyState < videoElement.HAVE_CURRENT_DATA) {
+                alert("Camera feed is still loading. Please wait a moment.");
+                return;
+            }
+    
+            let canvas = document.createElement('canvas');
+            canvas.width = videoElement.videoWidth || 2560;
+            canvas.height = videoElement.videoHeight || 1440;
+            let ctx = canvas.getContext('2d');
+            ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+            let imageDataUrl = canvas.toDataURL('image/jpeg', 0.92);
+    
+            if (mediaStream) mediaStream.getTracks().forEach(t => t.stop());
+            webcamContainer.style.display = 'none';
+            scanToggleBtn.innerText = '📷 Open Document Scanner Viewfinder';
+    
+            await processInfinityOCR(imageDataUrl);
+        };
+    
+        dropZone.onclick = () => hiddenFileInput.click();
+        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.style.borderColor = '#0366d6'; });
+        dropZone.addEventListener('dragleave', () => { dropZone.style.borderColor = isDark ? '#555' : '#aaa'; });
+        dropZone.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = isDark ? '#555' : '#aaa';
+            let file = e.dataTransfer.files[0];
+            if (file && file.type.startsWith('image/')) {
+                let reader = new FileReader();
+                reader.onload = async (event) => await processInfinityOCR(event.target.result);
+                reader.readAsDataURL(file);
+            }
         });
     
+        hiddenFileInput.onchange = (e) => {
+            let file = e.target.files[0];
+            if (!file) return;
+            let reader = new FileReader();
+            reader.onload = async (event) => await processInfinityOCR(event.target.result);
+            reader.readAsDataURL(file);
+        };
+    
+        const handlePaste = async (e) => {
+            let items = (e.clipboardData || e.originalEvent.clipboardData).items;
+            for (let item of items) {
+                if (item.type.indexOf('image') !== -1) {
+                    let blob = item.getAsFile();
+                    let reader = new FileReader();
+                    reader.onload = async (event) => await processInfinityOCR(event.target.result);
+                    reader.readAsDataURL(blob);
+                    e.preventDefault();
+                    break;
+                }
+            }
+        };
+        document.addEventListener('paste', handlePaste);
+        ov.addEventListener('DOMNodeRemoved', () => { document.removeEventListener('paste', handlePaste); });
+    
+        // --- CONTROLS ROW: SEARCH, SORT & RESET ---
+        let controlRow = document.createElement('div');
+        controlRow.style.cssText = 'display:flex;gap:8px;margin-bottom:8px;align-items:center;';
+        
+        let searchInput = document.createElement('input');
+        searchInput.type = 'text';
+        searchInput.placeholder = '🔍 Search part name or #...';
+        searchInput.style.cssText = `flex:1;padding:6px 8px;background:${isDark ? '#2a2a2a' : '#fff'};color:${boxColor};border:1px solid ${isDark ? '#444' : '#ccc'};border-radius:4px;font-size:11px;`;
+        
+        let sortSelect = document.createElement('select');
+        sortSelect.style.cssText = `background:${isDark ? '#2a2a2a' : '#fff'};color:${boxColor};border:1px solid ${isDark ? '#444' : '#ccc'};border-radius:4px;padding:6px;font-size:11px;cursor:pointer;`;
+        let optAlpha = document.createElement('option');
+        optAlpha.value = 'alpha';
+        optAlpha.innerText = 'Alphabetical';
+        let optRecent = document.createElement('option');
+        optRecent.value = 'recent';
+        optRecent.innerText = 'Most Recently Used';
+        sortSelect.appendChild(optAlpha);
+        sortSelect.appendChild(optRecent);
+        let currentSort = localStorage.getItem('infinity_parts_sort_pref') || 'alpha';
+        sortSelect.value = currentSort;
+    
+        // --- NEW RESET DEFAULTS BUTTON (Right-Aligned) ---
+        let resetDefaultsBtn = document.createElement('button');
+        resetDefaultsBtn.innerText = '🔄 Reset Defaults';
+        resetDefaultsBtn.style.cssText = 'background:#6c757d;color:white;border:none;padding:6px 10px;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;margin-left:auto;white-space:nowrap;';
+        resetDefaultsBtn.onclick = () => {
+            if (confirm('Are you sure you want to reset all Infinity parts back to the default list? Any custom additions will be cleared.')) {
+                localStorage.removeItem('infinity_custom_parts_list');
+                partsList = [...defaultInfinityParts];
+                selectedItems.clear();
+                renderList();
+                if (typeof showToast === 'function') showToast('✓ Reset Infinity parts to defaults!');
+            }
+        };
+    
+        controlRow.appendChild(searchInput);
+        controlRow.appendChild(sortSelect);
+        controlRow.appendChild(resetDefaultsBtn); // 👈 Added to the row and right-aligned via margin-left: auto
+        box.appendChild(controlRow);
+    
+        // --- QUICK ADD BAR ---
+        let addRow = document.createElement('div');
+        addRow.style.cssText = 'display:flex;gap:6px;margin-bottom:8px;align-items:center;';
+    
+        let newDescInput = document.createElement('input');
+        newDescInput.type = 'text';
+        newDescInput.placeholder = 'Part Description';
+        newDescInput.style.cssText = `flex:2;padding:6px;font-size:11px;background:${isDark ? '#2a2a2a' : '#fff'};color:${boxColor};border:1px solid ${isDark ? '#444' : '#ccc'};border-radius:4px;`;
+    
+        let newNumInput = document.createElement('input');
+        newNumInput.type = 'text';
+        newNumInput.placeholder = 'Part #';
+        newNumInput.style.cssText = `flex:1;padding:6px;font-size:11px;background:${isDark ? '#2a2a2a' : '#fff'};color:${boxColor};border:1px solid ${isDark ? '#444' : '#ccc'};border-radius:4px;`;
+    
+        let addBtn = document.createElement('button');
+        addBtn.innerText = '+ Add';
+        addBtn.style.cssText = 'padding:6px 12px;background:#0366d6;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;white-space:nowrap;';
+    
+        addBtn.onclick = () => {
+            let desc = newDescInput.value.trim();
+            let num = newNumInput.value.trim();
+            if (!desc) {
+                alert('Please enter a part description.');
+                newDescInput.focus();
+                return;
+            }
+            partsList.push({ num: num, name: desc });
+            localStorage.setItem('infinity_custom_parts_list', JSON.stringify(partsList));
+            newDescInput.value = '';
+            newNumInput.value = '';
+            renderList();
+        };
+    
+        addRow.appendChild(newDescInput);
+        addRow.appendChild(newNumInput);
+        addRow.appendChild(addBtn);
+        box.appendChild(addRow);
+    
+        // --- LIST CONTAINER WITH CHECKBOXES, EDIT, & DELETE ---
+        let listContainer = document.createElement('div');
+        listContainer.style.cssText = 'max-height:180px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;margin-bottom:8px;padding-right:4px;';
+    
+        function renderList() {
+            listContainer.innerHTML = '';
+            let query = searchInput.value.toLowerCase();
+    
+            let filtered = partsList.filter(p => p.name.toLowerCase().includes(query) || p.num.toLowerCase().includes(query));
+    
+            if (sortSelect.value === 'alpha') {
+                filtered.sort((a, b) => a.name.localeCompare(b.name));
+            } else {
+                filtered.sort((a, b) => (usageCounts[b.name] || 0) - (usageCounts[a.name] || 0));
+            }
+    
+            if (filtered.length === 0) {
+                let emptyMsg = document.createElement('div');
+                emptyMsg.innerText = 'No matching parts found.';
+                emptyMsg.style.cssText = 'text-align:center;padding:15px;font-size:11px;opacity:0.6;';
+                listContainer.appendChild(emptyMsg);
+                return;
+            }
+    
+            filtered.forEach((partObj) => {
+                let itemBox = document.createElement('div');
+                let baseBg = isDark ? '#2a2a2a' : '#f8f9fa';
+                let baseBorder = isDark ? '#444' : '#dee2e6';
+                let isSelected = selectedItems.has(partObj.name);
+    
+                itemBox.style.cssText = `display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:${isSelected ? (isDark ? '#0d3b66' : '#e7f5ff') : baseBg};border:1px solid ${isSelected ? '#0366d6' : baseBorder};border-radius:4px;font-size:11px;transition:all 0.15s ease;`;
+    
+                let leftInfo = document.createElement('div');
+                leftInfo.style.cssText = 'display:flex;align-items:center;gap:8px;flex:1;cursor:pointer;overflow:hidden;';
+    
+                let checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.checked = isSelected;
+                checkbox.style.cssText = 'cursor:pointer;margin:0;';
+    
+                let nameSpan = document.createElement('span');
+                nameSpan.innerText = partObj.name;
+                nameSpan.style.cssText = `color:${isDark ? '#e0e0e0' : '#212529'};font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;`;
+    
+                leftInfo.appendChild(checkbox);
+                leftInfo.appendChild(nameSpan);
+    
+                let rightInfo = document.createElement('div');
+                rightInfo.style.cssText = 'display:flex;align-items:center;gap:6px;flex-shrink:0;margin-left:8px;';
+    
+                let numSpan = document.createElement('span');
+                numSpan.innerText = partObj.num || '';
+                numSpan.style.cssText = `font-weight:bold;color:${isDark ? '#aaa' : '#666'};font-family:monospace;font-size:10px;min-width:75px;text-align:right;`;
+    
+                let editBtn = document.createElement('button');
+                editBtn.innerText = 'Edit';
+                editBtn.style.cssText = 'padding:2px 5px;background:#f0ad4e;color:#fff;border:none;border-radius:3px;cursor:pointer;font-size:10px;font-weight:bold;';
+    
+                let deleteBtn = document.createElement('button');
+                deleteBtn.innerText = 'Delete';
+                deleteBtn.style.cssText = 'padding:2px 5px;background:#d9534f;color:#fff;border:none;border-radius:3px;cursor:pointer;font-size:10px;font-weight:bold;';
+    
+                const toggleSelection = () => {
+                    if (selectedItems.has(partObj.name)) {
+                        selectedItems.delete(partObj.name);
+                        checkbox.checked = false;
+                        itemBox.style.background = baseBg;
+                        itemBox.style.borderColor = baseBorder;
+                    } else {
+                        selectedItems.add(partObj.name);
+                        checkbox.checked = true;
+                        itemBox.style.background = isDark ? '#0d3b66' : '#e7f5ff';
+                        itemBox.style.borderColor = '#0366d6';
+                    }
+                };
+    
+                leftInfo.onclick = toggleSelection;
+                checkbox.onclick = (e) => {
+                    e.stopPropagation();
+                    toggleSelection();
+                };
+    
+                editBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    let newN = prompt('Edit Part Description:', partObj.name);
+                    if (newN !== null && newN.trim() !== '') {
+                        let newNum = prompt('Edit Part Number:', partObj.num);
+                        let originalName = partObj.name;
+                        partObj.name = newN.trim();
+                        partObj.num = newNum !== null ? newNum.trim() : partObj.num;
+    
+                        if (selectedItems.has(originalName)) {
+                            selectedItems.delete(originalName);
+                            selectedItems.add(partObj.name);
+                        }
+                        localStorage.setItem('infinity_custom_parts_list', JSON.stringify(partsList));
+                        renderList();
+                    }
+                };
+    
+                deleteBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    if (confirm(`Remove "${partObj.name}" from list?`)) {
+                        partsList = partsList.filter(p => p !== partObj);
+                        selectedItems.delete(partObj.name);
+                        localStorage.setItem('infinity_custom_parts_list', JSON.stringify(partsList));
+                        renderList();
+                    }
+                };
+    
+                rightInfo.appendChild(numSpan);
+                rightInfo.appendChild(editBtn);
+                rightInfo.appendChild(deleteBtn);
+    
+                itemBox.appendChild(leftInfo);
+                itemBox.appendChild(rightInfo);
+                listContainer.appendChild(itemBox);
+            });
+        }
+    
+        searchInput.oninput = renderList;
+        sortSelect.onchange = () => {
+            localStorage.setItem('infinity_parts_sort_pref', sortSelect.value);
+            renderList();
+        };
+    
+        renderList();
         box.appendChild(listContainer);
     
+        // --- SENTENCE STRUCTURE TEXTAREA ---
+        let sentenceLabel = document.createElement('label');
+        sentenceLabel.innerText = 'Customizable OEM Sentence Structure (Use [PARTS] for selections):';
+        sentenceLabel.style.cssText = `font-size:10px;font-weight:bold;color:${isDark ? '#aaa' : '#555'};margin-bottom:4px;display:block;`;
+        box.appendChild(sentenceLabel);
+    
+        let defaultTemplate = "Per Moog Medical the following has been replaced: [PARTS]. The device has met the release criteria associated with the inline inspection, testing and final release elements.";
+        let savedTemplate = localStorage.getItem('infinity_oem_sentence_template') || defaultTemplate;
+    
+        let sentenceTextarea = document.createElement('textarea');
+        sentenceTextarea.value = savedTemplate;
+        sentenceTextarea.style.cssText = `width:100%;height:55px;padding:6px;box-sizing:border-box;border:1px solid ${isDark ? '#444' : '#ccc'};border-radius:4px;background:${isDark ? '#2a2a2a' : '#fff'};color:${boxColor};font-size:11px;resize:vertical;font-family:inherit;margin-bottom:10px;`;
+    
+        sentenceTextarea.oninput = () => {
+            localStorage.setItem('infinity_oem_sentence_template', sentenceTextarea.value);
+        };
+        box.appendChild(sentenceTextarea);
+    
+        // --- ACTION BUTTON ROW ---
         let btnRow = document.createElement('div');
         btnRow.style.cssText = 'display:flex;justify-content:flex-end;gap:8px;';
     
         let cancelBtn = document.createElement('button');
         cancelBtn.innerText = 'Cancel';
-        cancelBtn.className = 'onetrack-btn';
-        cancelBtn.style.cssText = isDark ? 'padding:8px 14px;background:#444;color:#e0e0e0;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;' : 'padding:8px 14px;background:#e0e0e0;color:#333;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;';
-        cancelBtn.onclick = () => {
+        cancelBtn.style.cssText = isDark ? 'padding:6px 12px;background:#444;color:#e0e0e0;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;' : 'padding:6px 12px;background:#dc3545;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;';
+        cancelBtn.onclick = () => ov.remove();
+    
+        let backBtn = document.createElement('button');
+        backBtn.innerText = '← Back';
+        backBtn.style.cssText = isDark ? 'padding:6px 12px;background:#555;color:#e0e0e0;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;' : 'padding:6px 12px;background:#6c757d;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;';
+        backBtn.onclick = () => {
             ov.remove();
-            showMainModal(activeTheme);
+            if (typeof showMainModal === 'function') showMainModal(activeTheme);
         };
     
-        let okBtn = document.createElement('button');
-        okBtn.innerText = 'OK';
-        okBtn.className = 'onetrack-btn';
-        okBtn.style.cssText = 'padding:8px 16px;background:#0366d6;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;';
-        okBtn.onclick = () => {
-            let selectedArray = Array.from(selectedItems);
-            if (selectedArray.length > 0) {
-                let cleanNames = selectedArray.map(p => {
-                    let spIdx = p.indexOf(' ');
-                    return spIdx !== -1 ? p.substring(spIdx + 1) : p;
-                });
-                let partsString = cleanNames.join(', ');
-                let resultText = `Per Moog Medical the following has been replaced: ${partsString}. The device has met the release criteria associated with the inline inspection, testing and final release elements.`;
-                addHistoryItem(resultText);
-                processTextSelection(resultText);
+        let confirmBtn = document.createElement('button');
+        confirmBtn.innerText = 'Confirm Selection';
+        confirmBtn.style.cssText = 'padding:6px 14px;background:#28a745;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;';
+    
+        confirmBtn.onclick = async () => {
+            let arr = Array.from(selectedItems);
+            if (arr.length > 0) {
+                let now = Date.now();
+                arr.forEach(p => { usageCounts[p] = now; });
+                localStorage.setItem('infinity_parts_usage', JSON.stringify(usageCounts));
             }
+            
+            let cleanedParts = arr.map(p => p.replace(/\s*\(Alt:[^)]+\)/gi, '').trim());
+            let partsString = cleanedParts.length > 0 ? cleanedParts.join(', ') : 'None';
+            let template = sentenceTextarea.value.trim() || defaultTemplate;
+            let summaryText = template.replace(/\[PARTS\]/gi, partsString);
+    
             ov.remove();
+    
+            // 1. Guarantee text is copied to clipboard instantly
+            try {
+                await navigator.clipboard.writeText(summaryText);
+            } catch (err) {
+                console.error('Clipboard write error:', err);
+            }
+    
+            // 2. Pass to history log and text selection helper
+            if (typeof addHistoryItem === 'function') addHistoryItem(summaryText);
+            if (typeof processTextSelection === 'function') {
+                processTextSelection(summaryText);
+            } else {
+                if (typeof showToast === 'function') showToast('✓ Findings copied to clipboard!');
+            }
         };
     
         btnRow.appendChild(cancelBtn);
-        btnRow.appendChild(okBtn);
+        btnRow.appendChild(backBtn);
+        btnRow.appendChild(confirmBtn);
         box.appendChild(btnRow);
+    
+        ov.appendChild(box);
+        document.body.appendChild(ov);
+    }
+    function showSolisPartsModal(passedTheme, addHistoryItem, processTextSelection) {
+        let activeTheme = passedTheme || document.getElementById('preset-notes-modal')?.getAttribute('data-theme') || 'light';
+        let isDark = activeTheme === 'dark';
+    
+        let ex = document.getElementById('preset-notes-modal');
+        if (ex) ex.remove();
+    
+        let ov = document.createElement('div');
+        ov.id = 'preset-notes-modal';
+        ov.setAttribute('data-theme', activeTheme);
+        ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:transparent;z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;pointer-events:none;';
+    
+        let boxBg = isDark ? '#1e1e1e' : '#fff';
+        let boxColor = isDark ? '#e0e0e0' : '#333';
+    
+        let box = document.createElement('div');
+        box.className = 'onetrack-modal' + (typeof compactMode !== 'undefined' && compactMode ? ' onetrack-compact-mode' : '');
+        box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.25);width:650px;max-height:92vh;display:flex;flex-direction:column;position:relative;pointer-events:auto;`;
+    
+        if (typeof applyUIScale === 'function') applyUIScale(box);
+        if (typeof applySavedPosition === 'function') applySavedPosition(box);
+        if (typeof applySavedScale === 'function') applySavedScale(box);
+    
+        let h = document.createElement('h3');
+        h.innerText = 'Select Solis OEM Replaced Parts & Scanner';
+        h.style.cssText = `margin-top:0;margin-bottom:12px;font-size:16px;color:${isDark ? '#fff' : '#222'};text-align:center;cursor:move;`;
+        if (typeof makeDraggable === 'function') makeDraggable(box, h);
+        box.appendChild(h);
+    
+        let defaultParts = [
+            { num: '30-3285', name: 'ADHESIVE, PSA, PIEZO RING, CADD-SOLIS 1/EA' },
+            { num: '70-0354', name: 'AIR DETECTOR, SOLIS' },
+            { num: '70-0446', name: 'AY, 27MM PIEZO SOUNDER, FRONT' },
+            { num: '70-0447', name: 'AY, 27MM PIEZO SOUNDER, REAR' },
+            { num: '67-2341', name: 'AY, USO, CADD-SOLIS 1/EA' },
+            { num: '60013', name: 'BEARING, CAMSHAFT' },
+            { num: '30-3028', name: 'BEARING, CAMSHAFT, .375" OD X 0.187" ID, CADD-SOLIS 1/EA' },
+            { num: '', name: 'BEZEL, CASSETTE DETECTION' },
+            { num: '30-3052', name: 'BEZEL, DSO, CADD-SOLIS' },
+            { num: '30-3130', name: 'BRACKET, OPTICAL SWITCH, CADD-SOLIS' },
+            { num: '31-0485', name: 'CAMSHAFT, 3 LOBE, DUAL ACTIVATION' },
+            { num: '10018270-001', name: 'CONNECTOR, LEMO HALF MOON INSERT (NUT FIXING) FIXED RECEPTACLE, CADD - SOLIS' },
+            { num: '70-0227', name: 'CONTACT, BATTERY COMPARTMENT FLOOR' },
+            { num: '70-0178', name: 'CONTACT, BATTERY, SPRING PIN, CADD-SOLIS' },
+            { num: '30-3053', name: 'DISK, OPTICAL, DUAL FLAG, CADD-SOLIS' },
+            { num: '70-0508', name: 'DISPLAY, LCD, TRULY/HIMAX, 320 X 320 W/BACKLIGHT, CADD-SOLIS' },
+            { num: '30-3245', name: 'DOOR AY, BATTERY, PUMP' },
+            { num: '10022627-001', name: 'DOOR AY, BATTERY, PUMP (Do Not Use)' },
+            { num: '30-3086-001', name: 'EXPULSOR, MACHINED, .344"' },
+            { num: '70-0243', name: 'FLEX AY, CAM SENSOR' },
+            { num: '70-0303', name: 'FLEX AY, LED, CADD-SOLIS' },
+            { num: '70-0335', name: 'FLEX CIRCUIT, SENSOR, L/L' },
+            { num: '30-3181', name: 'FOAM, ISOLATION, LCD' },
+            { num: '', name: 'FOAM, POSITIONING, LCD' },
+            { num: '30-3174', name: 'GASKET, CONDUCTIVE, BAT COMP' },
+            { num: '30-3173', name: 'GASKET, CONDUCTIVE, CHASSIS' },
+            { num: '', name: 'GASKET, CONDUCTIVE, COPPER, RIGHT' },
+            { num: '', name: 'GASKET, CONDUCTIVE, LCD, FRAMING' },
+            { num: '', name: 'GASKET, CONDUCTIVE, LCD, TOP' },
+            { num: '30-3289', name: 'GASKET, ENVIRONMENTAL, BATTERY COMPARTMENT' },
+            { num: '30-3171', name: 'GASKET, ENVIRONMENTAL, CHASSIS' },
+            { num: '30-3167', name: 'GASKET, ENVIRONMENTAL, POWER BOARD' },
+            { num: '', name: 'GASKET, PERIMETER, EMC' },
+            { num: '30-3288', name: 'GASKET, PSA, LENS, CADD-SOLIS' },
+            { num: '', name: 'GASKET, TUBING, SILICON HOUSING' },
+            { num: '60003', name: 'GEAR, FLAT' },
+            { num: '60002', name: 'GEAR, HUB (FASTENS TO MOTOR)' },
+            { num: '10009592', name: 'GEARMOTOR, PLANETARY, 12V, 16MM' },
+            { num: '30-3299', name: 'GUARD, PIEZO ALARM' },
+            { num: '30-4106', name: 'HANDLE, LATCH LEVER, CADD-SOLIS' },
+            { num: '70-0216', name: 'HARNESS, WIRE, ON/OFF SWITCH' },
+            { num: '30-3248', name: 'HSG, BATTERY COMPARTMENT' },
+            { num: '', name: 'HSG, PUMP, FRONT, SHLD' },
+            { num: '', name: 'HSG, PUMP, REAR SHLD' },
+            { num: '30-3106', name: 'INSULATOR, KAPTON, CADD-SOLIS' },
+            { num: '30-3322', name: 'INSULATOR, PWA/HOUSING' },
+            { num: '30-4065', name: 'INSULATOR, USB' },
+            { num: '70-0229', name: 'KEYPAD, MEMBRANE SW, W/O CONN, CADD-SOLIS' },
+            { num: '10011174-001', name: 'LABEL, PUMP, REAR, CADD-SOLIS VIP' },
+            { num: '67-2482', name: 'LATCH/LOCK' },
+            { num: '10017410-001', name: 'LBL, DEVICE, PUMP, CADD-SOLIS, MODEL 2120, VIP, 3RD EDITION w cUL, BLUE, RX ONLY' },
+            { num: '10017409-001', name: 'LBL, DEVICE, PUMP, CADD-SOLIS, MODEL 2120, VIP, 3RD EDITION w cUL, DRK GREY, RX ONLY' },
+            { num: '10006271-002', name: 'LBL, DEVICE, PUMP, CADD-SOLIS, VIP' },
+            { num: '10012921-001', name: 'LBL, DEVICE, PUMP, CADD-SOLIS, VIP, BLACK' },
+            { num: '10013249-001', name: 'LBL, DEVICE, PUMP, CADD-SOLIS, VIP, BLUE' },
+            { num: '40-6288-24A', name: 'LBL, SET, DEVICE, CADD-SOLIS' },
+            { num: '40-5733-51A', name: 'LENS, PAD PRINTED, CADD-SOLIS' },
+            { num: '', name: 'NLT - HEADER, IDC, 5 POS' },
+            { num: '40-5482-51A', name: 'OVERLAY, MEMBRANE SWITCH, CE ENGLISH' },
+            { num: '30-4205', name: 'PAD, GND, L/L SENSOR' },
+            { num: '10015258-001', name: 'PCBA, CADD-SOLIS, TRULY/HIMAX LCD, FLASH MEMORY UPGRADE' },
+            { num: '', name: 'PIN, CASSETTE DETECTOR' },
+            { num: '30-4086', name: 'PLATE, AY, GROUNDING' },
+            { num: '', name: 'SEAL, DIAPHRAGM, CASSETTE SENSOR' },
+            { num: '30-3381', name: 'SEAL, DSO, NEOPRENE' },
+            { num: '', name: 'SEAL, FOAM, CADD-SOLIS' },
+            { num: '31-0993', name: 'SEAL, UPSTREAM OCCLUSION' },
+            { num: '70-0171', name: 'SENSOR, DSO, CADD-SOLIS' },
+            { num: '30-4712', name: 'SOLIS, CHASSIS, MACHINED 1/EA' },
+            { num: '30-3294', name: 'STABILIZER, BATTERY, SST' },
+            { num: '', name: 'STRIP, ADHESIVE, UPPER' },
+            { num: '30-3163', name: 'SWITCH, POWER' },
+            { num: '', name: 'TAB, LCD INSTALLATION' },
+            { num: '', name: 'TAPE, ADHESIVE, PIEZO GUARD' },
+            { num: '30-3306', name: 'TAPE, LCD HOLD DOWN' },
+            { num: '40-4085', name: 'TAPE, POGO CONTACT' },
+            { num: '30-3063', name: 'VALVE, DUAL ACTIVATION, CADD-SOLIS' }
+        ];
+    
+        let storedPartsJson = localStorage.getItem('solis_custom_parts_list');
+        let partsList = storedPartsJson ? JSON.parse(storedPartsJson) : defaultParts;
+    
+        let selectedItems = new Set(); //  Initialize with the passed OCR matches
+        let usageCounts = JSON.parse(localStorage.getItem('solis_parts_usage') || '{}');
+        let isExpandedView = false; 
+    
+        // --- TOP SCANNER & UPLOAD RECEPTACLE ---
+        let scannerControls = document.createElement('div');
+        scannerControls.style.cssText = 'display:flex;gap:8px;margin-bottom:8px;';
+    
+        let scanToggleBtn = document.createElement('button');
+        scanToggleBtn.innerText = '📷 Open Document Scanner Viewfinder';
+        scanToggleBtn.style.cssText = 'flex:1;background:#008CBA;color:white;border:none;padding:8px;border-radius:4px;cursor:pointer;font-weight:bold;font-size:11px;';
+        
+        // Wire the blue button directly to launch the standalone OCR scanner modal
+        scanToggleBtn.onclick = () => {
+            // Capture current modal position before opening the scanner
+            let rect = box.getBoundingClientRect();
+            let currentLeft = rect.left;
+            let currentTop = rect.top;
+            
+            showStandaloneOCRScannerModal(currentLeft, currentTop);
+        };
+    
+        scannerControls.appendChild(scanToggleBtn);
+        box.appendChild(scannerControls);
+    
+        // --- USER-FRIENDLY DROPZONE & CLIPBOARD PASTE RECEPTACLE ---
+        let dropZone = document.createElement('div');
+        dropZone.style.cssText = `border: 2px dashed ${isDark ? '#555' : '#aaa'}; border-radius: 6px; padding: 12px; text-align: center; margin-bottom: 8px; background: ${isDark ? '#252525' : '#f8f9fa'}; color: ${isDark ? '#ccc' : '#555'}; font-size: 11px; cursor: pointer; transition: background 0.2s;`;
+        dropZone.innerHTML = '📁 <b>Click to upload</b>, <b>drag & drop</b> an image, or <b>Ctrl+V</b> paste a screenshot here for OCR';
+        
+        let hiddenFileInput = document.createElement('input');
+        hiddenFileInput.type = 'file';
+        hiddenFileInput.accept = 'image/*';
+        hiddenFileInput.style.display = 'none';
+        dropZone.appendChild(hiddenFileInput);
+        box.appendChild(dropZone);
+    
+        // --- WEBCAM CONTAINER (Compact inline trigger) ---
+        let webcamContainer = document.createElement('div');
+        webcamContainer.style.cssText = 'display:none;flex-direction:column;align-items:center;margin-bottom:8px;background:#111;padding:10px;border-radius:6px;';
+        
+        let videoWrapper = document.createElement('div');
+        videoWrapper.style.cssText = 'position:relative;width:100%;max-height:220px;background:#000;border-radius:4px;overflow:hidden;cursor:crosshair;';
+    
+        let videoElement = document.createElement('video');
+        videoElement.autoplay = true;
+        videoElement.playsInline = true;
+        videoElement.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+        videoWrapper.appendChild(videoElement);
+    
+        let focusIndicator = document.createElement('div');
+        focusIndicator.style.cssText = 'position:absolute;border:2px solid #28a745;width:35px;height:35px;border-radius:50%;transform:translate(-50%, -50%);pointer-events:none;display:none;transition:all 0.2s ease;z-index:5;';
+        videoWrapper.appendChild(focusIndicator);
+        webcamContainer.appendChild(videoWrapper);
+    
+        let camActionRow = document.createElement('div');
+        camActionRow.style.cssText = 'display:flex;gap:6px;width:100%;margin-top:8px;';
+    
+        let captureBtn = document.createElement('button');
+        captureBtn.innerText = '📸 Capture Snapshot & Run OCR';
+        captureBtn.style.cssText = 'flex:2;background:#4CAF50;color:white;border:none;padding:6px;border-radius:4px;cursor:pointer;font-weight:bold;font-size:11px;';
+    
+        // --- EXPAND VIEW BUTTON: UNCOUPLES INTO STANDALONE MODAL ---
+        let expandCamBtn = document.createElement('button');
+        expandCamBtn.innerText = '🔍 Expand View (Standalone)';
+        expandCamBtn.style.cssText = 'flex:1;background:#0366d6;color:white;border:none;padding:6px;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;';
+    
+        camActionRow.appendChild(captureBtn);
+        camActionRow.appendChild(expandCamBtn);
+        webcamContainer.appendChild(camActionRow);
+        box.appendChild(webcamContainer);
+    
+        let mediaStream = null;
+    
+        // Standalone OCR Scanner Modal Builder
+        function showStandaloneOCRScannerModal(initLeft, initTop) {
+            let activeTheme = document.getElementById('preset-notes-modal')?.getAttribute('data-theme') || 'light';
+            let isDark = activeTheme === 'dark';
+            let boxBg = isDark ? '#1e1e1e' : '#fff';
+            let boxColor = isDark ? '#e0e0e0' : '#333';
+    
+            let scanOv = document.createElement('div');
+            scanOv.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:transparent;z-index:999999;font-family:sans-serif;pointer-events:none;'; 
+            
+            let scanBox = document.createElement('div');
+            scanBox.className = 'onetrack-modal' + (typeof compactMode !== 'undefined' && compactMode ? ' onetrack-compact-mode' : '');
+            
+            // If initial coordinates exist, apply them directly; otherwise default to centered
+            let positionStyle = (initLeft !== undefined && initTop !== undefined) 
+                ? `position:fixed;left:${initLeft}px;top:${initTop}px;transform:none;` 
+                : 'position:fixed;top:50%;left:50%;transform:translate(-50%, -50%);';
+    
+            scanBox.style.cssText = `background:${boxBg};color:${boxColor};padding:22px;border-radius:10px;box-shadow:0 8px 30px rgba(0,0,0,0.35);width:850px;max-width:96vw;display:flex;flex-direction:column;align-items:center;position:relative;pointer-events:auto;${positionStyle}`;
+            
+            // Preserve scaling and position behaviors
+            if (typeof applyUIScale === 'function') applyUIScale(scanBox);
+            if (typeof applySavedPosition === 'function') applySavedPosition(scanBox);
+            if (typeof applySavedScale === 'function') applySavedScale(scanBox);
+    
+            let scHeader = document.createElement('div');
+            scHeader.style.cssText = 'display:flex;justify-content:space-between;align-items:center;width:100%;margin-bottom:10px;cursor:move;';
+    
+            let scTitle = document.createElement('h3');
+            scTitle.innerText = `🔍 Full-Screen OCR Document Scanner`;
+            scTitle.style.cssText = `margin:0;font-size:15px;font-weight:bold;color:${isDark ? '#fff' : '#222'};`;
+            scHeader.appendChild(scTitle);
+    
+            let topControls = document.createElement('div');
+            topControls.style.cssText = 'display:flex;gap:8px;align-items:center;';
+    
+            let camSelect = document.createElement('select');
+            camSelect.style.cssText = 'background:#333;color:#fff;border:none;padding:4px 6px;border-radius:4px;font-size:11px;max-width:140px;cursor:pointer;';
+            camSelect.title = 'Select Camera Device';
+    
+            let currentWidth = 850;
+            let zoomOutBtn = document.createElement('button');
+            zoomOutBtn.innerText = '−';
+            zoomOutBtn.style.cssText = 'background:#555;color:#fff;border:none;width:24px;height:24px;border-radius:4px;cursor:pointer;font-weight:bold;';
+            
+            let zoomInBtn = document.createElement('button');
+            zoomInBtn.innerText = '+';
+            zoomInBtn.style.cssText = 'background:#0366d6;color:#fff;border:none;width:24px;height:24px;border-radius:4px;cursor:pointer;font-weight:bold;';
+    
+            zoomOutBtn.onclick = () => {
+                currentWidth = Math.max(600, currentWidth - 100);
+                scanBox.style.width = currentWidth + 'px';
+            };
+            zoomInBtn.onclick = () => {
+                currentWidth = Math.min(1200, currentWidth + 100);
+                scanBox.style.width = currentWidth + 'px';
+            };
+    
+            topControls.appendChild(camSelect);
+            topControls.appendChild(zoomOutBtn);
+            topControls.appendChild(zoomInBtn);
+            scHeader.appendChild(topControls);
+    
+            // Make draggable using the exact same helper
+            if (typeof makeDraggable === 'function') makeDraggable(scanBox, scHeader);
+            scanBox.appendChild(scHeader);
+    
+            let bigVideoContainer = document.createElement('div');
+            bigVideoContainer.style.cssText = 'position:relative;width:100%;height:460px;background:#000;border-radius:6px;overflow:hidden;margin-bottom:10px;cursor:crosshair;';
+    
+            let bigVideo = document.createElement('video');
+            bigVideo.autoplay = true;
+            bigVideo.playsInline = true;
+            bigVideo.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+            bigVideoContainer.appendChild(bigVideo);
+    
+            let ocrGuideBox = document.createElement('div');
+            ocrGuideBox.style.cssText = 'position:absolute;top:15%;left:15%;width:70%;height:70%;border:2px dashed rgba(40,167,69,0.7);border-radius:6px;pointer-events:none;display:flex;align-items:flex-start;justify-content:center;padding:6px;color:rgba(255,255,255,0.8);font-size:11px;font-weight:bold;text-shadow:0 1px 3px rgba(0,0,0,0.8);';
+            ocrGuideBox.innerText = '🎯 Align Label / Text Here for OCR';
+            bigVideoContainer.appendChild(ocrGuideBox);
+            scanBox.appendChild(bigVideoContainer);
+    
+            // Filter Controls Bar
+            let filterBar = document.createElement('div');
+            filterBar.style.cssText = 'display:flex;gap:10px;width:100%;margin-bottom:12px;font-size:11px;align-items:center;justify-content:center;flex-wrap:wrap;';
+            filterBar.innerHTML = `
+                <label>Brightness: <input type="range" id="scanBright" min="50" max="150" value="100" style="width:80px;cursor:pointer;vertical-align:middle;"></label>
+                <label>Contrast: <input type="range" id="scanContrast" min="50" max="200" value="110" style="width:80px;cursor:pointer;vertical-align:middle;"></label>
+                <label style="cursor:pointer;font-weight:bold;color:#4CAF50;"><input type="checkbox" id="scanGray" style="vertical-align:middle;margin-right:3px;">OCR Mono</label>
+            `;
+            scanBox.appendChild(filterBar);
+    
+            let sBright = filterBar.querySelector('#scanBright');
+            let sContrast = filterBar.querySelector('#scanContrast');
+            let sGray = filterBar.querySelector('#scanGray');
+    
+            let updateBigFilters = () => {
+                let mono = sGray.checked ? 'grayscale(100%) contrast(190%)' : '';
+                bigVideo.style.filter = `brightness(${sBright.value}%) contrast(${sContrast.value}%) ${mono}`;
+            };
+            sBright.oninput = updateBigFilters;
+            sContrast.oninput = updateBigFilters;
+            sGray.onchange = updateBigFilters;
+    
+            let btnRow = document.createElement('div');
+            btnRow.style.cssText = 'display:flex;gap:10px;width:100%;';
+    
+            let bigSnapBtn = document.createElement('button');
+            bigSnapBtn.innerText = '📸 Capture & Run OCR';
+            bigSnapBtn.style.cssText = 'flex:2;background:#28a745;color:white;border:none;padding:10px;border-radius:6px;cursor:pointer;font-weight:bold;font-size:13px;';
+    
+            let bigCancelBtn = document.createElement('button');
+            bigCancelBtn.innerText = 'Cancel / Return to Parts';
+            bigCancelBtn.style.cssText = 'flex:1;background:#6c757d;color:white;border:none;padding:10px;border-radius:6px;cursor:pointer;font-size:13px;';
+    
+            btnRow.appendChild(bigSnapBtn);
+            btnRow.appendChild(bigCancelBtn);
+            scanBox.appendChild(btnRow);
+            scanOv.appendChild(scanBox);
+            document.body.appendChild(scanOv);
+    
+            let activeStream = null;
+            const initBigCam = async (devId = null) => {
+                if (activeStream) activeStream.getTracks().forEach(t => t.stop());
+                try {
+                    activeStream = await navigator.mediaDevices.getUserMedia({
+                        video: devId ? { deviceId: { exact: devId }, focusMode: 'continuous' } : { facingMode: 'environment', width: { ideal: 2560 }, height: { ideal: 1440 }, focusMode: { ideal: 'continuous' } }
+                    });
+                    bigVideo.srcObject = activeStream;
+                    updateBigFilters();
+    
+                    if (camSelect.options.length <= 1) {
+                        let devices = await navigator.mediaDevices.enumerateDevices();
+                        let vDevs = devices.filter(d => d.kind === 'videoinput');
+                        camSelect.innerHTML = '';
+                        vDevs.forEach((d, i) => {
+                            let opt = document.createElement('option');
+                            opt.value = d.deviceId;
+                            opt.innerText = d.label || `Camera ${i + 1}`;
+                            if (d.deviceId === devId) opt.selected = true;
+                            camSelect.appendChild(opt);
+                        });
+                    }
+                } catch (err) {
+                    alert('Camera access denied or unavailable.');
+                    scanOv.remove();
+                    showSolisPartsModal(activeTheme, addHistoryItem, processTextSelection);
+                }
+            };
+    
+            camSelect.onchange = () => initBigCam(camSelect.value);
+            initBigCam();
+    
+            bigCancelBtn.onclick = () => {
+                if (activeStream) activeStream.getTracks().forEach(t => t.stop());
+                scanOv.remove();
+                showSolisPartsModal(activeTheme, addHistoryItem, processTextSelection);
+            };
+    
+            bigSnapBtn.onclick = async () => {
+                let canvas = document.createElement('canvas');
+                let settings = activeStream ? activeStream.getVideoTracks()[0].getSettings() : {};
+                canvas.width = settings.width || bigVideo.videoWidth || 2560;
+                canvas.height = settings.height || bigVideo.videoHeight || 1440;
+    
+                let ctx = canvas.getContext('2d');
+                let monoFilter = sGray.checked ? 'grayscale(100%) contrast(190%)' : '';
+                ctx.filter = `brightness(${sBright.value}%) contrast(${sContrast.value}%) ${monoFilter}`;
+                
+                ctx.drawImage(bigVideo, 0, 0, canvas.width, canvas.height);
+                let imgDataUrl = canvas.toDataURL('image/jpeg', 0.98);
+    
+                // Stop camera and close scanner, leaving the parts modal underneath
+                if (activeStream) activeStream.getTracks().forEach(t => t.stop());
+                scanOv.remove(); 
+    
+                // Hand the image data directly to our robust OCR helper!
+                await processImageForOCR(imgDataUrl);
+            };
+        }
+    
+        expandCamBtn.onclick = showStandaloneOCRScannerModal; // Launches the uncoupled full modal!
+    
+        async function processImageForOCR(imageDataUrl) {
+            if (typeof showToast === 'function') showToast('⏳ Loading OCR engine & analyzing document...');
+            try {
+                if (typeof Tesseract === 'undefined') {
+                    await new Promise((resolve, reject) => {
+                        let script = document.createElement('script');
+                        script.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+                        script.onload = resolve;
+                        script.onerror = reject;
+                        document.head.appendChild(script);
+                    });
+                }
+    
+                let result = await Tesseract.recognize(
+                    imageDataUrl, 
+                    'eng', 
+                    { 
+                        logger: m => console.log(m),
+                        tessedit_pageseg_mode: '6' 
+                    }
+                );
+    
+                let rawText = result.data.text ? result.data.text.trim().toUpperCase() : '';
+                console.log("--- TESSERACT RAW OCR TEXT --- \n", rawText);
+                
+                if (rawText) {
+                    let matchedCount = 0;
+                    let cleanScanText = rawText.replace(/[\s,\-\/]+/g, ' ');
+    
+                    partsList.forEach(part => {
+                        if (part.name && part.name.trim()) {
+                            let partNameUpper = part.name.toUpperCase();
+                            let isMatched = false;
+    
+                            let cleanPartName = partNameUpper.replace(/[\s,\-\/]+/g, ' ');
+                            if (cleanScanText.includes(cleanPartName)) isMatched = true;
+    
+                            if (part.name === 'HSG, BATTERY COMPARTMENT') {
+                                let hasHsg = rawText.includes('HSG') || rawText.includes('HOUSING');
+                                let hasBatteryComp = rawText.includes('BATTERY') && rawText.includes('COMPARTMENT');
+                                let isNotShield = !rawText.includes('SHLD') && !rawText.includes('SHIELD');
+                                if (hasHsg && hasBatteryComp && isNotShield) isMatched = true;
+                            }
+                            
+                            if ((rawText.includes('DOOR') && rawText.includes('PUMP')) || rawText.includes('BATTERY PUMP') || rawText.includes('30-3245')) {
+                                if (part.name === 'DOOR AY, BATTERY, PUMP') isMatched = true;
+                            }
+                            
+                            if (rawText.includes('NEOPRENE') || rawText.includes('NEOPR') || rawText.includes('30-3381')) {
+                                if (part.name === 'SEAL, DSO, NEOPRENE') isMatched = true;
+                            }
+    
+                            if ((rawText.includes('OVERLAY') && rawText.includes('KEYPAD')) || rawText.includes('40-5482-51A')) {
+                                if (part.name === 'OVERLAY, MEMBRANE SWITCH, CE ENGLISH') isMatched = true;
+                            }
+                            
+                            if (rawText.includes('MODEL 2120') && rawText.includes('BLUE') && part.name.includes('BLUE, RX ONLY')) {
+                                isMatched = true;
+                            }
+                            
+                            if (rawText.includes('MODEL 2120') && (rawText.includes('DRK') || rawText.includes('GREY')) && part.name.includes('DRK GREY, RX ONLY')) {
+                                isMatched = true;
+                            }
+                            
+                            if ((rawText.includes('KEYPAD') && (rawText.includes('MEMBRANE') || rawText.includes('CONN'))) || rawText.includes('70-0229')) {
+                                if (part.name === 'KEYPAD, MEMBRANE SW, W/O CONN, CADD-SOLIS') isMatched = true;
+                            }
+                            
+                            if ((rawText.includes('LBL') && rawText.includes('SET')) || rawText.includes('40-6288-24A')) {
+                                if (part.name.includes('LBL, SET, DEVICE')) isMatched = true;
+                            }
+                            
+                            if ((rawText.includes('LENS') && rawText.includes('PRINTED')) || rawText.includes('40-5733-51A')) {
+                                if (part.name === 'LENS, PAD PRINTED, CADD-SOLIS') isMatched = true;
+                            }
+    
+                            if (part.num && part.num.trim() && rawText.includes(part.num.toUpperCase())) {
+                                isMatched = true;
+                            }
+    
+                            if (isMatched && !selectedItems.has(part.name)) {
+                                selectedItems.add(part.name);
+                                matchedCount++;
+                            }
+                        }
+                    });
+    
+                    renderList();
+                    if (typeof showToast === 'function') showToast(`✓ OCR scanned! Auto-selected ${matchedCount} specific part(s).`);
+                } else {
+                    alert('Could not detect any text from the image.');
+                }
+            } catch (err) {
+                console.error('Tesseract OCR Error:', err);
+                alert('Error processing local OCR recognition.');
+            }
+        }
+    
+        captureBtn.onclick = async () => {
+            if (videoElement.readyState < videoElement.HAVE_CURRENT_DATA) {
+                alert("Camera feed is still loading. Please wait a moment and try capturing again.");
+                return;
+            }
+    
+            let canvas = document.createElement('canvas');
+            let trackSettings = mediaStream ? mediaStream.getVideoTracks()[0].getSettings() : {};
+            canvas.width = trackSettings.width || videoElement.videoWidth || 2560;
+            canvas.height = trackSettings.height || videoElement.videoHeight || 1440;
+
+            let ctx = canvas.getContext('2d');
+            let monoFilter = grayCheck.checked ? 'grayscale(100%) contrast(190%)' : '';
+            ctx.filter = `brightness(${brightSlider.value}%) contrast(${contrastSlider.value}%) ${monoFilter}`;
+            ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+            let imageDataUrl = canvas.toDataURL('image/jpeg', 0.98);
+    
+            if (mediaStream) mediaStream.getTracks().forEach(t => t.stop());
+            webcamContainer.style.display = 'none';
+            scanToggleBtn.innerText = '📷 Open Document Scanner Viewfinder';
+    
+            await processImageForOCR(imageDataUrl);
+        };
+    
+        // --- DROPZONE & CLIPBOARD PASTE INTERACTION HANDLERS ---
+        dropZone.onclick = () => hiddenFileInput.click();
+    
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = '#0366d6';
+        });
+    
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.style.borderColor = isDark ? '#555' : '#aaa';
+        });
+    
+        dropZone.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = isDark ? '#555' : '#aaa';
+            let file = e.dataTransfer.files[0];
+            if (file && file.type.startsWith('image/')) {
+                let reader = new FileReader();
+                reader.onload = async (event) => await processImageForOCR(event.target.result);
+                reader.readAsDataURL(file);
+            }
+        });
+    
+        hiddenFileInput.onchange = (e) => {
+            let file = e.target.files[0];
+            if (!file) return;
+            let reader = new FileReader();
+            reader.onload = async (event) => await processImageForOCR(event.target.result);
+            reader.readAsDataURL(file);
+        };
+    
+        const handlePaste = async (e) => {
+            let items = (e.clipboardData || e.originalEvent.clipboardData).items;
+            for (let item of items) {
+                if (item.type.indexOf('image') !== -1) {
+                    let blob = item.getAsFile();
+                    let reader = new FileReader();
+                    reader.onload = async (event) => await processImageForOCR(event.target.result);
+                    reader.readAsDataURL(blob);
+                    e.preventDefault();
+                    break;
+                }
+            }
+        };
+        document.addEventListener('paste', handlePaste);
+    
+        ov.addEventListener('DOMNodeRemoved', () => {
+            document.removeEventListener('paste', handlePaste);
+        });
+    
+        // --- CONTROLS ROW: SEARCH & SORT ---
+        let controlRow = document.createElement('div');
+        controlRow.style.cssText = 'display:flex;gap:8px;margin-bottom:8px;align-items:center;';
+    
+        let searchInput = document.createElement('input');
+        searchInput.type = 'text';
+        searchInput.placeholder = '🔍 Search part name or #...';
+        searchInput.style.cssText = `flex:1;padding:6px 8px;background:${isDark ? '#2a2a2a' : '#fff'};color:${boxColor};border:1px solid ${isDark ? '#444' : '#ccc'};border-radius:4px;font-size:11px;`;
+    
+        let sortSelect = document.createElement('select');
+        sortSelect.style.cssText = `background:${isDark ? '#2a2a2a' : '#fff'};color:${boxColor};border:1px solid ${isDark ? '#444' : '#ccc'};border-radius:4px;padding:6px;font-size:11px;cursor:pointer;`;
+    
+        let optAlpha = document.createElement('option');
+        optAlpha.value = 'alpha';
+        optAlpha.innerText = 'Alphabetical';
+    
+        let optRecent = document.createElement('option');
+        optRecent.value = 'recent';
+        optRecent.innerText = 'Most Recently Used';
+    
+        sortSelect.appendChild(optAlpha);
+        sortSelect.appendChild(optRecent);
+    
+        let currentSort = localStorage.getItem('solis_parts_sort_pref') || 'alpha';
+        sortSelect.value = currentSort;
+    
+        controlRow.appendChild(searchInput);
+        controlRow.appendChild(sortSelect);
+        box.appendChild(controlRow);
+    
+        // --- QUICK ADD BAR ---
+        let addRow = document.createElement('div');
+        addRow.style.cssText = 'display:flex;gap:6px;margin-bottom:8px;align-items:center;';
+    
+        let newDescInput = document.createElement('input');
+        newDescInput.type = 'text';
+        newDescInput.placeholder = 'Part Description';
+        newDescInput.style.cssText = `flex:2;padding:6px;font-size:11px;background:${isDark ? '#2a2a2a' : '#fff'};color:${boxColor};border:1px solid ${isDark ? '#444' : '#ccc'};border-radius:4px;`;
+    
+        let newNumInput = document.createElement('input');
+        newNumInput.type = 'text';
+        newNumInput.placeholder = 'Part #';
+        newNumInput.style.cssText = `flex:1;padding:6px;font-size:11px;background:${isDark ? '#2a2a2a' : '#fff'};color:${boxColor};border:1px solid ${isDark ? '#444' : '#ccc'};border-radius:4px;`;
+    
+        let addBtn = document.createElement('button');
+        addBtn.innerText = '+ Add';
+        addBtn.style.cssText = 'padding:6px 12px;background:#0366d6;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;white-space:nowrap;';
+    
+        addBtn.onclick = () => {
+            let desc = newDescInput.value.trim();
+            let num = newNumInput.value.trim();
+            if (!desc) {
+                alert('Please enter a part description.');
+                newDescInput.focus();
+                return;
+            }
+            partsList.push({ num: num, name: desc.toUpperCase() });
+            localStorage.setItem('solis_custom_parts_list', JSON.stringify(partsList));
+            newDescInput.value = '';
+            newNumInput.value = '';
+            renderList();
+        };
+    
+        addRow.appendChild(newDescInput);
+        addRow.appendChild(newNumInput);
+        addRow.appendChild(addBtn);
+        box.appendChild(addRow);
+    
+        // --- LIST CONTAINER WITH EDIT/DELETE ACTIONS ---
+        let listContainer = document.createElement('div');
+        listContainer.style.cssText = 'max-height:180px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;margin-bottom:8px;padding-right:4px;background:transparent;';
+    
+        function renderList() {
+            listContainer.innerHTML = '';
+            let query = searchInput.value.toLowerCase();
+    
+            let filtered = partsList.filter(p => p.name.toLowerCase().includes(query) || p.num.toLowerCase().includes(query));
+    
+            if (sortSelect.value === 'alpha') {
+                filtered.sort((a, b) => a.name.localeCompare(b.name));
+            } else {
+                filtered.sort((a, b) => (usageCounts[b.name] || 0) - (usageCounts[a.name] || 0));
+            }
+    
+            if (filtered.length === 0) {
+                let emptyMsg = document.createElement('div');
+                emptyMsg.innerText = 'No matching parts found.';
+                emptyMsg.style.cssText = 'text-align:center;padding:15px;font-size:11px;opacity:0.6;';
+                listContainer.appendChild(emptyMsg);
+                return;
+            }
+    
+            filtered.forEach((partObj) => {
+                let itemBox = document.createElement('div');
+                let baseBg = isDark ? '#2a2a2a' : '#f8f9fa';
+                let baseBorder = isDark ? '#444' : '#dee2e6';
+                let isSelected = selectedItems.has(partObj.name);
+    
+                itemBox.style.cssText = `display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:${isSelected ? (isDark ? '#0d3b66' : '#e7f5ff') : baseBg};border:1px solid ${isSelected ? '#0366d6' : baseBorder};border-radius:4px;font-size:11px;transition:all 0.15s ease;`;
+    
+                let leftInfo = document.createElement('div');
+                leftInfo.style.cssText = 'display:flex;align-items:center;gap:8px;flex:1;cursor:pointer;overflow:hidden;';
+    
+                let checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.checked = isSelected;
+                checkbox.style.cssText = 'cursor:pointer;margin:0;';
+    
+                let nameSpan = document.createElement('span');
+                nameSpan.innerText = partObj.name;
+                nameSpan.style.cssText = `color:${isDark ? '#e0e0e0' : '#212529'};font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;`;
+    
+                leftInfo.appendChild(checkbox);
+                leftInfo.appendChild(nameSpan);
+    
+                let rightInfo = document.createElement('div');
+                rightInfo.style.cssText = 'display:flex;align-items:center;gap:6px;flex-shrink:0;margin-left:8px;';
+    
+                let numSpan = document.createElement('span');
+                numSpan.innerText = partObj.num || '';
+                numSpan.style.cssText = `font-weight:bold;color:${isDark ? '#aaa' : '#666'};font-family:monospace;font-size:10px;min-width:65px;text-align:right;`;
+    
+                let editBtn = document.createElement('button');
+                editBtn.innerText = 'Edit';
+                editBtn.style.cssText = 'padding:2px 5px;background:#f0ad4e;color:#fff;border:none;border-radius:3px;cursor:pointer;font-size:10px;font-weight:bold;';
+    
+                let deleteBtn = document.createElement('button');
+                deleteBtn.innerText = 'Delete';
+                deleteBtn.style.cssText = 'padding:2px 5px;background:#d9534f;color:#fff;border:none;border-radius:3px;cursor:pointer;font-size:10px;font-weight:bold;';
+    
+                const toggleSelection = () => {
+                    if (selectedItems.has(partObj.name)) {
+                        selectedItems.delete(partObj.name);
+                        checkbox.checked = false;
+                        itemBox.style.background = baseBg;
+                        itemBox.style.borderColor = baseBorder;
+                    } else {
+                        selectedItems.add(partObj.name);
+                        checkbox.checked = true;
+                        itemBox.style.background = isDark ? '#0d3b66' : '#e7f5ff';
+                        itemBox.style.borderColor = '#0366d6';
+                    }
+                };
+    
+                leftInfo.onclick = toggleSelection;
+                checkbox.onclick = (e) => {
+                    e.stopPropagation();
+                    toggleSelection();
+                };
+    
+                editBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    let newN = prompt('Edit Part Description:', partObj.name);
+                    if (newN !== null && newN.trim() !== '') {
+                        let newNum = prompt('Edit Part Number:', partObj.num);
+                        let originalName = partObj.name;
+                        partObj.name = newN.trim().toUpperCase();
+                        partObj.num = newNum !== null ? newNum.trim() : partObj.num;
+    
+                        if (selectedItems.has(originalName)) {
+                            selectedItems.delete(originalName);
+                            selectedItems.add(partObj.name);
+                        }
+                        localStorage.setItem('solis_custom_parts_list', JSON.stringify(partsList));
+                        renderList();
+                    }
+                };
+    
+                deleteBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    if (confirm(`Remove "${partObj.name}" from list?`)) {
+                        partsList = partsList.filter(p => p !== partObj);
+                        selectedItems.delete(partObj.name);
+                        localStorage.setItem('solis_custom_parts_list', JSON.stringify(partsList));
+                        renderList();
+                    }
+                };
+    
+                rightInfo.appendChild(numSpan);
+                rightInfo.appendChild(editBtn);
+                rightInfo.appendChild(deleteBtn);
+    
+                itemBox.appendChild(leftInfo);
+                itemBox.appendChild(rightInfo);
+                listContainer.appendChild(itemBox);
+            });
+        }
+    
+        searchInput.oninput = renderList;
+        sortSelect.onchange = () => {
+            localStorage.setItem('solis_parts_sort_pref', sortSelect.value);
+            renderList();
+        };
+    
+        renderList();
+        box.appendChild(listContainer);
+    
+        // --- SENTENCE STRUCTURE TEXTAREA ---
+        let sentenceLabel = document.createElement('label');
+        sentenceLabel.innerText = 'Customizable OEM Sentence Structure (Use [PARTS] for selections):';
+        sentenceLabel.style.cssText = `font-size:10px;font-weight:bold;color:${isDark ? '#aaa' : '#555'};margin-bottom:4px;display:block;`;
+        box.appendChild(sentenceLabel);
+    
+        let defaultTemplate = "Per the OEM, the following parts have been replaced: [PARTS] and passed the related testing. The OEM also certifies that the device passes the following: Visual Inspection, Pump Power Up Test, Motor Test, Remote Dose Test, Keypad Test, Latch Lock Test, Disposable Test, Air Detector Test, Verify Air Detector Height, LCD Screen Inspection, Amber Green and LED Functional Test, Adjust LCD POT Screen, Downstream Occlusion Test, Upstream Occlusion Sensor Test, Battery Fallout Test, 50ml Cassette Test, Go_No_Go Test, and Delivery Accuracy Test 20mL";
+        let savedTemplate = localStorage.getItem('solis_oem_sentence_template') || defaultTemplate;
+    
+        let sentenceTextarea = document.createElement('textarea');
+        sentenceTextarea.value = savedTemplate;
+        sentenceTextarea.style.cssText = `width:100%;height:55px;padding:6px;box-sizing:border-box;border:1px solid ${isDark ? '#444' : '#ccc'};border-radius:4px;background:${isDark ? '#2a2a2a' : '#fff'};color:${boxColor};font-size:11px;resize:vertical;font-family:inherit;margin-bottom:10px;`;
+    
+        sentenceTextarea.oninput = () => {
+            localStorage.setItem('solis_oem_sentence_template', sentenceTextarea.value);
+        };
+        box.appendChild(sentenceTextarea);
+    
+        // --- ACTION BUTTON ROW ---
+        let btnRow = document.createElement('div');
+        btnRow.style.cssText = 'display:flex;justify-content:flex-end;gap:8px;';
+    
+        let cancelBtn = document.createElement('button');
+        cancelBtn.innerText = 'Cancel';
+        cancelBtn.style.cssText = isDark ? 'padding:6px 12px;background:#444;color:#e0e0e0;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;' : 'padding:6px 12px;background:#dc3545;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;';
+        cancelBtn.onclick = () => ov.remove();
+    
+        let backBtn = document.createElement('button');
+        backBtn.innerText = '← Back';
+        backBtn.style.cssText = isDark ? 'padding:6px 12px;background:#555;color:#e0e0e0;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;' : 'padding:6px 12px;background:#6c757d;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;';
+        backBtn.onclick = () => {
+            ov.remove();
+            if (typeof showMainModal === 'function') showMainModal(activeTheme);
+        };
+    
+        let confirmBtn = document.createElement('button');
+        confirmBtn.innerText = 'Confirm Selection';
+        confirmBtn.style.cssText = 'padding:6px 14px;background:#28a745;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;';
+    
+        confirmBtn.onclick = () => {
+            let arr = Array.from(selectedItems);
+            if (arr.length > 0) {
+                let now = Date.now();
+                arr.forEach(p => { usageCounts[p] = now; });
+                localStorage.setItem('solis_parts_usage', JSON.stringify(usageCounts));
+            }
+    
+            let cleanedParts = arr.map(p => {
+                let upper = p.toUpperCase();
+                
+                if (upper.includes('MODEL 2120') && upper.includes('BLUE')) return 'Model 2120 Device Label Blue';
+                if (upper.includes('MODEL 2120') && (upper.includes('DRK') || upper.includes('GREY'))) return 'Model 2120 Device Label Dark Grey';
+                if (upper.includes('LENS, PAD PRINTED')) return 'Printed Lens Pad';
+                if (upper.includes('OVERLAY, MEMBRANE SWITCH')) return 'Membrane Switch Overlay';
+                if (upper.includes('SEAL, DSO, NEOPRENE')) return 'DSO Seal';
+                if (upper.includes('SENSOR, DSO')) return 'DSO Sensor';
+                if (upper.includes('KEYPAD, MEMBRANE SW')) return 'Membrane Switch Keypad';
+                if (upper.includes('BATTERY, PUMP') && upper.includes('DOOR')) return 'Pump Battery Door';
+                
+                let cleaned = p
+                    .replace(/\bCADD-SOLIS\b/gi, '')
+                    .replace(/\bVIP\b/gi, '')
+                    .replace(/\b1\/EA\b/gi, '')
+                    .replace(/,\s*,/g, ',')
+                    .replace(/\s{2,}/g, ' ')
+                    .trim();
+                    
+                cleaned = cleaned.replace(/^,\s*|\s*,$/g, '').trim();
+                return cleaned.length > 2 ? cleaned : p;
+            });
+    
+            let partsString = cleanedParts.length > 0 ? cleanedParts.join(', ') : 'None';
+            let template = sentenceTextarea.value.trim() || defaultTemplate;
+            
+            let summaryText = template.replace(/[PARTS]/g, partsString);
+            
+            summaryText = summaryText
+                .replace(/,\s*CADD-SOLIS\b(?!\s*,)/gi, '')
+                .replace(/\s{2,}/g, ' ')
+                .replace(/\s+,/g, ',');
+    
+            if (typeof addHistoryItem === 'function') addHistoryItem(summaryText);
+            if (typeof processTextSelection === 'function') {
+                processTextSelection(summaryText);
+            } else {
+                ov.remove();
+            }
+        };
+    
+        btnRow.appendChild(cancelBtn);
+        btnRow.appendChild(backBtn);
+        btnRow.appendChild(confirmBtn);
+        box.appendChild(btnRow);
+    
         ov.appendChild(box);
         document.body.appendChild(ov);
     }
