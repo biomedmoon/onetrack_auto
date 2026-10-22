@@ -1864,34 +1864,45 @@ function showCurlinUploadModal(passedTheme) {
         document.addEventListener('paste', handlePaste);
         ov.addEventListener('DOMNodeRemoved', () => { document.removeEventListener('paste', handlePaste); });
     
-        // --- CONTROLS ROW: SEARCH & SORT ---
+        // --- CONTROLS ROW: SEARCH, SORT & RESET ---
         let controlRow = document.createElement('div');
         controlRow.style.cssText = 'display:flex;gap:8px;margin-bottom:8px;align-items:center;';
-    
+        
         let searchInput = document.createElement('input');
         searchInput.type = 'text';
         searchInput.placeholder = '🔍 Search part name or #...';
         searchInput.style.cssText = `flex:1;padding:6px 8px;background:${isDark ? '#2a2a2a' : '#fff'};color:${boxColor};border:1px solid ${isDark ? '#444' : '#ccc'};border-radius:4px;font-size:11px;`;
-    
+        
         let sortSelect = document.createElement('select');
         sortSelect.style.cssText = `background:${isDark ? '#2a2a2a' : '#fff'};color:${boxColor};border:1px solid ${isDark ? '#444' : '#ccc'};border-radius:4px;padding:6px;font-size:11px;cursor:pointer;`;
-    
         let optAlpha = document.createElement('option');
         optAlpha.value = 'alpha';
         optAlpha.innerText = 'Alphabetical';
-    
         let optRecent = document.createElement('option');
         optRecent.value = 'recent';
         optRecent.innerText = 'Most Recently Used';
-    
         sortSelect.appendChild(optAlpha);
         sortSelect.appendChild(optRecent);
-    
         let currentSort = localStorage.getItem('infinity_parts_sort_pref') || 'alpha';
         sortSelect.value = currentSort;
     
+        // --- NEW RESET DEFAULTS BUTTON (Right-Aligned) ---
+        let resetDefaultsBtn = document.createElement('button');
+        resetDefaultsBtn.innerText = '🔄 Reset Defaults';
+        resetDefaultsBtn.style.cssText = 'background:#6c757d;color:white;border:none;padding:6px 10px;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;margin-left:auto;white-space:nowrap;';
+        resetDefaultsBtn.onclick = () => {
+            if (confirm('Are you sure you want to reset all Infinity parts back to the default list? Any custom additions will be cleared.')) {
+                localStorage.removeItem('infinity_custom_parts_list');
+                partsList = [...defaultInfinityParts];
+                selectedItems.clear();
+                renderList();
+                if (typeof showToast === 'function') showToast('✓ Reset Infinity parts to defaults!');
+            }
+        };
+    
         controlRow.appendChild(searchInput);
         controlRow.appendChild(sortSelect);
+        controlRow.appendChild(resetDefaultsBtn); // 👈 Added to the row and right-aligned via margin-left: auto
         box.appendChild(controlRow);
     
         // --- QUICK ADD BAR ---
