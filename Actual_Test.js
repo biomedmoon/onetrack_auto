@@ -1499,6 +1499,7 @@ function showCurlinUploadModal(passedTheme) {
             { num: '28483-001', name: 'Rotor Assembly' },
             { num: '42611', name: 'Canon Motor' },
             { num: '43763-101', name: 'Infinity II PCB Assembly' },
+            { num: '80782-005', name: 'Top Housing' },
             { num: '80782-001', name: 'Top Housing (Alt: 56717-001)' }
         ];
     
