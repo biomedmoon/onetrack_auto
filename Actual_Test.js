@@ -2225,12 +2225,11 @@ function showCurlinUploadModal(passedTheme) {
             { num: '40-4085', name: 'TAPE, POGO CONTACT' },
             { num: '30-3063', name: 'VALVE, DUAL ACTIVATION, CADD-SOLIS' }
         ];
-        let selectedItems = new Set(initialSelectedParts); //  Initialize with the passed OCR matches
     
         let storedPartsJson = localStorage.getItem('solis_custom_parts_list');
         let partsList = storedPartsJson ? JSON.parse(storedPartsJson) : defaultParts;
     
-        let selectedItems = new Set();
+        let selectedItems = new Set(initialSelectedParts); //  Initialize with the passed OCR matches
         let usageCounts = JSON.parse(localStorage.getItem('solis_parts_usage') || '{}');
         let isExpandedView = false; 
     
