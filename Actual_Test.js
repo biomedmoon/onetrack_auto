@@ -2453,21 +2453,27 @@ function showCurlinUploadModal(passedTheme) {
             };
     
             bigSnapBtn.onclick = async () => {
+                // 1. Force valid fallback dimensions so it never captures a 2x36 strip
+                let trackSettings = activeStream ? activeStream.getVideoTracks()[0].getSettings() : {};
+                let targetWidth = trackSettings.width || bigVideo.videoWidth || 2560;
+                let targetHeight = trackSettings.height || bigVideo.videoHeight || 1440;
+    
                 let canvas = document.createElement('canvas');
-                let settings = activeStream ? activeStream.getVideoTracks()[0].getSettings() : {};
-                canvas.width = settings.width || bigVideo.videoWidth || 2560;
-                canvas.height = settings.height || bigVideo.videoHeight || 1440;
+                canvas.width = targetWidth;
+                canvas.height = targetHeight;
     
                 let ctx = canvas.getContext('2d');
                 let monoFilter = sGray.checked ? 'grayscale(100%) contrast(190%)' : '';
                 ctx.filter = `brightness(${sBright.value}%) contrast(${sContrast.value}%) ${monoFilter}`;
+                
+                // 2. Draw the full frame safely
                 ctx.drawImage(bigVideo, 0, 0, canvas.width, canvas.height);
                 let imgDataUrl = canvas.toDataURL('image/jpeg', 0.98);
     
                 if (activeStream) activeStream.getTracks().forEach(t => t.stop());
                 scanOv.remove();
     
-                // Run OCR first, collect the matches, and THEN open the modal with them pre-selected!
+                // 3. Pass the clean image data URL into our OCR parser helper
                 await processAndOpenWithOCR(imgDataUrl, activeTheme, addHistoryItem, processTextSelection);
             };
         }
