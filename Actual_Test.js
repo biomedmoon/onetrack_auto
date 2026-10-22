@@ -2117,7 +2117,7 @@ function showCurlinUploadModal(passedTheme) {
         ov.appendChild(box);
         document.body.appendChild(ov);
     }
-    function showSolisPartsModal(passedTheme, addHistoryItem, processTextSelection) {
+    function showSolisPartsModal(passedTheme, addHistoryItem, processTextSelection, initialSelectedParts = []) {
         let activeTheme = passedTheme || document.getElementById('preset-notes-modal')?.getAttribute('data-theme') || 'light';
         let isDark = activeTheme === 'dark';
     
@@ -2225,6 +2225,7 @@ function showCurlinUploadModal(passedTheme) {
             { num: '40-4085', name: 'TAPE, POGO CONTACT' },
             { num: '30-3063', name: 'VALVE, DUAL ACTIVATION, CADD-SOLIS' }
         ];
+        let selectedItems = new Set(initialSelectedParts); //  Initialize with the passed OCR matches
     
         let storedPartsJson = localStorage.getItem('solis_custom_parts_list');
         let partsList = storedPartsJson ? JSON.parse(storedPartsJson) : defaultParts;
@@ -2467,13 +2468,49 @@ function showCurlinUploadModal(passedTheme) {
                 if (activeStream) activeStream.getTracks().forEach(t => t.stop());
                 scanOv.remove();
     
-                // Re-open parts modal first so checkboxes render correctly before OCR runs
-                showSolisPartsModal(activeTheme, addHistoryItem, processTextSelection);
-                await processImageForOCR(imgDataUrl);
+                // Run OCR first, collect the matches, and THEN open the modal with them pre-selected!
+                await processAndOpenWithOCR(imgDataUrl, activeTheme, addHistoryItem, processTextSelection);
             };
         }
     
         expandCamBtn.onclick = showStandaloneOCRScannerModal; // Launches the uncoupled full modal!
+
+        async function processAndOpenWithOCR(imageDataUrl, activeTheme, addHistoryItem, processTextSelection) {
+            if (typeof showToast === 'function') showToast('⏳ Analyzing Solis parts document...');
+            try {
+                if (typeof Tesseract === 'undefined') {
+                    await new Promise((resolve, reject) => {
+                        let script = document.createElement('script');
+                        script.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+                        script.onload = resolve; script.onerror = reject;
+                        document.head.appendChild(script);
+                    });
+                }
+                let result = await Tesseract.recognize(imageDataUrl, 'eng', { tessedit_pageseg_mode: '6' });
+                let rawText = result.data.text ? result.data.text.trim().toUpperCase() : '';
+                
+                let storedPartsJson = localStorage.getItem('solis_custom_parts_list');
+                let partsList = storedPartsJson ? JSON.parse(storedPartsJson) : defaultParts;
+                let matchedPartNames = [];
+        
+                if (rawText) {
+                    partsList.forEach(p => {
+                        let isMatched = false;
+                        if (p.num && rawText.includes(p.num.toUpperCase())) isMatched = true;
+                        if (rawText.includes(p.name.toUpperCase())) isMatched = true;
+                        if (isMatched) matchedPartNames.push(p.name);
+                    });
+                }
+        
+                // Re-open the modal passing the matched items straight in!
+                showSolisPartsModal(activeTheme, addHistoryItem, processTextSelection, matchedPartNames);
+                if (typeof showToast === 'function') showToast(`✓ OCR scanned! Auto-selected ${matchedPartNames.length} part(s).`);
+            } catch (err) {
+                console.error('OCR Error:', err);
+                showSolisPartsModal(activeTheme, addHistoryItem, processTextSelection, []);
+                alert('Error running OCR engine.');
+            }
+        }
     
         async function processImageForOCR(imageDataUrl) {
             if (typeof showToast === 'function') showToast('⏳ Loading OCR engine & analyzing document...');
