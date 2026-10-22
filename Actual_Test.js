@@ -2465,14 +2465,12 @@ function showCurlinUploadModal(passedTheme) {
                 ctx.drawImage(bigVideo, 0, 0, canvas.width, canvas.height);
                 let imgDataUrl = canvas.toDataURL('image/jpeg', 0.98);
     
+                // Stop camera and just close the scanner overlay, leaving the parts modal safely underneath
                 if (activeStream) activeStream.getTracks().forEach(t => t.stop());
                 scanOv.remove();
     
-                // 1. Re-open the modal immediately so the UI is back and responsive
-                showSolisPartsModal(activeTheme, addHistoryItem, processTextSelection, []);
-    
-                // 2. Run OCR in the background, then update the checkboxes once it finds matches
-                if (typeof showToast === 'function') showToast('⏳ Running background OCR match...');
+                // Run OCR and directly update the underlying active modal's state & checkboxes
+                if (typeof showToast === 'function') showToast('⏳ Analyzing document for matches...');
                 try {
                     if (typeof Tesseract === 'undefined') {
                         await new Promise((resolve, reject) => {
@@ -2485,26 +2483,23 @@ function showCurlinUploadModal(passedTheme) {
                     let result = await Tesseract.recognize(imgDataUrl, 'eng', { tessedit_pageseg_mode: '6' });
                     let rawText = result.data.text ? result.data.text.trim().toUpperCase() : '';
                     
-                    if (rawText) {
-                        let storedPartsJson = localStorage.getItem('solis_custom_parts_list');
-                        let partsList = storedPartsJson ? JSON.parse(storedPartsJson) : defaultParts;
-                        let matchedPartNames = [];
-    
+                    if (rawText && typeof partsList !== 'undefined' && typeof selectedItems !== 'undefined' && typeof renderList === 'function') {
+                        let matchedCount = 0;
                         partsList.forEach(p => {
                             let isMatched = false;
                             if (p.num && rawText.includes(p.num.toUpperCase())) isMatched = true;
                             if (rawText.includes(p.name.toUpperCase())) isMatched = true;
-                            if (isMatched) matchedPartNames.push(p.name);
+                            if (isMatched && !selectedItems.has(p.name)) {
+                                selectedItems.add(p.name);
+                                matchedCount++;
+                            }
                         });
-    
-                        if (matchedPartNames.length > 0) {
-                            // Refresh/re-render the modal with the newly discovered matches checked!
-                            showSolisPartsModal(activeTheme, addHistoryItem, processTextSelection, matchedPartNames);
-                            if (typeof showToast === 'function') showToast(`✓ Auto-selected ${matchedPartNames.length} part(s)!`);
-                        }
+                        renderList(); // Refresh the underlying list checkboxes instantly!
+                        if (typeof showToast === 'function') showToast(`✓ OCR scanned! Auto-selected ${matchedCount} part(s).`);
                     }
                 } catch (err) {
-                    console.error('Background OCR Error:', err);
+                    console.error('OCR Error:', err);
+                    alert('Error running OCR engine.');
                 }
             };
         }
