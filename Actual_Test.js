@@ -2465,46 +2465,12 @@ function showCurlinUploadModal(passedTheme) {
                 ctx.drawImage(bigVideo, 0, 0, canvas.width, canvas.height);
                 let imgDataUrl = canvas.toDataURL('image/jpeg', 0.98);
     
+                // Stop camera and close scanner, leaving the parts modal underneath
                 if (activeStream) activeStream.getTracks().forEach(t => t.stop());
-                scanOv.remove(); // Scanner closes, leaving parts modal underneath!
+                scanOv.remove(); 
     
-                if (typeof showToast === 'function') showToast('⏳ Analyzing document for matches...');
-                try {
-                    if (typeof Tesseract === 'undefined') {
-                        await new Promise((resolve, reject) => {
-                            let script = document.createElement('script');
-                            script.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
-                            script.onload = resolve; script.onerror = reject;
-                            document.head.appendChild(script);
-                        });
-                    }
-                    
-                    // OCR execution with console logger restored
-                    let result = await Tesseract.recognize(imgDataUrl, 'eng', { 
-                        logger: m => console.log(m), 
-                        tessedit_pageseg_mode: '6' 
-                    });
-                    
-                    let rawText = result.data.text ? result.data.text.trim().toUpperCase() : '';
-                    
-                    if (rawText && typeof partsList !== 'undefined' && typeof selectedItems !== 'undefined' && typeof renderList === 'function') {
-                        let matchedCount = 0;
-                        partsList.forEach(p => {
-                            let isMatched = false;
-                            if (p.num && rawText.includes(p.num.toUpperCase())) isMatched = true;
-                            if (rawText.includes(p.name.toUpperCase())) isMatched = true;
-                            if (isMatched && !selectedItems.has(p.name)) {
-                                selectedItems.add(p.name);
-                                matchedCount++;
-                            }
-                        });
-                        renderList(); // Refresh checkboxes live!
-                        if (typeof showToast === 'function') showToast(`✓ OCR scanned! Auto-selected ${matchedCount} part(s).`);
-                    }
-                } catch (err) {
-                    console.error('OCR Error:', err);
-                    alert('Error running OCR engine.');
-                }
+                // Hand the image data directly to our robust OCR helper!
+                await processImageForOCR(imgDataUrl);
             };
         }
     
