@@ -2453,27 +2453,26 @@ function showCurlinUploadModal(passedTheme) {
             };
     
             bigSnapBtn.onclick = async () => {
-                // 1. Force valid fallback dimensions so it never captures a 2x36 strip
-                let trackSettings = activeStream ? activeStream.getVideoTracks()[0].getSettings() : {};
-                let targetWidth = trackSettings.width || bigVideo.videoWidth || 2560;
-                let targetHeight = trackSettings.height || bigVideo.videoHeight || 1440;
+                // Guarantee we capture the actual video frame dimensions safely
+                let w = bigVideo.videoWidth || 2560;
+                let h = bigVideo.videoHeight || 1440;
     
                 let canvas = document.createElement('canvas');
-                canvas.width = targetWidth;
-                canvas.height = targetHeight;
+                canvas.width = w;
+                canvas.height = h;
     
                 let ctx = canvas.getContext('2d');
                 let monoFilter = sGray.checked ? 'grayscale(100%) contrast(190%)' : '';
                 ctx.filter = `brightness(${sBright.value}%) contrast(${sContrast.value}%) ${monoFilter}`;
                 
-                // 2. Draw the full frame safely
-                ctx.drawImage(bigVideo, 0, 0, canvas.width, canvas.height);
+                // Draw the full video frame
+                ctx.drawImage(bigVideo, 0, 0, w, h);
                 let imgDataUrl = canvas.toDataURL('image/jpeg', 0.98);
     
                 if (activeStream) activeStream.getTracks().forEach(t => t.stop());
                 scanOv.remove();
     
-                // 3. Pass the clean image data URL into our OCR parser helper
+                // Process OCR and pass the matched array back into the parts modal
                 await processAndOpenWithOCR(imgDataUrl, activeTheme, addHistoryItem, processTextSelection);
             };
         }
