@@ -1588,14 +1588,19 @@ function showCurlinUploadModal(passedTheme) {
         };
     
         // Standalone Full-Screen OCR Scanner Modal Builder
-        function showStandaloneOCRScannerModal() {
+        function showStandaloneOCRScannerModal(initLeft, initTop) {
             let scanOv = document.createElement('div');
-            scanOv.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:transparent;z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;pointer-events:none;';
+            scanOv.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:transparent;z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;pointer-events:none;'; 
             
             let scanBox = document.createElement('div');
             scanBox.className = 'onetrack-modal';
-            scanBox.style.cssText = `background:${boxBg};color:${boxColor};padding:22px;border-radius:10px;box-shadow:0 8px 30px rgba(0,0,0,0.35);width:850px;max-width:96vw;display:flex;flex-direction:column;align-items:center;position:relative;pointer-events:auto;`;
             
+            // Use the passed coordinates if available, otherwise default to center screen
+            let positionStyle = (initLeft !== undefined && initTop !== undefined) 
+                ? `position:fixed;left:${initLeft}px;top:${initTop}px;transform:none;` 
+                : 'position:fixed;top:50%;left:50%;transform:translate(-50%, -50%);';
+
+            scanBox.style.cssText = `background:${boxBg};color:${boxColor};padding:22px;border-radius:10px;box-shadow:0 8px 30px rgba(0,0,0,0.35);width:850px;max-width:96vw;display:flex;flex-direction:column;align-items:center;position:relative;pointer-events:auto;${positionStyle}`;
             let scHeader = document.createElement('div');
             scHeader.style.cssText = 'display:flex;justify-content:space-between;align-items:center;width:100%;margin-bottom:10px;cursor:move;';
     
