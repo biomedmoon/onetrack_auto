@@ -1521,7 +1521,12 @@ function showCurlinUploadModal(passedTheme) {
         
         // Wire the button directly to open the standalone OCR scanner modal
         scanToggleBtn.onclick = () => {
-            showStandaloneOCRScannerModal();
+            // Capture current modal position before opening the scanner
+            let rect = box.getBoundingClientRect();
+            let currentLeft = rect.left;
+            let currentTop = rect.top;
+            
+            showStandaloneOCRScannerModal(currentLeft, currentTop);
         };
     
         scannerControls.appendChild(scanToggleBtn);
@@ -1574,7 +1579,12 @@ function showCurlinUploadModal(passedTheme) {
         };
     
         scanToggleBtn.onclick = () => {
-            showStandaloneOCRScannerModal();
+            // Capture current modal position before opening the scanner
+            let rect = box.getBoundingClientRect();
+            let currentLeft = rect.left;
+            let currentTop = rect.top;
+            
+            showStandaloneOCRScannerModal(currentLeft, currentTop);
         };
     
         // Standalone Full-Screen OCR Scanner Modal Builder
@@ -2277,7 +2287,12 @@ function showCurlinUploadModal(passedTheme) {
         
         // Wire the blue button directly to launch the standalone OCR scanner modal
         scanToggleBtn.onclick = () => {
-            showStandaloneOCRScannerModal();
+            // Capture current modal position before opening the scanner
+            let rect = box.getBoundingClientRect();
+            let currentLeft = rect.left;
+            let currentTop = rect.top;
+            
+            showStandaloneOCRScannerModal(currentLeft, currentTop);
         };
     
         scannerControls.appendChild(scanToggleBtn);
@@ -2332,22 +2347,27 @@ function showCurlinUploadModal(passedTheme) {
     
         let mediaStream = null;
     
-        // Standalone OCR Scanner Modal Builder (Adapted from Damage Camera)
-        function showStandaloneOCRScannerModal() {
+        // Standalone OCR Scanner Modal Builder
+        function showStandaloneOCRScannerModal(initLeft, initTop) {
             let activeTheme = document.getElementById('preset-notes-modal')?.getAttribute('data-theme') || 'light';
             let isDark = activeTheme === 'dark';
-            
+            let boxBg = isDark ? '#1e1e1e' : '#fff';
+            let boxColor = isDark ? '#e0e0e0' : '#333';
+    
             let scanOv = document.createElement('div');
-            scanOv.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:transparent;z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;pointer-events:none;';
+            scanOv.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:transparent;z-index:999999;font-family:sans-serif;pointer-events:none;'; 
             
             let scanBox = document.createElement('div');
             scanBox.className = 'onetrack-modal' + (typeof compactMode !== 'undefined' && compactMode ? ' onetrack-compact-mode' : '');
             
-            let boxBg = isDark ? '#1e1e1e' : '#fff';
-            let boxColor = isDark ? '#e0e0e0' : '#333';
-            scanBox.style.cssText = `background:${boxBg};color:${boxColor};padding:22px;border-radius:10px;box-shadow:0 8px 30px rgba(0,0,0,0.35);width:850px;max-width:96vw;display:flex;flex-direction:column;align-items:center;position:relative;pointer-events:auto;`;
+            // If initial coordinates exist, apply them directly; otherwise default to centered
+            let positionStyle = (initLeft !== undefined && initTop !== undefined) 
+                ? `position:fixed;left:${initLeft}px;top:${initTop}px;transform:none;` 
+                : 'position:fixed;top:50%;left:50%;transform:translate(-50%, -50%);';
+    
+            scanBox.style.cssText = `background:${boxBg};color:${boxColor};padding:22px;border-radius:10px;box-shadow:0 8px 30px rgba(0,0,0,0.35);width:850px;max-width:96vw;display:flex;flex-direction:column;align-items:center;position:relative;pointer-events:auto;${positionStyle}`;
             
-            // Preserve scaling and position behaviors just like the damage camera
+            // Preserve scaling and position behaviors
             if (typeof applyUIScale === 'function') applyUIScale(scanBox);
             if (typeof applySavedPosition === 'function') applySavedPosition(scanBox);
             if (typeof applySavedScale === 'function') applySavedScale(scanBox);
