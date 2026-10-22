@@ -2298,20 +2298,26 @@ function showCurlinUploadModal(passedTheme) {
     
         let mediaStream = null;
     
-        // Standalone Expanded View Camera Modal Builder
+        // Standalone OCR Scanner Modal Builder (Adapted from Damage Camera)
         function showStandaloneOCRScannerModal() {
-            if (mediaStream) mediaStream.getTracks().forEach(t => t.stop());
-            webcamContainer.style.display = 'none';
-            scanToggleBtn.innerText = '📷 Open Document Scanner Viewfinder';
-            ov.remove(); // Hide parts modal temporarily while scanning
-    
+            let activeTheme = document.getElementById('preset-notes-modal')?.getAttribute('data-theme') || 'light';
+            let isDark = activeTheme === 'dark';
+            
             let scanOv = document.createElement('div');
             scanOv.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:transparent;z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;pointer-events:none;';
             
             let scanBox = document.createElement('div');
-            scanBox.className = 'onetrack-modal';
+            scanBox.className = 'onetrack-modal' + (typeof compactMode !== 'undefined' && compactMode ? ' onetrack-compact-mode' : '');
+            
+            let boxBg = isDark ? '#1e1e1e' : '#fff';
+            let boxColor = isDark ? '#e0e0e0' : '#333';
             scanBox.style.cssText = `background:${boxBg};color:${boxColor};padding:22px;border-radius:10px;box-shadow:0 8px 30px rgba(0,0,0,0.35);width:850px;max-width:96vw;display:flex;flex-direction:column;align-items:center;position:relative;pointer-events:auto;`;
             
+            // Preserve scaling and position behaviors just like the damage camera
+            if (typeof applyUIScale === 'function') applyUIScale(scanBox);
+            if (typeof applySavedPosition === 'function') applySavedPosition(scanBox);
+            if (typeof applySavedScale === 'function') applySavedScale(scanBox);
+    
             let scHeader = document.createElement('div');
             scHeader.style.cssText = 'display:flex;justify-content:space-between;align-items:center;width:100%;margin-bottom:10px;cursor:move;';
     
@@ -2320,9 +2326,37 @@ function showCurlinUploadModal(passedTheme) {
             scTitle.style.cssText = `margin:0;font-size:15px;font-weight:bold;color:${isDark ? '#fff' : '#222'};`;
             scHeader.appendChild(scTitle);
     
+            let topControls = document.createElement('div');
+            topControls.style.cssText = 'display:flex;gap:8px;align-items:center;';
+    
             let camSelect = document.createElement('select');
-            camSelect.style.cssText = 'background:#333;color:#fff;border:none;padding:4px 6px;border-radius:4px;font-size:11px;max-width:160px;cursor:pointer;';
-            scHeader.appendChild(camSelect);
+            camSelect.style.cssText = 'background:#333;color:#fff;border:none;padding:4px 6px;border-radius:4px;font-size:11px;max-width:140px;cursor:pointer;';
+            camSelect.title = 'Select Camera Device';
+    
+            let currentWidth = 850;
+            let zoomOutBtn = document.createElement('button');
+            zoomOutBtn.innerText = '−';
+            zoomOutBtn.style.cssText = 'background:#555;color:#fff;border:none;width:24px;height:24px;border-radius:4px;cursor:pointer;font-weight:bold;';
+            
+            let zoomInBtn = document.createElement('button');
+            zoomInBtn.innerText = '+';
+            zoomInBtn.style.cssText = 'background:#0366d6;color:#fff;border:none;width:24px;height:24px;border-radius:4px;cursor:pointer;font-weight:bold;';
+    
+            zoomOutBtn.onclick = () => {
+                currentWidth = Math.max(600, currentWidth - 100);
+                scanBox.style.width = currentWidth + 'px';
+            };
+            zoomInBtn.onclick = () => {
+                currentWidth = Math.min(1200, currentWidth + 100);
+                scanBox.style.width = currentWidth + 'px';
+            };
+    
+            topControls.appendChild(camSelect);
+            topControls.appendChild(zoomOutBtn);
+            topControls.appendChild(zoomInBtn);
+            scHeader.appendChild(topControls);
+    
+            // Make draggable using the exact same helper
             if (typeof makeDraggable === 'function') makeDraggable(scanBox, scHeader);
             scanBox.appendChild(scHeader);
     
@@ -2433,7 +2467,7 @@ function showCurlinUploadModal(passedTheme) {
                 if (activeStream) activeStream.getTracks().forEach(t => t.stop());
                 scanOv.remove();
     
-                // Re-open parts modal and process OCR result
+                // Re-open parts modal first so checkboxes render correctly before OCR runs
                 showSolisPartsModal(activeTheme, addHistoryItem, processTextSelection);
                 await processImageForOCR(imgDataUrl);
             };
