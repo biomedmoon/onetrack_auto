@@ -2117,7 +2117,7 @@ function showCurlinUploadModal(passedTheme) {
         ov.appendChild(box);
         document.body.appendChild(ov);
     }
-    function showSolisPartsModal(passedTheme, addHistoryItem, processTextSelection, initialSelectedParts = []) {
+    function showSolisPartsModal(passedTheme, addHistoryItem, processTextSelection) {
         let activeTheme = passedTheme || document.getElementById('preset-notes-modal')?.getAttribute('data-theme') || 'light';
         let isDark = activeTheme === 'dark';
     
@@ -2229,7 +2229,7 @@ function showCurlinUploadModal(passedTheme) {
         let storedPartsJson = localStorage.getItem('solis_custom_parts_list');
         let partsList = storedPartsJson ? JSON.parse(storedPartsJson) : defaultParts;
     
-        let selectedItems = new Set(initialSelectedParts); //  Initialize with the passed OCR matches
+        let selectedItems = new Set(); //  Initialize with the passed OCR matches
         let usageCounts = JSON.parse(localStorage.getItem('solis_parts_usage') || '{}');
         let isExpandedView = false; 
     
@@ -2465,11 +2465,9 @@ function showCurlinUploadModal(passedTheme) {
                 ctx.drawImage(bigVideo, 0, 0, canvas.width, canvas.height);
                 let imgDataUrl = canvas.toDataURL('image/jpeg', 0.98);
     
-                // Stop camera and just close the scanner overlay, leaving the parts modal safely underneath
                 if (activeStream) activeStream.getTracks().forEach(t => t.stop());
-                scanOv.remove();
+                scanOv.remove(); // Scanner closes, leaving parts modal underneath!
     
-                // Run OCR and directly update the underlying active modal's state & checkboxes
                 if (typeof showToast === 'function') showToast('⏳ Analyzing document for matches...');
                 try {
                     if (typeof Tesseract === 'undefined') {
@@ -2480,7 +2478,13 @@ function showCurlinUploadModal(passedTheme) {
                             document.head.appendChild(script);
                         });
                     }
-                    let result = await Tesseract.recognize(imgDataUrl, 'eng', { tessedit_pageseg_mode: '6' });
+                    
+                    // OCR execution with console logger restored
+                    let result = await Tesseract.recognize(imgDataUrl, 'eng', { 
+                        logger: m => console.log(m), 
+                        tessedit_pageseg_mode: '6' 
+                    });
+                    
                     let rawText = result.data.text ? result.data.text.trim().toUpperCase() : '';
                     
                     if (rawText && typeof partsList !== 'undefined' && typeof selectedItems !== 'undefined' && typeof renderList === 'function') {
@@ -2494,7 +2498,7 @@ function showCurlinUploadModal(passedTheme) {
                                 matchedCount++;
                             }
                         });
-                        renderList(); // Refresh the underlying list checkboxes instantly!
+                        renderList(); // Refresh checkboxes live!
                         if (typeof showToast === 'function') showToast(`✓ OCR scanned! Auto-selected ${matchedCount} part(s).`);
                     }
                 } catch (err) {
@@ -2505,43 +2509,6 @@ function showCurlinUploadModal(passedTheme) {
         }
     
         expandCamBtn.onclick = showStandaloneOCRScannerModal; // Launches the uncoupled full modal!
-
-        async function processAndOpenWithOCR(imageDataUrl, activeTheme, addHistoryItem, processTextSelection) {
-            if (typeof showToast === 'function') showToast('⏳ Analyzing Solis parts document...');
-            try {
-                if (typeof Tesseract === 'undefined') {
-                    await new Promise((resolve, reject) => {
-                        let script = document.createElement('script');
-                        script.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
-                        script.onload = resolve; script.onerror = reject;
-                        document.head.appendChild(script);
-                    });
-                }
-                let result = await Tesseract.recognize(imageDataUrl, 'eng', { tessedit_pageseg_mode: '6' });
-                let rawText = result.data.text ? result.data.text.trim().toUpperCase() : '';
-                
-                let storedPartsJson = localStorage.getItem('solis_custom_parts_list');
-                let partsList = storedPartsJson ? JSON.parse(storedPartsJson) : defaultParts;
-                let matchedPartNames = [];
-        
-                if (rawText) {
-                    partsList.forEach(p => {
-                        let isMatched = false;
-                        if (p.num && rawText.includes(p.num.toUpperCase())) isMatched = true;
-                        if (rawText.includes(p.name.toUpperCase())) isMatched = true;
-                        if (isMatched) matchedPartNames.push(p.name);
-                    });
-                }
-        
-                // Re-open the modal passing the matched items straight in!
-                showSolisPartsModal(activeTheme, addHistoryItem, processTextSelection, matchedPartNames);
-                if (typeof showToast === 'function') showToast(`✓ OCR scanned! Auto-selected ${matchedPartNames.length} part(s).`);
-            } catch (err) {
-                console.error('OCR Error:', err);
-                showSolisPartsModal(activeTheme, addHistoryItem, processTextSelection, []);
-                alert('Error running OCR engine.');
-            }
-        }
     
         async function processImageForOCR(imageDataUrl) {
             if (typeof showToast === 'function') showToast('⏳ Loading OCR engine & analyzing document...');
