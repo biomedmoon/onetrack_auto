@@ -1594,20 +1594,20 @@ function showCurlinUploadModal(passedTheme) {
     
             // --- TOP RIGHT CONTROLS CONTAINER ---
             let topControls = document.createElement('div');
-            topControls.style.cssText = 'display:flex;gap:8px;align-items:center;';
+            topControls.style.cssText = 'display:flex;gap:6px;align-items:center;flex-shrink:0;';
     
             let camSelect = document.createElement('select');
-            camSelect.style.cssText = 'background:#333;color:#fff;border:none;padding:4px 6px;border-radius:4px;font-size:11px;max-width:140px;cursor:pointer;';
+            camSelect.style.cssText = 'background:#333;color:#fff;border:none;padding:4px 6px;border-radius:4px;font-size:11px;max-width:130px;cursor:pointer;';
             camSelect.title = 'Select Camera Device';
     
             let currentWidth = 850;
             let zoomOutBtn = document.createElement('button');
             zoomOutBtn.innerText = '−';
-            zoomOutBtn.style.cssText = 'background:#555;color:#fff;border:none;width:24px;height:24px;border-radius:4px;cursor:pointer;font-weight:bold;';
+            zoomOutBtn.style.cssText = 'background:#555;color:#fff;border:none;width:24px;height:24px;border-radius:4px;cursor:pointer;font-weight:bold;display:flex;align-items:center;justify-content:center;';
             
             let zoomInBtn = document.createElement('button');
             zoomInBtn.innerText = '+';
-            zoomInBtn.style.cssText = 'background:#0366d6;color:#fff;border:none;width:24px;height:24px;border-radius:4px;cursor:pointer;font-weight:bold;';
+            zoomInBtn.style.cssText = 'background:#0366d6;color:#fff;border:none;width:24px;height:24px;border-radius:4px;cursor:pointer;font-weight:bold;display:flex;align-items:center;justify-content:center;';
     
             zoomOutBtn.onclick = () => {
                 currentWidth = Math.max(600, currentWidth - 100);
