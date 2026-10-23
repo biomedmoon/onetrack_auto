@@ -2605,6 +2605,10 @@ function showCurlinUploadModal(passedTheme) {
                                 if (part.name.includes('LBL, SET, DEVICE')) isMatched = true;
                             }
                             
+                            if (rawText.includes('1.2') || rawText.includes('VIP 1.2')) {
+                                if (part.name.includes('LBL, DEVICE, PUMP') || part.name.includes('VIP 1.2')) isMatched = true;
+                            }
+                            
                             if ((rawText.includes('LENS') && rawText.includes('PRINTED')) || rawText.includes('40-5733-51A')) {
                                 if (part.name === 'LENS, PAD PRINTED, CADD-SOLIS') isMatched = true;
                             }
