@@ -2606,7 +2606,9 @@ function showCurlinUploadModal(passedTheme) {
                             }
                             
                             if (rawText.includes('1.2') || rawText.includes('VIP 1.2')) {
-                                if (part.name.includes('LBL, DEVICE, PUMP') || part.name.includes('VIP 1.2')) isMatched = true;
+                                if (part.name === 'LBL, DEVICE, PUMP, CADD-SOLIS, VIP 1.2') {
+                                    isMatched = true;
+                                }
                             }
                             
                             if ((rawText.includes('LENS') && rawText.includes('PRINTED')) || rawText.includes('40-5733-51A')) {
