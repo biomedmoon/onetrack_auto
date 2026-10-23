@@ -2976,7 +2976,7 @@ function showCurlinUploadModal(passedTheme) {
             let partsString = cleanedParts.length > 0 ? cleanedParts.join(', ') : 'None';
             let template = sentenceTextarea.value.trim() || defaultTemplate;
             
-            let summaryText = template.replace(/[PARTS]/g, partsString);
+            let summaryText = template.replace(/\[PARTS\]/g, partsString);
             
             summaryText = summaryText
                 .replace(/,\s*CADD-SOLIS\b(?!\s*,)/gi, '')
