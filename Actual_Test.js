@@ -300,6 +300,23 @@
         ov.appendChild(box);
         document.body.appendChild(ov);
     }
+    // --- GLOBAL CONFIG & DEVICE MANUAL REPOSITORY ---
+    const DEVICE_MANUALS = {
+        "Infinity": [
+            { label: "📖 Operator Manual", url: "https://your-internal-wiki-or-repo/infinity_operator_manual.pdf" },
+            { label: "🔧 Service & Repair Guide", url: "https://your-internal-wiki-or-repo/infinity_service_manual.pdf" },
+            { label: "💰 Billing & Coding Guide", url: "https://your-internal-wiki-or-repo/infinity_billing_guide.pdf" }
+        ],
+        "Solis": [
+            { label: "📖 Operator Manual", url: "https://your-internal-wiki-or-repo/solis_operator_manual.pdf" },
+            { label: "🔧 Service & Repair Guide", url: "https://your-internal-wiki-or-repo/solis_service_manual.pdf" },
+            { label: "⚡ Firmware Bulletin", url: "https://your-internal-wiki-or-repo/solis_truly_himax_bulletin.pdf" }
+        ],
+        "Curlin": [
+            { label: "📖 Operator Manual", url: "https://your-internal-wiki-or-repo/curlin_operator_manual.pdf" },
+            { label: "🔧 Technical Service Manual", url: "https://your-internal-wiki-or-repo/curlin_service_manual.pdf" }
+        ]
+    };
 
     const DEFAULT_CLIENT_MAPPING = {
         "CORAM": ["Shana Brown", "Amy Kwong"],
@@ -598,6 +615,39 @@
         header.appendChild(h);
         makeDraggable(box, header);
         box.appendChild(header);
+        
+        let docRow = document.createElement('div');
+        docRow.style.cssText = 'display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;width:100%;';
+        
+        let matchedFamily = Object.keys(DEVICE_MANUALS).find(family => new RegExp(family, 'i').test(dt)) || 'Solis';
+        
+        if (DEVICE_MANUALS[matchedFamily]) {
+            DEVICE_MANUALS[matchedFamily].forEach(doc => {
+                let docLink = document.createElement('a');
+                docLink.href = doc.url;
+                docLink.target = '_blank';
+                docLink.innerText = doc.label;
+                docLink.style.cssText = `
+                    flex: 1;
+                    min-width: 110px;
+                    background: ${isDark ? '#2a4365' : '#e1f5fe'};
+                    color: ${isDark ? '#90cdf4' : '#01579b'};
+                    text-align: center;
+                    padding: 6px 8px;
+                    border-radius: 4px;
+                    font-size: 11px;
+                    font-weight: bold;
+                    text-decoration: none;
+                    border: 1px solid ${isDark ? '#3182ce' : '#b3e5fc'};
+                    box-sizing: border-box;
+                    transition: opacity 0.2s;
+                `;
+                docLink.onmouseover = () => docLink.style.opacity = '0.8';
+                docLink.onmouseout = () => docLink.style.opacity = '1';
+                docRow.appendChild(docLink);
+            });
+            box.appendChild(docRow);
+        }
 
         let hsRow = document.createElement('div');
         hsRow.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px;';
