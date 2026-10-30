@@ -314,7 +314,7 @@
         ],
         "Curlin": [
             { label: "📖 Operator Manual", url: "https://your-internal-wiki-or-repo/curlin_operator_manual.pdf" },
-            { label: "🔧 Technical Service Manual", url: "https://your-internal-wiki-or-repo/curlin_service_manual.pdf" }
+            { label: "🔧 Technical Service Manual", url: "https://mckessoncorp.sharepoint.com/sites/GRPMSDQMSDocuments/Shared%20Documents/Forms/AllItems.aspx?viewid=0a486819%2D845e%2D4548%2Dadaf%2D39d7423cd835&FolderCTID=0x01200070076D353E326D4B88894D02285E2682&id=%2Fsites%2FGRPMSDQMSDocuments%2FShared%20Documents%2FQMS%20Documents%2FManuals%20%28Service%2C%20Operators%2C%20AEM%29%2FEquipment%20Service%20Manuals%2FMOOG%2FCurlin%20Medical%2FCurlin%206000%2F350%2D9023%20NFR%20Manual%20Rev%20X%2Epdf&parent=%2Fsites%2FGRPMSDQMSDocuments%2FShared%20Documents%2FQMS%20Documents%2FManuals%20%28Service%2C%20Operators%2C%20AEM%29%2FEquipment%20Service%20Manuals%2FMOOG%2FCurlin%20Medical%2FCurlin%206000" }
         ]
     };
 
