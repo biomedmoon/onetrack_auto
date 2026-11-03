@@ -143,8 +143,12 @@
         }
     }
 
+    // Safely check if we are in the test environment right here:
+    let isTestRun = (typeof isTestEnv !== 'undefined' ? isTestEnv : window.location.href.includes('Test') || (typeof GM_info !== 'undefined' && GM_info.script.name.includes('Test')));
+    let currentPrefix = isTestRun ? 'onetrack_test_' : 'onetrack_live_';
+    
     let currentTheme = localStorage.getItem('onetrack_theme') || 'auto';
-    let customHotkey = localStorage.getItem(CONFIG.storagePrefix + 'custom_hotkey') || CONFIG.hotkey;
+    let customHotkey = localStorage.getItem(currentPrefix + 'custom_hotkey') || (isTestRun ? 'KeyP' : 'KeyQ');
     let compactMode = localStorage.getItem('onetrack_compact') === 'true';
     let keepOpenMode = localStorage.getItem('onetrack_keep_open') === 'true';
     let wrapMode = localStorage.getItem('onetrack_wrap_mode') === 'true';
@@ -3947,7 +3951,14 @@ function showCurlinUploadModal(passedTheme) {
             if (e.key.length === 1) {
                 let newKey = 'Key' + e.key.toUpperCase();
                 customHotkey = newKey;
-                localStorage.setItem(CONFIG.storagePrefix + 'custom_hotkey', newKey);
+                
+                // Explicitly force environment isolation based on script name or URL
+                let currentPrefix = (window.location.href.includes('Test') || (typeof GM_info !== 'undefined' && GM_info.script.name.includes('Test'))) 
+                    ? 'onetrack_test_' 
+                    : 'onetrack_live_';
+                    
+                localStorage.setItem(currentPrefix + 'custom_hotkey', newKey);
+                
                 hotkeyInput.value = e.key.toUpperCase();
                 showToast(`Hotkey updated to Alt + ${e.key.toUpperCase()}`);
             }
