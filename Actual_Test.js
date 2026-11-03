@@ -3940,7 +3940,9 @@ function showCurlinUploadModal(passedTheme) {
         let hotkeyInput = document.createElement('input');
         hotkeyInput.type = 'text';
         hotkeyInput.maxLength = 1;
-        hotkeyInput.value = customHotkey.replace('Key', '');
+        let activePrefix = (typeof CONFIG !== 'undefined' && CONFIG.storagePrefix) ? CONFIG.storagePrefix : 'onetrack_test_';
+        let currentSavedHotkey = localStorage.getItem(activePrefix + 'custom_hotkey') || (typeof CONFIG !== 'undefined' ? CONFIG.hotkey : 'KeyP');
+        hotkeyInput.value = currentSavedHotkey.replace('Key', '');
         hotkeyInput.style.cssText = isDark ? 'width:40px; text-align:center; padding:4px; font-weight:bold; border-radius:4px; border:1px solid #555; background:#2a2d2e; color:#fff;' : 'width:40px; text-align:center; padding:4px; font-weight:bold; border-radius:4px; border:1px solid #ccc;';
         hotkeyInput.onkeydown = (e) => {
             e.preventDefault();
@@ -4305,11 +4307,16 @@ function showCurlinUploadModal(passedTheme) {
     }
 
     window.addEventListener('keydown', (e) => {
-        let savedKey = localStorage.getItem(CONFIG.storagePrefix + 'custom_hotkey');
-        let targetKey = savedKey ? savedKey : CONFIG.hotkey;
+        // Always fetch the freshest value from localStorage on every keypress
+        let activePrefix = (typeof CONFIG !== 'undefined' && CONFIG.storagePrefix) ? CONFIG.storagePrefix : 'onetrack_test_';
+        let savedKey = localStorage.getItem(activePrefix + 'custom_hotkey');
+        let fallbackKey = (typeof CONFIG !== 'undefined' && CONFIG.hotkey) ? CONFIG.hotkey : 'KeyP';
+        let targetKey = savedKey ? savedKey : fallbackKey;
+    
         if (e.altKey && e.code === targetKey) {
             e.preventDefault();
-            console.log(`[OneTrack Debug] Fired via ${CONFIG.envName} environment script using hotkey: ${e.code}`);
+            let envName = (activePrefix.includes('test')) ? 'TEST' : 'LIVE';
+            console.log(`[OneTrack Debug] Fired via ${envName} environment script using hotkey: ${e.code}`);
             
             let existingModal = document.getElementById('preset-notes-modal');
             if (existingModal) existingModal.remove();
