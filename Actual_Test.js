@@ -457,11 +457,15 @@
         return "Other";
     }
     function isInRepairTicket() {
-        let t = document.body ? document.body.innerText : '';
-        // If the page contains the generic sub-model placeholder, it's a general inventory view, not a ticket
-        if (t.includes('(Sub-Model)')) return false;
-        // Check for active repair ticket indicator elements if needed
-        return document.querySelector('.repair-ticket-active-indicator') !== null || t.includes('Repairs / General');
+        let url = window.location.href;
+        
+        // If the URL contains '/RepairTicket' or '/Repairs/', we are definitely inside an active repair ticket
+        if (url.includes('/RepairTicket') || url.includes('/Repairs/')) {
+            return true;
+        }
+        
+        // If it's a general device view (like /Detail or general inventory), return false
+        return false;
     }
     function showToast(message) {
         let existingToast = document.getElementById('preset-toast-test');
