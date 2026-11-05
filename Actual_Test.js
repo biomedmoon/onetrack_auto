@@ -3946,8 +3946,11 @@ function showCurlinUploadModal(passedTheme) {
         let hotkeyInput = document.createElement('input');
         hotkeyInput.type = 'text';
         hotkeyInput.maxLength = 1;
-        let activePrefix = (typeof CONFIG !== 'undefined' && CONFIG.storagePrefix) ? CONFIG.storagePrefix : 'onetrack_test_';
-        let currentSavedHotkey = localStorage.getItem(activePrefix + 'custom_hotkey') || (typeof CONFIG !== 'undefined' ? CONFIG.hotkey : 'KeyP');
+        let isTestRun = (typeof GM_info !== 'undefined' && GM_info && GM_info.script && GM_info.script.name.includes('Test'));
+        let activePrefix = isTestRun ? 'onetrack_test_' : 'onetrack_live_';
+        let defaultKey = isTestRun ? 'KeyP' : 'KeyQ';
+        
+        let currentSavedHotkey = localStorage.getItem(activePrefix + 'custom_hotkey') || defaultKey;
         hotkeyInput.value = currentSavedHotkey.replace('Key', '');
         hotkeyInput.style.cssText = isDark ? 'width:40px; text-align:center; padding:4px; font-weight:bold; border-radius:4px; border:1px solid #555; background:#2a2d2e; color:#fff;' : 'width:40px; text-align:center; padding:4px; font-weight:bold; border-radius:4px; border:1px solid #ccc;';
         hotkeyInput.onkeydown = (e) => {
