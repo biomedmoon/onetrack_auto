@@ -143,8 +143,13 @@
         }
     }
 
+    // Explicitly force environment separation based on script name
+    let isTestRun = (typeof GM_info !== 'undefined' && GM_info && GM_info.script && GM_info.script.name.includes('Test'));
+    let currentPrefix = isTestRun ? 'onetrack_test_' : 'onetrack_live_';
+    let defaultKey = isTestRun ? 'KeyP' : 'KeyQ';
+    
     let currentTheme = localStorage.getItem('onetrack_theme') || 'auto';
-    let customHotkey = localStorage.getItem(CONFIG.storagePrefix + 'custom_hotkey') || CONFIG.hotkey;
+    let customHotkey = localStorage.getItem(currentPrefix + 'custom_hotkey') || defaultKey;
     let compactMode = localStorage.getItem('onetrack_compact') === 'true';
     let keepOpenMode = localStorage.getItem('onetrack_keep_open') === 'true';
     let wrapMode = localStorage.getItem('onetrack_wrap_mode') === 'true';
@@ -3949,7 +3954,13 @@ function showCurlinUploadModal(passedTheme) {
             if (e.key.length === 1) {
                 let newKey = 'Key' + e.key.toUpperCase();
                 customHotkey = newKey;
-                localStorage.setItem(CONFIG.storagePrefix + 'custom_hotkey', newKey);
+        
+                // Force explicit save to the correct isolated storage key
+                let isTestRun = (typeof GM_info !== 'undefined' && GM_info && GM_info.script && GM_info.script.name.includes('Test'));
+                let activePrefix = isTestRun ? 'onetrack_test_' : 'onetrack_live_';
+                
+                localStorage.setItem(activePrefix + 'custom_hotkey', newKey);
+        
                 hotkeyInput.value = e.key.toUpperCase();
                 showToast(`Hotkey updated to Alt + ${e.key.toUpperCase()}`);
             }
@@ -4307,16 +4318,17 @@ function showCurlinUploadModal(passedTheme) {
     }
 
     window.addEventListener('keydown', (e) => {
-        // Always fetch the freshest value from localStorage on every keypress
-        let activePrefix = (typeof CONFIG !== 'undefined' && CONFIG.storagePrefix) ? CONFIG.storagePrefix : 'onetrack_test_';
+        let isTestRun = (typeof GM_info !== 'undefined' && GM_info && GM_info.script && GM_info.script.name.includes('Test'));
+        let activePrefix = isTestRun ? 'onetrack_test_' : 'onetrack_live_';
+        let defaultKey = isTestRun ? 'KeyP' : 'KeyQ';
+    
         let savedKey = localStorage.getItem(activePrefix + 'custom_hotkey');
-        let fallbackKey = (typeof CONFIG !== 'undefined' && CONFIG.hotkey) ? CONFIG.hotkey : 'KeyP';
-        let targetKey = savedKey ? savedKey : fallbackKey;
+        let targetKey = savedKey ? savedKey : defaultKey;
     
         if (e.altKey && e.code === targetKey) {
             e.preventDefault();
-            let envName = (activePrefix.includes('test')) ? 'TEST' : 'LIVE';
-            console.log(`[OneTrack Debug] Fired via ${envName} environment script using hotkey: ${e.code}`);
+            let envLabel = isTestRun ? 'TEST' : 'LIVE';
+            console.log(`[OneTrack Debug] Fired via ${envLabel} environment script using hotkey: ${e.code}`);
             
             let existingModal = document.getElementById('preset-notes-modal');
             if (existingModal) existingModal.remove();
