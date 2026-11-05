@@ -143,8 +143,13 @@
         }
     }
 
+    // Explicitly force environment separation based on script name
+    let isTestRun = (typeof GM_info !== 'undefined' && GM_info && GM_info.script && GM_info.script.name.includes('Test'));
+    let currentPrefix = isTestRun ? 'onetrack_test_' : 'onetrack_live_';
+    let defaultKey = isTestRun ? 'KeyP' : 'KeyQ';
+    
     let currentTheme = localStorage.getItem('onetrack_theme') || 'auto';
-    let customHotkey = localStorage.getItem(CONFIG.storagePrefix + 'custom_hotkey') || CONFIG.hotkey;
+    let customHotkey = localStorage.getItem(currentPrefix + 'custom_hotkey') || defaultKey;
     let compactMode = localStorage.getItem('onetrack_compact') === 'true';
     let keepOpenMode = localStorage.getItem('onetrack_keep_open') === 'true';
     let wrapMode = localStorage.getItem('onetrack_wrap_mode') === 'true';
@@ -598,6 +603,39 @@
         header.appendChild(h);
         makeDraggable(box, header);
         box.appendChild(header);
+        
+        let docRow = document.createElement('div');
+        docRow.style.cssText = 'display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;width:100%;';
+        
+        let matchedFamily = Object.keys(DEVICE_MANUALS).find(family => new RegExp(family, 'i').test(dt)) || 'Solis';
+        
+        if (DEVICE_MANUALS[matchedFamily]) {
+            DEVICE_MANUALS[matchedFamily].forEach(doc => {
+                let docLink = document.createElement('a');
+                docLink.href = doc.url;
+                docLink.target = '_blank';
+                docLink.innerText = doc.label;
+                docLink.style.cssText = `
+                    flex: 1;
+                    min-width: 110px;
+                    background: ${isDark ? '#2a4365' : '#e1f5fe'};
+                    color: ${isDark ? '#90cdf4' : '#01579b'};
+                    text-align: center;
+                    padding: 6px 8px;
+                    border-radius: 4px;
+                    font-size: 11px;
+                    font-weight: bold;
+                    text-decoration: none;
+                    border: 1px solid ${isDark ? '#3182ce' : '#b3e5fc'};
+                    box-sizing: border-box;
+                    transition: opacity 0.2s;
+                `;
+                docLink.onmouseover = () => docLink.style.opacity = '0.8';
+                docLink.onmouseout = () => docLink.style.opacity = '1';
+                docRow.appendChild(docLink);
+            });
+            //box.appendChild(docRow);
+        }
 
         let hsRow = document.createElement('div');
         hsRow.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px;';
@@ -2605,6 +2643,12 @@ function showCurlinUploadModal(passedTheme) {
                                 if (part.name.includes('LBL, SET, DEVICE')) isMatched = true;
                             }
                             
+                            if (rawText.includes('1.2') || rawText.includes('VIP 1.2')) {
+                                if (part.name === 'LBL, DEVICE, PUMP, CADD-SOLIS, VIP 1.2') {
+                                    isMatched = true;
+                                }
+                            }
+                            
                             if ((rawText.includes('LENS') && rawText.includes('PRINTED')) || rawText.includes('40-5733-51A')) {
                                 if (part.name === 'LENS, PAD PRINTED, CADD-SOLIS') isMatched = true;
                             }
@@ -3884,14 +3928,22 @@ function showCurlinUploadModal(passedTheme) {
         let hotkeyInput = document.createElement('input');
         hotkeyInput.type = 'text';
         hotkeyInput.maxLength = 1;
-        hotkeyInput.value = customHotkey.replace('Key', '');
+        let activePrefix = (typeof CONFIG !== 'undefined' && CONFIG.storagePrefix) ? CONFIG.storagePrefix : 'onetrack_test_';
+        let currentSavedHotkey = localStorage.getItem(activePrefix + 'custom_hotkey') || (typeof CONFIG !== 'undefined' ? CONFIG.hotkey : 'KeyP');
+        hotkeyInput.value = currentSavedHotkey.replace('Key', '');
         hotkeyInput.style.cssText = isDark ? 'width:40px; text-align:center; padding:4px; font-weight:bold; border-radius:4px; border:1px solid #555; background:#2a2d2e; color:#fff;' : 'width:40px; text-align:center; padding:4px; font-weight:bold; border-radius:4px; border:1px solid #ccc;';
         hotkeyInput.onkeydown = (e) => {
             e.preventDefault();
             if (e.key.length === 1) {
                 let newKey = 'Key' + e.key.toUpperCase();
                 customHotkey = newKey;
-                localStorage.setItem(CONFIG.storagePrefix + 'custom_hotkey', newKey);
+        
+                // Force explicit save to the correct isolated storage key
+                let isTestRun = (typeof GM_info !== 'undefined' && GM_info && GM_info.script && GM_info.script.name.includes('Test'));
+                let activePrefix = isTestRun ? 'onetrack_test_' : 'onetrack_live_';
+                
+                localStorage.setItem(activePrefix + 'custom_hotkey', newKey);
+        
                 hotkeyInput.value = e.key.toUpperCase();
                 showToast(`Hotkey updated to Alt + ${e.key.toUpperCase()}`);
             }
@@ -4249,11 +4301,17 @@ function showCurlinUploadModal(passedTheme) {
     }
 
     window.addEventListener('keydown', (e) => {
-        let savedKey = localStorage.getItem(CONFIG.storagePrefix + 'custom_hotkey');
-        let targetKey = savedKey ? savedKey : CONFIG.hotkey;
+        let isTestRun = (typeof GM_info !== 'undefined' && GM_info && GM_info.script && GM_info.script.name.includes('Test'));
+        let activePrefix = isTestRun ? 'onetrack_test_' : 'onetrack_live_';
+        let defaultKey = isTestRun ? 'KeyP' : 'KeyQ';
+    
+        let savedKey = localStorage.getItem(activePrefix + 'custom_hotkey');
+        let targetKey = savedKey ? savedKey : defaultKey;
+    
         if (e.altKey && e.code === targetKey) {
             e.preventDefault();
-            console.log(`[OneTrack Debug] Fired via ${CONFIG.envName} environment script using hotkey: ${e.code}`);
+            let envLabel = isTestRun ? 'TEST' : 'LIVE';
+            console.log(`[OneTrack Debug] Fired via ${envLabel} environment script using hotkey: ${e.code}`);
             
             let existingModal = document.getElementById('preset-notes-modal');
             if (existingModal) existingModal.remove();
