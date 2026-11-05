@@ -11,6 +11,8 @@
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @grant        GM_info
+// @connect      raw.githubusercontent.com
+
 // ==/UserScript==
 
 (function() {
@@ -306,23 +308,65 @@
         ov.appendChild(box);
         document.body.appendChild(ov);
     }
-    // --- GLOBAL CONFIG & DEVICE MANUAL REPOSITORY ---
-    const DEVICE_MANUALS = {
+    // --- REMOTE CONFIGURATION & MANUALS RESOLVER ---
+    const REMOTE_CONFIG_URL = "https://raw.githubusercontent.com/biomedmoon/onetrack-config/main/device_manuals.json";
+    
+    // Fallback dictionary in case offline or fetch fails
+    let DEVICE_MANUALS = {
         "Infinity": [
-            { label: "📖 Operator Manual", url: "https://your-internal-wiki-or-repo/infinity_operator_manual.pdf" },
-            { label: "🔧 Service & Repair Guide", url: "https://your-internal-wiki-or-repo/infinity_service_manual.pdf" },
-            { label: "💰 Billing & Coding Guide", url: "https://your-internal-wiki-or-repo/infinity_billing_guide.pdf" }
+            { "label": "📖 Operator Manual", "url": "#" },
+            { "label": "🔧 Service & Repair Guide", "url": "#" }
         ],
         "Solis": [
-            { label: "📖 Operator Manual", url: "https://your-internal-wiki-or-repo/solis_operator_manual.pdf" },
-            { label: "🔧 Service & Repair Guide", url: "https://your-internal-wiki-or-repo/solis_service_manual.pdf" },
-            { label: "⚡ Firmware Bulletin", url: "https://your-internal-wiki-or-repo/solis_truly_himax_bulletin.pdf" }
+            { "label": "📖 Operator Manual", "url": "#" }
         ],
         "Curlin": [
-            { label: "📖 Operator Manual", url: "https://your-internal-wiki-or-repo/curlin_operator_manual.pdf" },
-            { label: "🔧 Technical Service Manual", url: "https://your-internal-wiki-or-repo/curlin_service_manual.pdf" }
+            { "label": "📖 Operator Manual", "url": "#" }
+        ],
+        "General": [
+            { "label": "📖 General Hub", "url": "#" }
         ]
     };
+    
+    function loadRemoteManuals() {
+        let cached = localStorage.getItem('onetrack_manuals_cache');
+        let cacheTime = localStorage.getItem('onetrack_manuals_time') || 0;
+        let now = Date.now();
+    
+        // Use cached version if less than 12 hours old for instant loading
+        if (cached && (now - cacheTime < 43200000)) {
+            try {
+                DEVICE_MANUALS = JSON.parse(cached);
+                return;
+            } catch (e) {}
+        }
+    
+        // Fetch live configuration using Tampermonkey's GM_xmlhttpRequest (bypasses CORS)
+        if (typeof GM_xmlhttpRequest !== 'undefined') {
+            GM_xmlhttpRequest({
+                method: "GET",
+                url: REMOTE_CONFIG_URL + "?t=" + now, // Cache buster
+                onload: function(response) {
+                    if (response.status === 200) {
+                        try {
+                            let remoteData = JSON.parse(response.responseText);
+                            if (remoteData && Object.keys(remoteData).length > 0) {
+                                DEVICE_MANUALS = remoteData;
+                                localStorage.setItem('onetrack_manuals_cache', response.responseText);
+                                localStorage.setItem('onetrack_manuals_time', now);
+                                console.log("✓ Successfully loaded device manuals from GitHub remote source.");
+                            }
+                        } catch (err) {
+                            console.warn("Invalid JSON format from remote source, using fallback manuals.");
+                        }
+                    }
+                }
+            });
+        }
+    }
+    
+    // Fire immediately when script boots
+    loadRemoteManuals();
 
     const DEFAULT_CLIENT_MAPPING = {
         "CORAM": ["Shana Brown", "Amy Kwong"],
