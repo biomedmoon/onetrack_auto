@@ -378,9 +378,39 @@
     }
 
     function getDeviceType() {
-        let t = document.body ? document.body.innerText : '',
-            m = t.match(/Model\s+([^\r\n]+)/i);
-        return m && m[1] ? m[1].trim() : "Unknown Device";
+        let t = document.body ? document.body.innerText : '';
+        
+        // 1. Check for standard repair ticket model format first
+        let ticketMatch = t.match(/Model\s+([^\r\n]+)/i);
+        if (ticketMatch && ticketMatch[1] && !ticketMatch[1].trim().includes('(Sub-Model)')) {
+            let modelStr = ticketMatch[1].trim();
+            return modelStr;
+        }
+    
+        // 2. Target the exact general info page sub-model layout from your HTML snippet
+        // Looking for the text inside or adjacent to the Model/Sub-Model field containers
+        let modelCell = Array.from(document.querySelectorAll('div, td, th')).find(el => {
+            let text = el.innerText ? el.innerText.trim() : '';
+            // Match specific known families explicitly to avoid cross-contamination
+            return text === 'Sapphire' || 
+                   text === 'Curlin 6000 CMS' || 
+                   text === 'Curlin 8000' || 
+                   text === 'Solis VIP PharmGuard Pump' || 
+                   text === 'EnteraLite Infinity';
+        });
+    
+        if (modelCell) {
+            return modelCell.innerText.trim();
+        }
+    
+        // 3. Fallback scan of raw text with strict distinction between Curlin models
+        if (/curlin\s*8000/i.test(t)) return 'Curlin 8000';
+        if (/curlin\s*6000/i.test(t)) return 'Curlin 6000 CMS';
+        if (/sapphire/i.test(t)) return 'Sapphire';
+        if (/solis/i.test(t)) return 'Solis VIP PharmGuard Pump';
+        if (/infinity/i.test(t)) return 'EnteraLite Infinity';
+    
+        return "Unknown Device";
     }
 
     function getSerialNumber() {
@@ -426,7 +456,13 @@
         }
         return "Other";
     }
-
+    function isInRepairTicket() {
+        let t = document.body ? document.body.innerText : '';
+        // If the page contains the generic sub-model placeholder, it's a general inventory view, not a ticket
+        if (t.includes('(Sub-Model)')) return false;
+        // Check for active repair ticket indicator elements if needed
+        return document.querySelector('.repair-ticket-active-indicator') !== null || t.includes('Repairs / General');
+    }
     function showToast(message) {
         let existingToast = document.getElementById('preset-toast-test');
         if (existingToast) existingToast.remove();
@@ -591,7 +627,8 @@
             cc = getCurrentCompany(),
             iam = localStorage.getItem('preset_notes_append_mode') === 'true',
             hrm = localStorage.getItem('preset_hide_recent') === 'true',
-            serialNum = getSerialNumber();
+            serialNum = getSerialNumber(),
+            inTicket = isInRepairTicket(); // --- CHECK TICKET CONTEXT ---
 
         let activeTheme = passedTheme || document.getElementById('preset-notes-modal')?.getAttribute('data-theme') || localStorage.getItem('onetrack_theme') || 'light';
         let isDark = activeTheme === 'dark';
@@ -752,69 +789,73 @@
         cont.style.cssText = 'overflow-y:auto;flex:1;padding-right:5px;margin-bottom:12px;';
         let tds = new Date().toLocaleDateString('en-US', {month:'2-digit', day:'2-digit', year:'numeric'});
 
-        if (/\s*(6000|infinity)/i.test(dt)) {
-            let curlinPdfBtn = document.createElement('button');
-            curlinPdfBtn.innerText = '⚡ Moog Invoice PDF Text Extract';
-            curlinPdfBtn.className = 'onetrack-btn';
-            curlinPdfBtn.style.cssText = 'display:block;width:100%;padding:8px 10px;margin:4px 0;background:#e2f0cb;color:#2b542c;border:1px solid #b5d89c;border-radius:4px;cursor:pointer;font-size:12px;text-align:left;font-weight:bold;line-height:1.4;';
-            curlinPdfBtn.onclick = () => {
-                console.log("Button clicked, attempting to open upload modal...");
-                ov.remove();
-                try {
-                    showCurlinUploadModal(activeTheme);
-                } catch (err) {
-                    console.error("Caught error opening upload modal:", err);
-                }
-            };
-            cont.appendChild(curlinPdfBtn);
-        }
+        // --- CONDITIONAL TICKET VS GENERAL VIEW CONTENT ---
+        if (!inTicket) {
+            let generalNotice = document.createElement('div');
+            generalNotice.style.cssText = `padding: 10px; background: ${isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)'}; border-radius: 6px; margin-bottom: 10px; font-size: 11px; color: ${isDark ? '#aaa' : '#666'}; text-align: center; border: 1px dashed ${isDark ? '#444' : '#ccc'};`;
+            generalNotice.innerHTML = `<strong>Inventory Inspection Mode:</strong> General view active. Ticket actions are hidden.`;
+            cont.appendChild(generalNotice);
+        } else {
+            // Only render repair-specific workflow buttons if we are in an active ticket
+            if (/\s*(6000|infinity)/i.test(dt)) {
+                let curlinPdfBtn = document.createElement('button');
+                curlinPdfBtn.innerText = '⚡ Moog Invoice PDF Text Extract';
+                curlinPdfBtn.className = 'onetrack-btn';
+                curlinPdfBtn.style.cssText = 'display:block;width:100%;padding:8px 10px;margin:4px 0;background:#e2f0cb;color:#2b542c;border:1px solid #b5d89c;border-radius:4px;cursor:pointer;font-size:12px;text-align:left;font-weight:bold;line-height:1.4;';
+                curlinPdfBtn.onclick = () => {
+                    ov.remove();
+                    try { showCurlinUploadModal(activeTheme); } catch (err) {}
+                };
+                cont.appendChild(curlinPdfBtn);
+            }
 
-        if (/solis/i.test(dt)) {
-            let solisOemBtn = document.createElement('button');
-            solisOemBtn.innerText = '🔧 Solis OEM Replaced Parts Selection...';
-            solisOemBtn.className = 'onetrack-btn';
-            solisOemBtn.style.cssText = 'display:block;width:100%;padding:8px 10px;margin:4px 0;background:#e2f0cb;color:#2b542c;border:1px solid #b5d89c;border-radius:4px;cursor:pointer;font-size:12px;text-align:left;font-weight:bold;line-height:1.4;';
-            solisOemBtn.onclick = () => {
-                ov.remove(); 
-                showSolisPartsModal(activeTheme, addHistoryItem, processTextSelection);
-            };
-            cont.appendChild(solisOemBtn);
-        }
-        
-        if (/enteralite\s*infinity/i.test(dt)) {
-            let infBtn = document.createElement('button');
-            infBtn.innerText = '⚡ Infinity Flat Rate Repair Calculation';
-            infBtn.className = 'onetrack-btn';
-            infBtn.style.cssText = 'display:block;width:100%;padding:8px 10px;margin:4px 0;background:#e2f0cb;color:#2b542c;border:1px solid #b5d89c;border-radius:4px;cursor:pointer;font-size:12px;text-align:left;font-weight:bold;line-height:1.4;';
-            infBtn.onclick = () => {
-                let findings = calculateInfinityFlatRateFindings();
-                if (findings) { addHistoryItem(findings); processTextSelection(findings); }
-            };
-            cont.appendChild(infBtn);
-            let oemBtn = document.createElement('button');
-            oemBtn.innerText = '🔧 OEM Replaced Parts Selection...';
-            oemBtn.className = 'onetrack-btn';
-            oemBtn.style.cssText = 'display:block;width:100%;padding:8px 10px;margin:4px 0;background:#e2f0cb;color:#2b542c;border:1px solid #b5d89c;border-radius:4px;cursor:pointer;font-size:12px;text-align:left;font-weight:bold;line-height:1.4;';
-            oemBtn.onclick = () => {
-                ov.remove();
-                showInfinityPartsModal(activeTheme);
-            };
-            cont.appendChild(oemBtn);
-        }
+            if (/solis/i.test(dt)) {
+                let solisOemBtn = document.createElement('button');
+                solisOemBtn.innerText = '🔧 Solis OEM Replaced Parts Selection...';
+                solisOemBtn.className = 'onetrack-btn';
+                solisOemBtn.style.cssText = 'display:block;width:100%;padding:8px 10px;margin:4px 0;background:#e2f0cb;color:#2b542c;border:1px solid #b5d89c;border-radius:4px;cursor:pointer;font-size:12px;text-align:left;font-weight:bold;line-height:1.4;';
+                solisOemBtn.onclick = () => {
+                    ov.remove(); 
+                    showSolisPartsModal(activeTheme, addHistoryItem, processTextSelection);
+                };
+                cont.appendChild(solisOemBtn);
+            }
+            
+            if (/enteralite\s*infinity/i.test(dt)) {
+                let infBtn = document.createElement('button');
+                infBtn.innerText = '⚡ Infinity Flat Rate Repair Calculation';
+                infBtn.className = 'onetrack-btn';
+                infBtn.style.cssText = 'display:block;width:100%;padding:8px 10px;margin:4px 0;background:#e2f0cb;color:#2b542c;border:1px solid #b5d89c;border-radius:4px;cursor:pointer;font-size:12px;text-align:left;font-weight:bold;line-height:1.4;';
+                infBtn.onclick = () => {
+                    let findings = calculateInfinityFlatRateFindings();
+                    if (findings) { addHistoryItem(findings); processTextSelection(findings); }
+                };
+                cont.appendChild(infBtn);
+                let oemBtn = document.createElement('button');
+                oemBtn.innerText = '🔧 OEM Replaced Parts Selection...';
+                oemBtn.className = 'onetrack-btn';
+                oemBtn.style.cssText = 'display:block;width:100%;padding:8px 10px;margin:4px 0;background:#e2f0cb;color:#2b542c;border:1px solid #b5d89c;border-radius:4px;cursor:pointer;font-size:12px;text-align:left;font-weight:bold;line-height:1.4;';
+                oemBtn.onclick = () => {
+                    ov.remove();
+                    showInfinityPartsModal(activeTheme);
+                };
+                cont.appendChild(oemBtn);
+            }
 
-        let db = document.createElement('button');
-        db.innerText = 'Repairs declined...';
-        db.className = 'onetrack-btn';
-        db.style.cssText = 'display:block;width:100%;padding:8px 10px;margin:4px 0;background:#fff3cd;color:#856404;border:1px solid #ffeeba;border-radius:4px;cursor:pointer;font-size:12px;text-align:left;font-weight:bold;line-height:1.4;';
-        db.onclick = () => { ov.remove(); showDeclineActionModal(activeTheme); };
-        cont.appendChild(db);
+            let db = document.createElement('button');
+            db.innerText = 'Repairs declined...';
+            db.className = 'onetrack-btn';
+            db.style.cssText = 'display:block;width:100%;padding:8px 10px;margin:4px 0;background:#fff3cd;color:#856404;border:1px solid #ffeeba;border-radius:4px;cursor:pointer;font-size:12px;text-align:left;font-weight:bold;line-height:1.4;';
+            db.onclick = () => { ov.remove(); showDeclineActionModal(activeTheme); };
+            cont.appendChild(db);
 
-        let ab = document.createElement('button');
-        ab.innerText = 'Repairs approved...';
-        ab.className = 'onetrack-btn';
-        ab.style.cssText = 'display:block;width:100%;padding:8px 10px;margin:4px 0;background:#d4edda;color:#155724;border:1px solid #c3e6cb;border-radius:4px;cursor:pointer;font-size:12px;text-align:left;font-weight:bold;line-height:1.4;';
-        ab.onclick = () => { ov.remove(); showClientSelectModal('Repairs approved', false, activeTheme); };
-        cont.appendChild(ab);
+            let ab = document.createElement('button');
+            ab.innerText = 'Repairs approved...';
+            ab.className = 'onetrack-btn';
+            ab.style.cssText = 'display:block;width:100%;padding:8px 10px;margin:4px 0;background:#d4edda;color:#155724;border:1px solid #c3e6cb;border-radius:4px;cursor:pointer;font-size:12px;text-align:left;font-weight:bold;line-height:1.4;';
+            ab.onclick = () => { ov.remove(); showClientSelectModal('Repairs approved', false, activeTheme); };
+            cont.appendChild(ab);
+        }
 
         if (!hrm && hist.length > 0) {
             let rHead = document.createElement('div');
