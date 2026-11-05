@@ -10,7 +10,7 @@
 // @grant        GM_xmlhttpRequest
 // @grant        GM_getValue
 // @grant        GM_setValue
-// @grant GM_info
+// @grant        GM_info
 // ==/UserScript==
 
 (function() {
@@ -861,36 +861,44 @@
             cont.appendChild(ab);
         }
 
-        if (!hrm && hist.length > 0) {
-            let rHead = document.createElement('div');
-            rHead.innerText = '⭐ Smart Clipboard History';
-            rHead.style.cssText = `font-size:11px;font-weight:bold;color:${isDark ? '#aaa' : '#666'};margin:8px 0 2px 2px;`;
-            cont.appendChild(rHead);
-            hist.forEach(hTxt => {
-                let btn = document.createElement('button');
-                btn.innerText = "⚡ " + hTxt;
+            if (!hrm && hist.length > 0) {
+                let rHead = document.createElement('div');
+                rHead.innerText = '⭐ Smart Clipboard History';
+                rHead.style.cssText = `font-size:11px;font-weight:bold;color:${isDark ? '#aaa' : '#666'};margin:8px 0 2px 2px;`;
+                cont.appendChild(rHead);
+                hist.forEach(hTxt => {
+                    let btn = document.createElement('button');
+                    btn.innerText = "⚡ " + hTxt;
+                    btn.className = 'onetrack-btn';
+                    btn.style.cssText = 'display:block;width:100%;padding:8px 10px;margin:4px 0;background:#eef7fe;color:#0366d6;border:1px solid #c8e1ff;border-radius:4px;cursor:pointer;font-size:12px;text-align:left;line-height:1.4;';
+                    btn.onclick = () => { addHistoryItem(hTxt); processTextSelection(hTxt); };
+                    cont.appendChild(btn);
+                });
+            }
+
+            let pHead = document.createElement('div');
+            pHead.innerText = '📝 Standard Presets';
+            pHead.style.cssText = `font-size:11px;font-weight:bold;color:${isDark ? '#aaa' : '#666'};margin:8px 0 2px 2px;`;
+            cont.appendChild(pHead);
+
+            ph.forEach(txt => {
+                let dtTxt = txt.replace(/\{DATE\}/gi, tds).replace(/\{SERIAL\}/gi, serialNum),
+                    cln = dtTxt.replace(/\s*\([^)]*\)\s*$/, '').trim(),
+                    btn = document.createElement('button');
+                btn.innerText = dtTxt;
                 btn.className = 'onetrack-btn';
-                btn.style.cssText = 'display:block;width:100%;padding:8px 10px;margin:4px 0;background:#eef7fe;color:#0366d6;border:1px solid #c8e1ff;border-radius:4px;cursor:pointer;font-size:12px;text-align:left;line-height:1.4;';
-                btn.onclick = () => { addHistoryItem(hTxt); processTextSelection(hTxt); };
+                btn.style.cssText = `display:block;width:100%;padding:8px 10px;margin:4px 0;background:${isDark ? '#2a2a2a' : '#f8f9fa'};color:${isDark ? '#fff' : '#212529'};border:1px solid ${isDark ? '#444' : '#ced4da'};border-radius:4px;cursor:pointer;font-size:12px;text-align:left;line-height:1.4;`;
+                btn.onclick = () => { addHistoryItem(cln); processTextSelection(cln); };
                 cont.appendChild(btn);
             });
+        } else {
+            // Optional: If you want a clean message or empty state in the general view container
+            let emptyState = document.createElement('div');
+            emptyState.innerText = 'Quick-access manuals & documentation hub.';
+            emptyState.style.cssText = `text-align:center;padding:25px 10px;font-size:12px;color:${isDark ? '#888' : '#666'};font-style:italic;`;
+            cont.appendChild(emptyState);
         }
-
-        let pHead = document.createElement('div');
-        pHead.innerText = '📝 Standard Presets';
-        pHead.style.cssText = `font-size:11px;font-weight:bold;color:${isDark ? '#aaa' : '#666'};margin:8px 0 2px 2px;`;
-        cont.appendChild(pHead);
-
-        ph.forEach(txt => {
-            let dtTxt = txt.replace(/\{DATE\}/gi, tds).replace(/\{SERIAL\}/gi, serialNum),
-                cln = dtTxt.replace(/\s*\([^)]*\)\s*$/, '').trim(),
-                btn = document.createElement('button');
-            btn.innerText = dtTxt;
-            btn.className = 'onetrack-btn';
-            btn.style.cssText = `display:block;width:100%;padding:8px 10px;margin:4px 0;background:${isDark ? '#2a2a2a' : '#f8f9fa'};color:${isDark ? '#fff' : '#212529'};border:1px solid ${isDark ? '#444' : '#ced4da'};border-radius:4px;cursor:pointer;font-size:12px;text-align:left;line-height:1.4;`;
-            btn.onclick = () => { addHistoryItem(cln); processTextSelection(cln); };
-            cont.appendChild(btn);
-        });
+        
         box.appendChild(cont);
 
         let eb = document.createElement('button');
