@@ -309,7 +309,7 @@
         document.body.appendChild(ov);
     }
     // --- REMOTE CONFIGURATION & MANUALS RESOLVER ---
-    const REMOTE_CONFIG_URL = "https://raw.githubusercontent.com/biomedmoon/onetrack-config/main/device_manuals.json";
+    const REMOTE_CONFIG_URL = "https://raw.githubusercontent.com/biomedmoon/biomed-manuals/refs/heads/main/device_manuals.json";
     
     // Fallback dictionary in case offline or fetch fails
     let DEVICE_MANUALS = {
