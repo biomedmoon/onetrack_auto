@@ -795,10 +795,10 @@
 
         // --- CONDITIONAL TICKET VS GENERAL VIEW CONTENT ---
         if (!inTicket) {
-            let generalNotice = document.createElement('div');
-            generalNotice.style.cssText = `padding: 10px; background: ${isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)'}; border-radius: 6px; margin-bottom: 10px; font-size: 11px; color: ${isDark ? '#aaa' : '#666'}; text-align: center; border: 1px dashed ${isDark ? '#444' : '#ccc'};`;
-            generalNotice.innerHTML = `<strong>Inventory Inspection Mode:</strong> General view active. Ticket actions are hidden.`;
-            cont.appendChild(generalNotice);
+            let emptyState = document.createElement('div');
+            emptyState.innerText = 'Quick-access manuals & documentation hub.';
+            emptyState.style.cssText = `text-align:center;padding:25px 10px;font-size:12px;color:${isDark ? '#888' : '#666'};font-style:italic;`;
+            cont.appendChild(emptyState);
         } else {
             // Only render repair-specific workflow buttons if we are in an active ticket
             if (/\s*(6000|infinity)/i.test(dt)) {
@@ -859,7 +859,6 @@
             ab.style.cssText = 'display:block;width:100%;padding:8px 10px;margin:4px 0;background:#d4edda;color:#155724;border:1px solid #c3e6cb;border-radius:4px;cursor:pointer;font-size:12px;text-align:left;font-weight:bold;line-height:1.4;';
             ab.onclick = () => { ov.remove(); showClientSelectModal('Repairs approved', false, activeTheme); };
             cont.appendChild(ab);
-        }
 
             if (!hrm && hist.length > 0) {
                 let rHead = document.createElement('div');
@@ -891,14 +890,7 @@
                 btn.onclick = () => { addHistoryItem(cln); processTextSelection(cln); };
                 cont.appendChild(btn);
             });
-        } else {
-            // Optional: If you want a clean message or empty state in the general view container
-            let emptyState = document.createElement('div');
-            emptyState.innerText = 'Quick-access manuals & documentation hub.';
-            emptyState.style.cssText = `text-align:center;padding:25px 10px;font-size:12px;color:${isDark ? '#888' : '#666'};font-style:italic;`;
-            cont.appendChild(emptyState);
         }
-        
         box.appendChild(cont);
 
         let eb = document.createElement('button');
