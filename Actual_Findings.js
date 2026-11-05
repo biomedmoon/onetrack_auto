@@ -306,6 +306,24 @@
         document.body.appendChild(ov);
     }
 
+    // --- GLOBAL CONFIG & DEVICE MANUAL REPOSITORY ---
+    const DEVICE_MANUALS = {
+        "Infinity": [
+            { label: "📖 Operator Manual", url: "https://your-internal-wiki-or-repo/infinity_operator_manual.pdf" },
+            { label: "🔧 Service & Repair Guide", url: "https://your-internal-wiki-or-repo/infinity_service_manual.pdf" },
+            { label: "💰 Billing & Coding Guide", url: "https://your-internal-wiki-or-repo/infinity_billing_guide.pdf" }
+        ],
+        "Solis": [
+            { label: "📖 Operator Manual", url: "https://your-internal-wiki-or-repo/solis_operator_manual.pdf" },
+            { label: "🔧 Service & Repair Guide", url: "https://your-internal-wiki-or-repo/solis_service_manual.pdf" },
+            { label: "⚡ Firmware Bulletin", url: "https://your-internal-wiki-or-repo/solis_truly_himax_bulletin.pdf" }
+        ],
+        "Curlin": [
+            { label: "📖 Operator Manual", url: "https://your-internal-wiki-or-repo/curlin_operator_manual.pdf" },
+            { label: "🔧 Technical Service Manual", url: "https://your-internal-wiki-or-repo/curlin_service_manual.pdf" }
+        ]
+    };
+    
     const DEFAULT_CLIENT_MAPPING = {
         "CORAM": ["Shana Brown", "Amy Kwong"],
         "CVS": ["Andrew Tajc"],
