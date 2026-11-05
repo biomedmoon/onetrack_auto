@@ -710,7 +710,7 @@
         let docRow = document.createElement('div');
         docRow.style.cssText = 'display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;width:100%;';
         
-        let matchedFamily = Object.keys(DEVICE_MANUALS).find(family => new RegExp(family, 'i').test(dt)) || 'Solis';
+        let matchedFamily = Object.keys(DEVICE_MANUALS).find(family => dt.toLowerCase().includes(family.toLowerCase())) || 'General';
         
         if (DEVICE_MANUALS[matchedFamily]) {
             DEVICE_MANUALS[matchedFamily].forEach(doc => {
