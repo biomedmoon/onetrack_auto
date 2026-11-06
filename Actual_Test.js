@@ -327,7 +327,7 @@
     };
 
     // --- REMOTE CONFIGURATION & MANUALS RESOLVER ---
-    const REMOTE_CONFIG_URL = "https://raw.githubusercontent.com/biomedmoon/onetrack_auto/main/device_manuals.json";
+    const REMOTE_CONFIG_URL = "https://raw.githubusercontent.com/biomedmoon/biomed-manuals/refs/heads/main/device_manuals.json";
     
     function loadRemoteManuals() {
         let cached = localStorage.getItem('onetrack_manuals_cache');
