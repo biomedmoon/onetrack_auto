@@ -333,20 +333,17 @@
         let cacheTime = localStorage.getItem('onetrack_manuals_time') || 0;
         let now = Date.now();
     
-        // Use cached version if less than 12 hours old for instant loading
-        if (cached && (now - cacheTime < 43200000)) {
-            try {
-                DEVICE_MANUALS = JSON.parse(cached);
-                return;
-            } catch (e) {}
-        }
+        // (Optional: clear cache during testing so it forces a fresh fetch every time)
+        // localStorage.removeItem('onetrack_manuals_cache'); 
     
-        // Fetch live configuration using Tampermonkey's GM_xmlhttpRequest (bypasses CORS)
         if (typeof GM_xmlhttpRequest !== 'undefined') {
             GM_xmlhttpRequest({
                 method: "GET",
-                url: REMOTE_CONFIG_URL + "?t=" + now, // Cache buster
+                url: REMOTE_CONFIG_URL + "?t=" + now,
                 onload: function(response) {
+                    console.log("GitHub Raw Response Status:", response.status);
+                    console.log("GitHub Raw Response Text:", response.responseText);
+                    
                     if (response.status === 200) {
                         try {
                             let remoteData = JSON.parse(response.responseText);
@@ -354,14 +351,21 @@
                                 DEVICE_MANUALS = remoteData;
                                 localStorage.setItem('onetrack_manuals_cache', response.responseText);
                                 localStorage.setItem('onetrack_manuals_time', now);
-                                console.log("✓ Successfully loaded device manuals from GitHub remote source.");
+                                console.log("✓ Successfully loaded device manuals from GitHub remote source:", DEVICE_MANUALS);
                             }
                         } catch (err) {
-                            console.warn("Invalid JSON format from remote source, using fallback manuals.");
+                            console.error("Failed to parse remote manuals JSON:", err);
                         }
+                    } else {
+                        console.warn("Failed to fetch remote manuals. Status:", response.status);
                     }
+                },
+                onerror: function(err) {
+                    console.error("GM_xmlhttpRequest network error:", err);
                 }
             });
+        } else {
+            console.warn("GM_xmlhttpRequest is not available!");
         }
     }
     
