@@ -310,7 +310,7 @@
     }
     
     // Fallback dictionary in case offline or fetch fails
-    let DEVICE_MANUALS = {
+    var DEVICE_MANUALS = {
         "Infinity": [
             { "label": "📖 Operator Manual", "url": "#" },
             { "label": "🔧 Service & Repair Guide", "url": "#" }
