@@ -325,53 +325,67 @@
             { "label": "📖 General Hub", "url": "#" }
         ]
     };
-     // --- REMOTE CONFIGURATION & MANUALS RESOLVER ---
-    const REMOTE_CONFIG_URL = "https://raw.githubusercontent.com/biomedmoon/biomed-manuals/refs/heads/main/device_manuals.json";
+
+    // --- REMOTE CONFIGURATION & MANUALS RESOLVER ---
+    const REMOTE_CONFIG_URL = "https://raw.githubusercontent.com/biomedmoon/onetrack_auto/main/device_manuals.json";
     
     function loadRemoteManuals() {
         let cached = localStorage.getItem('onetrack_manuals_cache');
         let cacheTime = localStorage.getItem('onetrack_manuals_time') || 0;
         let now = Date.now();
     
-        // (Optional: clear cache during testing so it forces a fresh fetch every time)
-        // localStorage.removeItem('onetrack_manuals_cache'); 
+        // Use cache if under 12 hours old
+        if (cached && (now - cacheTime < 43200000)) {
+            try {
+                DEVICE_MANUALS = JSON.parse(cached);
+                return;
+            } catch (e) {}
+        }
     
+        const handleData = (responseText) => {
+            try {
+                let remoteData = JSON.parse(responseText);
+                if (remoteData && Object.keys(remoteData).length > 0) {
+                    DEVICE_MANUALS = remoteData;
+                    localStorage.setItem('onetrack_manuals_cache', responseText);
+                    localStorage.setItem('onetrack_manuals_time', now);
+                    console.log("✓ Successfully loaded device manuals from GitHub remote source.");
+                }
+            } catch (err) {
+                console.warn("Invalid JSON format from remote source, using fallback manuals.");
+            }
+        };
+    
+        // Primary: Try Tampermonkey GM_xmlhttpRequest if available
         if (typeof GM_xmlhttpRequest !== 'undefined') {
             GM_xmlhttpRequest({
                 method: "GET",
                 url: REMOTE_CONFIG_URL + "?t=" + now,
                 onload: function(response) {
-                    console.log("GitHub Raw Response Status:", response.status);
-                    console.log("GitHub Raw Response Text:", response.responseText);
-                    
                     if (response.status === 200) {
-                        try {
-                            let remoteData = JSON.parse(response.responseText);
-                            if (remoteData && Object.keys(remoteData).length > 0) {
-                                DEVICE_MANUALS = remoteData;
-                                localStorage.setItem('onetrack_manuals_cache', response.responseText);
-                                localStorage.setItem('onetrack_manuals_time', now);
-                                console.log("✓ Successfully loaded device manuals from GitHub remote source:", DEVICE_MANUALS);
-                            }
-                        } catch (err) {
-                            console.error("Failed to parse remote manuals JSON:", err);
-                        }
-                    } else {
-                        console.warn("Failed to fetch remote manuals. Status:", response.status);
+                        handleData(response.responseText);
                     }
                 },
-                onerror: function(err) {
-                    console.error("GM_xmlhttpRequest network error:", err);
+                onerror: function() {
+                    fallbackFetch();
                 }
             });
         } else {
-            console.warn("GM_xmlhttpRequest is not available!");
+            // Fallback: Standard browser fetch for non-TM environments
+            fallbackFetch();
+        }
+    
+        function fallbackFetch() {
+            fetch(REMOTE_CONFIG_URL + "?t=" + now)
+                .then(res => res.text())
+                .then(text => handleData(text))
+                .catch(err => console.warn("Remote fetch fallback failed, using local dictionary."));
         }
     }
     
     // Fire immediately when script boots
     loadRemoteManuals();
-
+    
     const DEFAULT_CLIENT_MAPPING = {
         "CORAM": ["Shana Brown", "Amy Kwong"],
         "CVS": ["Andrew Tajc"],
