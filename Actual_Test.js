@@ -738,7 +738,7 @@
         applyResultBtn.className = 'onetrack-btn';
         applyResultBtn.style.cssText = 'width:100%;padding:8px;background:#28a745;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;margin-bottom:6px;';
         applyResultBtn.onclick = () => {
-            let textSummary = `Legacy Unit S/N: ${serialNum} RTC battery age is evaluated at ${resultBox.innerText.replace('', '')}.`;
+            let textSummary = `Legacy Unit S/N: ${serialNum} RTC Battery Age is evaluated at ${resultBox.innerText.replace('', '')}.`;
             addHistoryItem(textSummary);
             processTextSelection(textSummary);
             ov.remove();
