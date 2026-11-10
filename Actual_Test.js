@@ -995,7 +995,7 @@
 
             if (/legacy/i.test(dt)) {
                 let legacyBtn = document.createElement('button');
-                legacyBtn.innerText = '📅 Legacy Unit Age Calculator...';
+                legacyBtn.innerText = '📅 Legacy RTC Battery Age Calculator...';
                 legacyBtn.className = 'onetrack-btn';
                 legacyBtn.style.cssText = 'display:block;width:100%;padding:8px 10px;margin:4px 0;background:#e2f0cb;color:#2b542c;border:1px solid #b5d89c;border-radius:4px;cursor:pointer;font-size:12px;text-align:left;font-weight:bold;line-height:1.4;';
                 legacyBtn.onclick = () => {
