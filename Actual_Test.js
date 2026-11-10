@@ -649,6 +649,112 @@
         return `Device S/N: ${sn} requires an OEM level repair. Age of device is ${ageMonths} months. Cost of flat rate repair including handling is $${cost.toFixed(2)}. Pumps requiring PCB replacement will incur an additional charge which MOOG will notify and provide an estimate for. McKesson Biomed will provide an updated estimate for repair if required.`;
     }
 
+    function showLegacyDateCalculatorModal(passedTheme) {
+        let activeTheme = passedTheme || document.getElementById('preset-notes-modal')?.getAttribute('data-theme') || 'light';
+        let isDark = activeTheme === 'dark';
+        let serialNum = getSerialNumber() || 'N/A';
+    
+        let ex = document.getElementById('preset-notes-modal');
+        if (ex) ex.remove();
+    
+        let ov = document.createElement('div');
+        ov.id = 'preset-notes-modal';
+        ov.setAttribute('data-theme', activeTheme);
+        ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:transparent;z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;pointer-events:none;';
+    
+        let boxBg = isDark ? '#1e1e1e' : '#fff';
+        let boxColor = isDark ? '#e0e0e0' : '#333';
+    
+        let box = document.createElement('div');
+        box.className = 'onetrack-modal';
+        box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:440px;display:flex;flex-direction:column;position:relative;pointer-events:auto;`;
+    
+        applyUIScale(box);
+        applySavedPosition(box);
+        applySavedScale(box);
+    
+        let h = document.createElement('h3');
+        h.innerText = `📅 Legacy RTC Battery Age Calculator — S/N: ${serialNum}`;
+        h.style.cssText = `margin-top:0;margin-bottom:12px;font-size:14px;color:${isDark ? '#fff' : '#222'};text-align:center;cursor:move;`;
+        makeDraggable(box, h);
+        box.appendChild(h);
+    
+        let inputContainer = document.createElement('div');
+        inputContainer.style.cssText = 'display:flex;flex-direction:column;gap:10px;margin-bottom:12px;font-size:12px;';
+    
+        let startRow = document.createElement('div');
+        startRow.innerHTML = `<label style="display:block;font-weight:bold;margin-bottom:4px;">Manufacture / In-Service Date:</label>` +
+                             `<input type="date" id="legacyStartDate" style="width:100%;padding:6px;box-sizing:border-box;background:${isDark ? '#2a2a2a' : '#fff'};color:${boxColor};border:1px solid ${isDark ? '#444' : '#ccc'};border-radius:4px;">`;
+        inputContainer.appendChild(startRow);
+    
+        let endRow = document.createElement('div');
+        endRow.innerHTML = `<label style="display:block;font-weight:bold;margin-bottom:4px;">Comparison / Inspection Date:</label>` +
+                           `<input type="date" id="legacyEndDate" style="width:100%;padding:6px;box-sizing:border-box;background:${isDark ? '#2a2a2a' : '#fff'};color:${boxColor};border:1px solid ${isDark ? '#444' : '#ccc'};border-radius:4px;">`;
+        inputContainer.appendChild(endRow);
+    
+        box.appendChild(inputContainer);
+    
+        let startDateInput = inputContainer.querySelector('#legacyStartDate');
+        let endDateInput = inputContainer.querySelector('#legacyEndDate');
+        endDateInput.value = new Date().toISOString().split('T')[0]; // Default end date to today
+    
+        let resultBox = document.createElement('div');
+        resultBox.style.cssText = `background:${isDark ? '#2a2a2a' : '#f1f3f5'};padding:10px;border-radius:6px;font-size:12px;text-align:center;margin-bottom:12px;border:1px solid ${isDark ? '#444' : '#ced4da'};`;
+        resultBox.innerHTML = '<b>Calculated Age:</b> Select dates above.';
+        box.appendChild(resultBox);
+    
+        let calculateAge = () => {
+            let startVal = startDateInput.value;
+            let endVal = endDateInput.value;
+            if (!startVal || !endVal) return;
+    
+            let d1 = new Date(startVal);
+            let d2 = new Date(endVal);
+            let diffTime = d2 - d1;
+            let diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+    
+            let years = d2.getFullYear() - d1.getFullYear();
+            let months = d2.getMonth() - d1.getMonth();
+            let days = d2.getDate() - d1.getDate();
+    
+            if (days < 0) {
+                months--;
+                let prevMonth = new Date(d2.getFullYear(), d2.getMonth(), 0);
+                days += prevMonth.getDate();
+            }
+            if (months < 0) {
+                years--;
+                months += 12;
+            }
+    
+            resultBox.innerHTML = `<b>Legacy RTC Battery Age:</b> ${years} years, ${months} months (${diffDays} total days)`;
+        };
+    
+        startDateInput.onchange = calculateAge;
+        endDateInput.onchange = calculateAge;
+    
+        let applyResultBtn = document.createElement('button');
+        applyResultBtn.innerText = '📋 Apply Age Finding to Notes & Copy';
+        applyResultBtn.className = 'onetrack-btn';
+        applyResultBtn.style.cssText = 'width:100%;padding:8px;background:#28a745;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;margin-bottom:6px;';
+        applyResultBtn.onclick = () => {
+            let textSummary = `Legacy Unit S/N ${serialNum} RTC battery age is evaluated at ${resultBox.innerText.replace('Legacy Unit Age: ', '')}.`;
+            addHistoryItem(textSummary);
+            processTextSelection(textSummary);
+            ov.remove();
+        };
+        box.appendChild(applyResultBtn);
+    
+        let backBtn = document.createElement('button');
+        backBtn.innerText = '← Back to Main Menu';
+        backBtn.className = 'onetrack-btn';
+        backBtn.style.cssText = isDark ? 'width:100%;padding:8px;background:#444;color:#e0e0e0;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;' : 'width:100%;padding:8px;background:#e0e0e0;color:#333;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;';
+        backBtn.onclick = () => showMainModal(activeTheme);
+        box.appendChild(backBtn);
+    
+        ov.appendChild(box);
+        document.body.appendChild(ov);
+    }
     function getPhrasesForDevice(dt) {
         let s = localStorage.getItem('device_preset_notes'), m = {};
         if (s) { try { m = JSON.parse(s); } catch (e) {} }
@@ -885,6 +991,18 @@
                     showSolisPartsModal(activeTheme, addHistoryItem, processTextSelection);
                 };
                 cont.appendChild(solisOemBtn);
+            }
+
+            if (/legacy/i.test(dt)) {
+                let legacyBtn = document.createElement('button');
+                legacyBtn.innerText = '📅 Legacy Unit Age Calculator...';
+                legacyBtn.className = 'onetrack-btn';
+                legacyBtn.style.cssText = 'display:block;width:100%;padding:8px 10px;margin:4px 0;background:#e2f0cb;color:#2b542c;border:1px solid #b5d89c;border-radius:4px;cursor:pointer;font-size:12px;text-align:left;font-weight:bold;line-height:1.4;';
+                legacyBtn.onclick = () => {
+                    ov.remove();
+                    showLegacyDateCalculatorModal(activeTheme);
+                };
+                cont.appendChild(legacyBtn);
             }
             
             if (/enteralite\s*infinity/i.test(dt)) {
