@@ -727,7 +727,7 @@
                 months += 12;
             }
     
-            resultBox.innerHTML = `<b>Legacy RTC Battery Age:</b> ${years} years, ${months} months (${diffDays} total days)`;
+            resultBox.innerHTML = `${years} years, ${months} months (${diffDays} total days)`;
         };
     
         startDateInput.onchange = calculateAge;
