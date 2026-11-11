@@ -653,7 +653,7 @@
         let activeTheme = passedTheme || document.getElementById('preset-notes-modal')?.getAttribute('data-theme') || 'light';
         let isDark = activeTheme === 'dark';
         let serialNum = getSerialNumber() || 'N/A';
-    
+        
         let ex = document.getElementById('preset-notes-modal');
         if (ex) ex.remove();
     
@@ -668,77 +668,139 @@
         let box = document.createElement('div');
         box.className = 'onetrack-modal';
         box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:440px;display:flex;flex-direction:column;position:relative;pointer-events:auto;`;
-    
+        
         applyUIScale(box);
         applySavedPosition(box);
         applySavedScale(box);
     
         let h = document.createElement('h3');
         h.innerText = `📅 Legacy RTC Battery Age Calculator — S/N: ${serialNum}`;
-        h.style.cssText = `margin-top:0;margin-bottom:12px;font-size:14px;color:${isDark ? '#fff' : '#222'};text-align:center;cursor:move;`;
+        h.style.cssText = `margin-top:0;margin-bottom:10px;font-size:14px;color:${isDark ? '#fff' : '#222'};text-align:center;cursor:move;`;
         makeDraggable(box, h);
         box.appendChild(h);
     
-        let inputContainer = document.createElement('div');
-        inputContainer.style.cssText = 'display:flex;flex-direction:column;gap:10px;margin-bottom:12px;font-size:12px;';
+        // Mode Selector Tabs
+        let tabRow = document.createElement('div');
+        tabRow.style.cssText = 'display:flex;gap:4px;margin-bottom:12px;';
+        
+        let modeAgeBtn = document.createElement('button');
+        modeAgeBtn.innerText = 'Calculate Battery Age (Dates)';
+        modeAgeBtn.style.cssText = 'flex:1;padding:6px;font-size:11px;font-weight:bold;cursor:pointer;border-radius:4px;border:1px solid #ccc;background:#28a745;color:#fff;';
+        
+        let modeDateBtn = document.createElement('button');
+        modeDateBtn.innerText = 'Find Replacement Date (Days Old)';
+        modeDateBtn.style.cssText = `flex:1;padding:6px;font-size:11px;font-weight:bold;cursor:pointer;border-radius:4px;border:1px solid ${isDark ? '#444' : '#ccc'};background:${isDark ? '#2a2a2a' : '#f1f3f5'};color:${boxColor};`;
     
-        let startRow = document.createElement('div');
-        startRow.innerHTML = `<label style="display:block;font-weight:bold;margin-bottom:4px;">Manufacture / In-Service Date:</label>` +
-                             `<input type="date" id="legacyStartDate" style="width:100%;padding:6px;box-sizing:border-box;background:${isDark ? '#2a2a2a' : '#fff'};color:${boxColor};border:1px solid ${isDark ? '#444' : '#ccc'};border-radius:4px;">`;
-        inputContainer.appendChild(startRow);
+        tabRow.appendChild(modeAgeBtn);
+        tabRow.appendChild(modeDateBtn);
+        box.appendChild(tabRow);
     
-        let endRow = document.createElement('div');
-        endRow.innerHTML = `<label style="display:block;font-weight:bold;margin-bottom:4px;">Comparison / Inspection Date:</label>` +
-                           `<input type="date" id="legacyEndDate" style="width:100%;padding:6px;box-sizing:border-box;background:${isDark ? '#2a2a2a' : '#fff'};color:${boxColor};border:1px solid ${isDark ? '#444' : '#ccc'};border-radius:4px;">`;
-        inputContainer.appendChild(endRow);
-    
-        box.appendChild(inputContainer);
-    
-        let startDateInput = inputContainer.querySelector('#legacyStartDate');
-        let endDateInput = inputContainer.querySelector('#legacyEndDate');
-        endDateInput.value = new Date().toISOString().split('T')[0]; // Default end date to today
+        // Dynamic Content Container
+        let contentPane = document.createElement('div');
+        contentPane.style.cssText = 'display:flex;flex-direction:column;gap:10px;margin-bottom:12px;font-size:12px;';
+        box.appendChild(contentPane);
     
         let resultBox = document.createElement('div');
         resultBox.style.cssText = `background:${isDark ? '#2a2a2a' : '#f1f3f5'};padding:10px;border-radius:6px;font-size:12px;text-align:center;margin-bottom:12px;border:1px solid ${isDark ? '#444' : '#ced4da'};`;
-        resultBox.innerHTML = '<b>Calculated Age:</b> Select dates above.';
+        resultBox.innerHTML = '<b>Result:</b> Ready.';
         box.appendChild(resultBox);
     
-        let calculateAge = () => {
-            let startVal = startDateInput.value;
-            let endVal = endDateInput.value;
-            if (!startVal || !endVal) return;
+        let currentMode = 'age'; // 'age' or 'target'
     
-            let d1 = new Date(startVal);
-            let d2 = new Date(endVal);
-            let diffTime = d2 - d1;
-            let diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+        function renderMode() {
+            contentPane.innerHTML = '';
+            if (currentMode === 'age') {
+                modeAgeBtn.style.background = '#28a745';
+                modeAgeBtn.style.color = '#fff';
+                modeDateBtn.style.background = isDark ? '#2a2a2a' : '#f1f3f5';
+                modeDateBtn.style.color = boxColor;
     
-            let years = d2.getFullYear() - d1.getFullYear();
-            let months = d2.getMonth() - d1.getMonth();
-            let days = d2.getDate() - d1.getDate();
+                contentPane.innerHTML = `
+                    <div>
+                        <label style="display:block;font-weight:bold;margin-bottom:4px;">Battery Installation / Manufacture Date:</label>
+                        <input type="date" id="calcStartDate" style="width:100%;padding:6px;box-sizing:border-box;background:${isDark ? '#2a2a2a' : '#fff'};color:${boxColor};border:1px solid ${isDark ? '#444' : '#ccc'};border-radius:4px;">
+                    </div>
+                    <div>
+                        <label style="display:block;font-weight:bold;margin-bottom:4px;">Inspection / Today Date:</label>
+                        <input type="date" id="calcEndDate" style="width:100%;padding:6px;box-sizing:border-box;background:${isDark ? '#2a2a2a' : '#fff'};color:${boxColor};border:1px solid ${isDark ? '#444' : '#ccc'};border-radius:4px;">
+                    </div>
+                `;
+                let sInput = contentPane.querySelector('#calcStartDate');
+                let eInput = contentPane.querySelector('#calcEndDate');
+                eInput.value = new Date().toISOString().split('T')[0];
     
-            if (days < 0) {
-                months--;
-                let prevMonth = new Date(d2.getFullYear(), d2.getMonth(), 0);
-                days += prevMonth.getDate();
+                let runAgeCalc = () => {
+                    if (!sInput.value || !eInput.value) return;
+                    let d1 = new Date(sInput.value);
+                    let d2 = new Date(eInput.value);
+                    let diffDays = Math.round((d2 - d1) / (1000 * 60 * 60 * 24));
+                    let years = d2.getFullYear() - d1.getFullYear();
+                    let months = d2.getMonth() - d1.getMonth();
+                    let days = d2.getDate() - d1.getDate();
+    
+                    if (days < 0) {
+                        months--;
+                        let prevMonth = new Date(d2.getFullYear(), d2.getMonth(), 0);
+                        days += prevMonth.getDate();
+                    }
+                    if (months < 0) {
+                        years--;
+                        months += 12;
+                    }
+                    resultBox.innerHTML = `<b>RTC Battery Age:</b> ${years} yrs, ${months} mos (${diffDays} total days)`;
+                };
+                sInput.onchange = runAgeCalc;
+                eInput.onchange = runAgeCalc;
+    
+            } else {
+                modeDateBtn.style.background = '#28a745';
+                modeDateBtn.style.color = '#fff';
+                modeAgeBtn.style.background = isDark ? '#2a2a2a' : '#f1f3f5';
+                modeAgeBtn.style.color = boxColor;
+    
+                contentPane.innerHTML = `
+                    <div>
+                        <label style="display:block;font-weight:bold;margin-bottom:4px;">Base / Reference Date:</label>
+                        <input type="date" id="baseDate" style="width:100%;padding:6px;box-sizing:border-box;background:${isDark ? '#2a2a2a' : '#fff'};color:${boxColor};border:1px solid ${isDark ? '#444' : '#ccc'};border-radius:4px;">
+                    </div>
+                    <div>
+                        <label style="display:block;font-weight:bold;margin-bottom:4px;">Battery Age in Days:</label>
+                        <input type="number" id="daysOldInput" value="365" style="width:100%;padding:6px;box-sizing:border-box;background:${isDark ? '#2a2a2a' : '#fff'};color:${boxColor};border:1px solid ${isDark ? '#444' : '#ccc'};border-radius:4px;">
+                    </div>
+                `;
+                let bInput = contentPane.querySelector('#baseDate');
+                let dInput = contentPane.querySelector('#daysOldInput');
+                bInput.value = new Date().toISOString().split('T')[0];
+    
+                let runDateCalc = () => {
+                    if (!bInput.value || !dInput.value) return;
+                    let base = new Date(bInput.value);
+                    let daysToAdd = parseInt(dInput.value, 10) || 0;
+                    
+                    // Project backward/forward
+                    let targetDate = new Date(base.getTime() + (daysToAdd * 24 * 60 * 60 * 1000));
+                    let formattedTarget = targetDate.toISOString().split('T')[0];
+                    
+                    resultBox.innerHTML = `<b>Estimated Replacement Date:</b> ${formattedTarget} <br><span style="font-size:11px;opacity:0.8;">(Based on ${daysToAdd} days old)</span>`;
+                };
+                bInput.onchange = runDateCalc;
+                dInput.oninput = runDateCalc;
+                runDateCalc();
             }
-            if (months < 0) {
-                years--;
-                months += 12;
-            }
+        }
     
-            resultBox.innerHTML = `${years} years, ${months} months (${diffDays} total days)`;
-        };
+        modeAgeBtn.onclick = () => { currentMode = 'age'; renderMode(); };
+        modeDateBtn.onclick = () => { currentMode = 'target'; renderMode(); };
     
-        startDateInput.onchange = calculateAge;
-        endDateInput.onchange = calculateAge;
+        renderMode();
     
+        // Apply & Copy Button
         let applyResultBtn = document.createElement('button');
-        applyResultBtn.innerText = '📋 Apply Age Finding to Notes & Copy';
+        applyResultBtn.innerText = '📋 Apply Finding to Notes & Copy';
         applyResultBtn.className = 'onetrack-btn';
         applyResultBtn.style.cssText = 'width:100%;padding:8px;background:#28a745;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;margin-bottom:6px;';
         applyResultBtn.onclick = () => {
-            let textSummary = `Legacy Unit S/N: ${serialNum} RTC Battery Age is evaluated at ${resultBox.innerText.replace('', '')}.`;
+            let textSummary = `Legacy Unit S/N ${serialNum} RTC Battery evaluation: ${resultBox.innerText.replace(/<[^>]*>/g, '')}`;
             addHistoryItem(textSummary);
             processTextSelection(textSummary);
             ov.remove();
