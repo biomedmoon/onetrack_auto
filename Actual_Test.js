@@ -779,7 +779,12 @@
                     
                     // Subtract days to look backward into the past
                     let targetDate = new Date(base.getTime() - (daysToSubtract * 24 * 60 * 60 * 1000));
-                    let formattedTarget = targetDate.toISOString().split('T')[0];
+                    
+                    // Format date as MM/DD/YYYY
+                    let mm = String(targetDate.getMonth() + 1).padStart(2, '0');
+                    let dd = String(targetDate.getDate()).padStart(2, '0');
+                    let yyyy = targetDate.getFullYear();
+                    let formattedTarget = `${mm}/${dd}/${yyyy}`;
                     
                     resultBox.innerHTML = `<b>Calculated Replacement Date:</b> ${formattedTarget} <br><span style="font-size:11px;opacity:0.8;">(Counted back ${daysToSubtract} days)</span>`;
                 };
