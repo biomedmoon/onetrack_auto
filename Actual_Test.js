@@ -760,7 +760,7 @@
     
                 contentPane.innerHTML = `
                     <div>
-                        <label style="display:block;font-weight:bold;margin-bottom:4px;">Base / Reference Date:</label>
+                        <label style="display:block;font-weight:bold;margin-bottom:4px;">Reference / Current Date:</label>
                         <input type="date" id="baseDate" style="width:100%;padding:6px;box-sizing:border-box;background:${isDark ? '#2a2a2a' : '#fff'};color:${boxColor};border:1px solid ${isDark ? '#444' : '#ccc'};border-radius:4px;">
                     </div>
                     <div>
@@ -775,13 +775,13 @@
                 let runDateCalc = () => {
                     if (!bInput.value || !dInput.value) return;
                     let base = new Date(bInput.value);
-                    let daysToAdd = parseInt(dInput.value, 10) || 0;
+                    let daysToSubtract = parseInt(dInput.value, 10) || 0;
                     
-                    // Project backward/forward
-                    let targetDate = new Date(base.getTime() + (daysToAdd * 24 * 60 * 60 * 1000));
+                    // Subtract days to look backward into the past
+                    let targetDate = new Date(base.getTime() - (daysToSubtract * 24 * 60 * 60 * 1000));
                     let formattedTarget = targetDate.toISOString().split('T')[0];
                     
-                    resultBox.innerHTML = `<b>Estimated Replacement Date:</b> ${formattedTarget} <br><span style="font-size:11px;opacity:0.8;">(Based on ${daysToAdd} days old)</span>`;
+                    resultBox.innerHTML = `<b>Calculated Replacement Date:</b> ${formattedTarget} <br><span style="font-size:11px;opacity:0.8;">(Counted back ${daysToSubtract} days)</span>`;
                 };
                 bInput.onchange = runDateCalc;
                 dInput.oninput = runDateCalc;
