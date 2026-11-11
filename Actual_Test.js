@@ -747,7 +747,7 @@
                         years--;
                         months += 12;
                     }
-                    resultBox.innerHTML = `<b>RTC Battery Age:</b> ${years} yrs, ${months} mos (${diffDays} total days)`;
+                    resultBox.innerHTML = `<b>RTC Battery Age:</b> ${years} yrs, ${months} mos, ${days} days <br><span style="font-size:11px;opacity:0.8;">(${diffDays} total days)</span>`;
                 };
                 sInput.onchange = runAgeCalc;
                 eInput.onchange = runAgeCalc;
