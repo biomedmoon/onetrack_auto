@@ -446,6 +446,7 @@
         let ticketMatch = t.match(/Model\s+([^\r\n]+)/i);
         if (ticketMatch && ticketMatch[1] && !ticketMatch[1].trim().includes('(Sub-Model)')) {
             let modelStr = ticketMatch[1].trim();
+            if (/sigma\s*spectrum/i.test(modelStr)) return 'Sigma Spectrum';
             return modelStr;
         }
     
@@ -458,11 +459,14 @@
                    text === 'Curlin 6000 CMS' || 
                    text === 'Curlin 8000' || 
                    text === 'Solis VIP PharmGuard Pump' || 
-                   text === 'EnteraLite Infinity';
+                   text === 'EnteraLite Infinity' ||
+                   text === 'Sigma Spectrum Infusion Pump';
         });
     
         if (modelCell) {
-            return modelCell.innerText.trim();
+            let val = modelCell.innerText.trim();
+            if (/sigma\s*spectrum/i.test(val)) return 'Sigma Spectrum';
+            return val; 
         }
     
         // 3. Fallback scan of raw text with strict distinction between Curlin models
@@ -471,6 +475,7 @@
         if (/sapphire/i.test(t)) return 'Sapphire';
         if (/solis/i.test(t)) return 'Solis VIP PharmGuard Pump';
         if (/infinity/i.test(t)) return 'EnteraLite Infinity';
+        if (/sigma\s*spectrum/i.test(t)) return 'Sigma Spectrum';
     
         return "Unknown Device";
     }
