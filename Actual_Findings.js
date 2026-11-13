@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         OneTrack Automation & Helper - Actual_Findings
 // @namespace    http://tampermonkey.net/
-// @version      1.5.0
+// @version      1.5.1
 // @description  Automates workflows, UI enhancements, hotkeys, and persistent settings.
 // @author       jekosol
 // @match        *://*/*
@@ -10,6 +10,9 @@
 // @grant        GM_xmlhttpRequest
 // @grant        GM_getValue
 // @grant        GM_setValue
+// @grant        GM_info
+// @connect      raw.githubusercontent.com
+
 // ==/UserScript==
 
 (function() {
@@ -26,7 +29,7 @@
             localStorage.setItem(key, val);
         };
     }
-    const CURRENT_VERSION = '1.5.0';
+    const CURRENT_VERSION = '1.5.1';
     // --- ENVIRONMENT AUTO-DETECTION ---
     const isTestEnv = typeof GM_info !== 'undefined' && GM_info && GM_info.script && GM_info.script.name.includes('Test');
     const CONFIG = {
@@ -305,24 +308,83 @@
         ov.appendChild(box);
         document.body.appendChild(ov);
     }
-
-    // --- GLOBAL CONFIG & DEVICE MANUAL REPOSITORY ---
-    const DEVICE_MANUALS = {
+    
+    // Fallback dictionary in case offline or fetch fails
+    var DEVICE_MANUALS = {
         "Infinity": [
-            { label: "📖 Operator Manual", url: "https://your-internal-wiki-or-repo/infinity_operator_manual.pdf" },
-            { label: "🔧 Service & Repair Guide", url: "https://your-internal-wiki-or-repo/infinity_service_manual.pdf" },
-            { label: "💰 Billing & Coding Guide", url: "https://your-internal-wiki-or-repo/infinity_billing_guide.pdf" }
+            { "label": "📖 Operator Manual", "url": "#" },
+            { "label": "🔧 Service & Repair Guide", "url": "#" }
         ],
         "Solis": [
-            { label: "📖 Operator Manual", url: "https://your-internal-wiki-or-repo/solis_operator_manual.pdf" },
-            { label: "🔧 Service & Repair Guide", url: "https://your-internal-wiki-or-repo/solis_service_manual.pdf" },
-            { label: "⚡ Firmware Bulletin", url: "https://your-internal-wiki-or-repo/solis_truly_himax_bulletin.pdf" }
+            { "label": "📖 Operator Manual", "url": "#" }
         ],
         "Curlin": [
-            { label: "📖 Operator Manual", url: "https://your-internal-wiki-or-repo/curlin_operator_manual.pdf" },
-            { label: "🔧 Technical Service Manual", url: "https://your-internal-wiki-or-repo/curlin_service_manual.pdf" }
+            { "label": "📖 Operator Manual", "url": "#" }
+        ],
+        "General": [
+            { "label": "📖 QMS Manual Main Folder", "url": "https://mckessoncorp.sharepoint.com/sites/GRPMSDQMSDocuments/Shared%20Documents/Forms/AllItems.aspx?id=%2Fsites%2FGRPMSDQMSDocuments%2FShared%20Documents%2FQMS%20Documents%2FManuals%20%28Service%2C%20Operators%2C%20AEM%29&viewid=0a486819%2D845e%2D4548%2Dadaf%2D39d7423cd835" }
         ]
     };
+
+    // --- REMOTE CONFIGURATION & MANUALS RESOLVER ---
+    const REMOTE_CONFIG_URL = "https://raw.githubusercontent.com/biomedmoon/biomed-manuals/refs/heads/main/device_manuals.json";
+    
+    function loadRemoteManuals() {
+        let cached = localStorage.getItem('onetrack_manuals_cache');
+        let cacheTime = localStorage.getItem('onetrack_manuals_time') || 0;
+        let now = Date.now();
+    
+        // Use cache if under 12 hours old
+        if (cached && (now - cacheTime < 43200000)) {
+            try {
+                DEVICE_MANUALS = JSON.parse(cached);
+                return;
+            } catch (e) {}
+        }
+    
+        const handleData = (responseText) => {
+            try {
+                let remoteData = JSON.parse(responseText);
+                if (remoteData && Object.keys(remoteData).length > 0) {
+                    DEVICE_MANUALS = remoteData;
+                    localStorage.setItem('onetrack_manuals_cache', responseText);
+                    localStorage.setItem('onetrack_manuals_time', now);
+                    console.log("✓ Successfully loaded device manuals from GitHub remote source.");
+                }
+            } catch (err) {
+                console.warn("Invalid JSON format from remote source, using fallback manuals.");
+            }
+        };
+    
+        // Primary: Try Tampermonkey GM_xmlhttpRequest if available
+        if (typeof GM_xmlhttpRequest !== 'undefined') {
+            GM_xmlhttpRequest({
+                method: "GET",
+                url: REMOTE_CONFIG_URL + "?t=" + now,
+                onload: function(response) {
+                    if (response.status === 200) {
+                        handleData(response.responseText);
+                    }
+                },
+                onerror: function() {
+                    fallbackFetch();
+                }
+            });
+        } else {
+            // Fallback: Standard browser fetch for non-TM environments
+            fallbackFetch();
+        }
+    
+        function fallbackFetch() {
+            fetch(REMOTE_CONFIG_URL + "?t=" + now)
+                .then(res => res.text())
+                .then(text => handleData(text))
+                .catch(err => console.warn("Remote fetch fallback failed, using local dictionary."));
+        }
+    }
+    
+    // Fire immediately when script boots
+    loadRemoteManuals();
     
     const DEFAULT_CLIENT_MAPPING = {
         "CORAM": ["Shana Brown", "Amy Kwong"],
@@ -378,9 +440,44 @@
     }
 
     function getDeviceType() {
-        let t = document.body ? document.body.innerText : '',
-            m = t.match(/Model\s+([^\r\n]+)/i);
-        return m && m[1] ? m[1].trim() : "Unknown Device";
+        let t = document.body ? document.body.innerText : '';
+        
+        // 1. Check for standard repair ticket model format first
+        let ticketMatch = t.match(/Model\s+([^\r\n]+)/i);
+        if (ticketMatch && ticketMatch[1] && !ticketMatch[1].trim().includes('(Sub-Model)')) {
+            let modelStr = ticketMatch[1].trim();
+            if (/sigma\s*spectrum/i.test(modelStr)) return 'Sigma Spectrum';
+            return modelStr;
+        }
+    
+        // 2. Target the exact general info page sub-model layout from your HTML snippet
+        // Looking for the text inside or adjacent to the Model/Sub-Model field containers
+        let modelCell = Array.from(document.querySelectorAll('div, td, th')).find(el => {
+            let text = el.innerText ? el.innerText.trim() : '';
+            // Match specific known families explicitly to avoid cross-contamination
+            return text === 'Sapphire' || 
+                   text === 'Curlin 6000 CMS' || 
+                   text === 'Curlin 8000' || 
+                   text === 'Solis VIP PharmGuard Pump' || 
+                   text === 'EnteraLite Infinity' ||
+                   text === 'Sigma Spectrum Infusion Pump';
+        });
+    
+        if (modelCell) {
+            let val = modelCell.innerText.trim();
+            if (/sigma\s*spectrum/i.test(val)) return 'Sigma Spectrum';
+            return val; 
+        }
+    
+        // 3. Fallback scan of raw text with strict distinction between Curlin models
+        if (/curlin\s*8000/i.test(t)) return 'Curlin 8000';
+        if (/curlin\s*6000/i.test(t)) return 'Curlin 6000 CMS';
+        if (/sapphire/i.test(t)) return 'Sapphire';
+        if (/solis/i.test(t)) return 'Solis VIP PharmGuard Pump';
+        if (/infinity/i.test(t)) return 'EnteraLite Infinity';
+        if (/sigma\s*spectrum/i.test(t)) return 'Sigma Spectrum';
+    
+        return "Unknown Device";
     }
 
     function getSerialNumber() {
@@ -426,7 +523,17 @@
         }
         return "Other";
     }
-
+    function isInRepairTicket() {
+        let url = window.location.href;
+        
+        // If the URL contains '/RepairTicket' or '/Repairs/', we are definitely inside an active repair ticket
+        if (url.includes('/RepairTicket') || url.includes('/Repairs/')) {
+            return true;
+        }
+        
+        // If it's a general device view (like /Detail or general inventory), return false
+        return false;
+    }
     function showToast(message) {
         let existingToast = document.getElementById('preset-toast-test');
         if (existingToast) existingToast.remove();
@@ -547,6 +654,179 @@
         return `Device S/N: ${sn} requires an OEM level repair. Age of device is ${ageMonths} months. Cost of flat rate repair including handling is $${cost.toFixed(2)}. Pumps requiring PCB replacement will incur an additional charge which MOOG will notify and provide an estimate for. McKesson Biomed will provide an updated estimate for repair if required.`;
     }
 
+    function showLegacyDateCalculatorModal(passedTheme) {
+        let activeTheme = passedTheme || document.getElementById('preset-notes-modal')?.getAttribute('data-theme') || 'light';
+        let isDark = activeTheme === 'dark';
+        let serialNum = getSerialNumber() || 'N/A';
+        
+        let ex = document.getElementById('preset-notes-modal');
+        if (ex) ex.remove();
+    
+        let ov = document.createElement('div');
+        ov.id = 'preset-notes-modal';
+        ov.setAttribute('data-theme', activeTheme);
+        ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:transparent;z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;pointer-events:none;';
+    
+        let boxBg = isDark ? '#1e1e1e' : '#fff';
+        let boxColor = isDark ? '#e0e0e0' : '#333';
+    
+        let box = document.createElement('div');
+        box.className = 'onetrack-modal';
+        box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:440px;display:flex;flex-direction:column;position:relative;pointer-events:auto;`;
+        
+        applyUIScale(box);
+        applySavedPosition(box);
+        applySavedScale(box);
+    
+        let h = document.createElement('h3');
+        h.innerText = `📅 Legacy RTC Battery Age Calculator — S/N: ${serialNum}`;
+        h.style.cssText = `margin-top:0;margin-bottom:10px;font-size:14px;color:${isDark ? '#fff' : '#222'};text-align:center;cursor:move;`;
+        makeDraggable(box, h);
+        box.appendChild(h);
+    
+        // Mode Selector Tabs
+        let tabRow = document.createElement('div');
+        tabRow.style.cssText = 'display:flex;gap:4px;margin-bottom:12px;';
+        
+        let modeAgeBtn = document.createElement('button');
+        modeAgeBtn.innerText = 'Calculate Battery Age (Dates)';
+        modeAgeBtn.style.cssText = 'flex:1;padding:6px;font-size:11px;font-weight:bold;cursor:pointer;border-radius:4px;border:1px solid #ccc;background:#28a745;color:#fff;';
+        
+        let modeDateBtn = document.createElement('button');
+        modeDateBtn.innerText = 'Find Replacement Date (Days Old)';
+        modeDateBtn.style.cssText = `flex:1;padding:6px;font-size:11px;font-weight:bold;cursor:pointer;border-radius:4px;border:1px solid ${isDark ? '#444' : '#ccc'};background:${isDark ? '#2a2a2a' : '#f1f3f5'};color:${boxColor};`;
+    
+        tabRow.appendChild(modeAgeBtn);
+        tabRow.appendChild(modeDateBtn);
+        box.appendChild(tabRow);
+    
+        // Dynamic Content Container
+        let contentPane = document.createElement('div');
+        contentPane.style.cssText = 'display:flex;flex-direction:column;gap:10px;margin-bottom:12px;font-size:12px;';
+        box.appendChild(contentPane);
+    
+        let resultBox = document.createElement('div');
+        resultBox.style.cssText = `background:${isDark ? '#2a2a2a' : '#f1f3f5'};padding:10px;border-radius:6px;font-size:12px;text-align:center;margin-bottom:12px;border:1px solid ${isDark ? '#444' : '#ced4da'};`;
+        resultBox.innerHTML = '<b>Result:</b> Ready.';
+        box.appendChild(resultBox);
+    
+        let currentMode = 'age'; // 'age' or 'target'
+    
+        function renderMode() {
+            contentPane.innerHTML = '';
+            if (currentMode === 'age') {
+                modeAgeBtn.style.background = '#28a745';
+                modeAgeBtn.style.color = '#fff';
+                modeDateBtn.style.background = isDark ? '#2a2a2a' : '#f1f3f5';
+                modeDateBtn.style.color = boxColor;
+    
+                contentPane.innerHTML = `
+                    <div>
+                        <label style="display:block;font-weight:bold;margin-bottom:4px;">Battery Installation / Manufacture Date:</label>
+                        <input type="date" id="calcStartDate" style="width:100%;padding:6px;box-sizing:border-box;background:${isDark ? '#2a2a2a' : '#fff'};color:${boxColor};border:1px solid ${isDark ? '#444' : '#ccc'};border-radius:4px;">
+                    </div>
+                    <div>
+                        <label style="display:block;font-weight:bold;margin-bottom:4px;">Inspection / Today Date:</label>
+                        <input type="date" id="calcEndDate" style="width:100%;padding:6px;box-sizing:border-box;background:${isDark ? '#2a2a2a' : '#fff'};color:${boxColor};border:1px solid ${isDark ? '#444' : '#ccc'};border-radius:4px;">
+                    </div>
+                `;
+                let sInput = contentPane.querySelector('#calcStartDate');
+                let eInput = contentPane.querySelector('#calcEndDate');
+                eInput.value = new Date().toISOString().split('T')[0];
+    
+                let runAgeCalc = () => {
+                    if (!sInput.value || !eInput.value) return;
+                    let d1 = new Date(sInput.value);
+                    let d2 = new Date(eInput.value);
+                    let diffDays = Math.round((d2 - d1) / (1000 * 60 * 60 * 24));
+                    let years = d2.getFullYear() - d1.getFullYear();
+                    let months = d2.getMonth() - d1.getMonth();
+                    let days = d2.getDate() - d1.getDate();
+    
+                    if (days < 0) {
+                        months--;
+                        let prevMonth = new Date(d2.getFullYear(), d2.getMonth(), 0);
+                        days += prevMonth.getDate();
+                    }
+                    if (months < 0) {
+                        years--;
+                        months += 12;
+                    }
+                    resultBox.innerHTML = `<b>RTC Battery Age:</b> ${years} yrs, ${months} mos, ${days} days <br><span style="font-size:11px;opacity:0.8;">(${diffDays} total days)</span>`;
+                };
+                sInput.onchange = runAgeCalc;
+                eInput.onchange = runAgeCalc;
+    
+            } else {
+                modeDateBtn.style.background = '#28a745';
+                modeDateBtn.style.color = '#fff';
+                modeAgeBtn.style.background = isDark ? '#2a2a2a' : '#f1f3f5';
+                modeAgeBtn.style.color = boxColor;
+    
+                contentPane.innerHTML = `
+                    <div>
+                        <label style="display:block;font-weight:bold;margin-bottom:4px;">Reference / Current Date:</label>
+                        <input type="date" id="baseDate" style="width:100%;padding:6px;box-sizing:border-box;background:${isDark ? '#2a2a2a' : '#fff'};color:${boxColor};border:1px solid ${isDark ? '#444' : '#ccc'};border-radius:4px;">
+                    </div>
+                    <div>
+                        <label style="display:block;font-weight:bold;margin-bottom:4px;">Battery Age in Days:</label>
+                        <input type="number" id="daysOldInput" value="365" style="width:100%;padding:6px;box-sizing:border-box;background:${isDark ? '#2a2a2a' : '#fff'};color:${boxColor};border:1px solid ${isDark ? '#444' : '#ccc'};border-radius:4px;">
+                    </div>
+                `;
+                let bInput = contentPane.querySelector('#baseDate');
+                let dInput = contentPane.querySelector('#daysOldInput');
+                bInput.value = new Date().toISOString().split('T')[0];
+    
+                let runDateCalc = () => {
+                    if (!bInput.value || !dInput.value) return;
+                    let base = new Date(bInput.value);
+                    let daysToSubtract = parseInt(dInput.value, 10) || 0;
+                    
+                    // Subtract days to look backward into the past
+                    let targetDate = new Date(base.getTime() - (daysToSubtract * 24 * 60 * 60 * 1000));
+                    
+                    // Format date as MM/DD/YYYY
+                    let mm = String(targetDate.getMonth() + 1).padStart(2, '0');
+                    let dd = String(targetDate.getDate()).padStart(2, '0');
+                    let yyyy = targetDate.getFullYear();
+                    let formattedTarget = `${mm}/${dd}/${yyyy}`;
+                    
+                    resultBox.innerHTML = `<b>Calculated Replacement Date:</b> ${formattedTarget} <br><span style="font-size:11px;opacity:0.8;">(Counted back ${daysToSubtract} days)</span>`;
+                };
+                bInput.onchange = runDateCalc;
+                dInput.oninput = runDateCalc;
+                runDateCalc();
+            }
+        }
+    
+        modeAgeBtn.onclick = () => { currentMode = 'age'; renderMode(); };
+        modeDateBtn.onclick = () => { currentMode = 'target'; renderMode(); };
+    
+        renderMode();
+    
+        // Apply & Copy Button
+        let applyResultBtn = document.createElement('button');
+        applyResultBtn.innerText = '📋 Apply Finding to Notes & Copy';
+        applyResultBtn.className = 'onetrack-btn';
+        applyResultBtn.style.cssText = 'width:100%;padding:8px;background:#28a745;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;margin-bottom:6px;';
+        applyResultBtn.onclick = () => {
+            let textSummary = `Legacy Unit S/N ${serialNum} RTC Battery evaluation: ${resultBox.innerText.replace(/<[^>]*>/g, '')}`;
+            addHistoryItem(textSummary);
+            processTextSelection(textSummary);
+            ov.remove();
+        };
+        box.appendChild(applyResultBtn);
+    
+        let backBtn = document.createElement('button');
+        backBtn.innerText = '← Back to Main Menu';
+        backBtn.className = 'onetrack-btn';
+        backBtn.style.cssText = isDark ? 'width:100%;padding:8px;background:#444;color:#e0e0e0;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;' : 'width:100%;padding:8px;background:#e0e0e0;color:#333;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;';
+        backBtn.onclick = () => showMainModal(activeTheme);
+        box.appendChild(backBtn);
+    
+        ov.appendChild(box);
+        document.body.appendChild(ov);
+    }
     function getPhrasesForDevice(dt) {
         let s = localStorage.getItem('device_preset_notes'), m = {};
         if (s) { try { m = JSON.parse(s); } catch (e) {} }
@@ -591,7 +871,8 @@
             cc = getCurrentCompany(),
             iam = localStorage.getItem('preset_notes_append_mode') === 'true',
             hrm = localStorage.getItem('preset_hide_recent') === 'true',
-            serialNum = getSerialNumber();
+            serialNum = getSerialNumber(),
+            inTicket = isInRepairTicket(); // --- CHECK TICKET CONTEXT ---
 
         let activeTheme = passedTheme || document.getElementById('preset-notes-modal')?.getAttribute('data-theme') || localStorage.getItem('onetrack_theme') || 'light';
         let isDark = activeTheme === 'dark';
@@ -625,7 +906,7 @@
         let docRow = document.createElement('div');
         docRow.style.cssText = 'display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;width:100%;';
         
-        let matchedFamily = Object.keys(DEVICE_MANUALS).find(family => new RegExp(family, 'i').test(dt)) || 'Solis';
+        let matchedFamily = Object.keys(DEVICE_MANUALS).find(family => dt.toLowerCase().includes(family.toLowerCase())) || 'General';
         
         if (DEVICE_MANUALS[matchedFamily]) {
             DEVICE_MANUALS[matchedFamily].forEach(doc => {
@@ -652,7 +933,7 @@
                 docLink.onmouseout = () => docLink.style.opacity = '1';
                 docRow.appendChild(docLink);
             });
-            //box.appendChild(docRow);
+            box.appendChild(docRow);
         }
 
         let hsRow = document.createElement('div');
@@ -752,100 +1033,116 @@
         cont.style.cssText = 'overflow-y:auto;flex:1;padding-right:5px;margin-bottom:12px;';
         let tds = new Date().toLocaleDateString('en-US', {month:'2-digit', day:'2-digit', year:'numeric'});
 
-        if (/\s*(6000|infinity)/i.test(dt)) {
-            let curlinPdfBtn = document.createElement('button');
-            curlinPdfBtn.innerText = '⚡ Moog Invoice PDF Text Extract';
-            curlinPdfBtn.className = 'onetrack-btn';
-            curlinPdfBtn.style.cssText = 'display:block;width:100%;padding:8px 10px;margin:4px 0;background:#e2f0cb;color:#2b542c;border:1px solid #b5d89c;border-radius:4px;cursor:pointer;font-size:12px;text-align:left;font-weight:bold;line-height:1.4;';
-            curlinPdfBtn.onclick = () => {
-                console.log("Button clicked, attempting to open upload modal...");
-                ov.remove();
-                try {
-                    showCurlinUploadModal(activeTheme);
-                } catch (err) {
-                    console.error("Caught error opening upload modal:", err);
-                }
-            };
-            cont.appendChild(curlinPdfBtn);
-        }
+        // --- CONDITIONAL TICKET VS GENERAL VIEW CONTENT ---
+        if (!inTicket) {
+            let emptyState = document.createElement('div');
+            emptyState.innerText = 'Quick-access manuals & documentation hub.';
+            emptyState.style.cssText = `text-align:center;padding:25px 10px;font-size:12px;color:${isDark ? '#888' : '#666'};font-style:italic;`;
+            cont.appendChild(emptyState);
+        } else {
+            // Only render repair-specific workflow buttons if we are in an active ticket
+            if (/\s*(6000|infinity)/i.test(dt)) {
+                let curlinPdfBtn = document.createElement('button');
+                curlinPdfBtn.innerText = '⚡ Moog Invoice PDF Text Extract';
+                curlinPdfBtn.className = 'onetrack-btn';
+                curlinPdfBtn.style.cssText = 'display:block;width:100%;padding:8px 10px;margin:4px 0;background:#e2f0cb;color:#2b542c;border:1px solid #b5d89c;border-radius:4px;cursor:pointer;font-size:12px;text-align:left;font-weight:bold;line-height:1.4;';
+                curlinPdfBtn.onclick = () => {
+                    ov.remove();
+                    try { showCurlinUploadModal(activeTheme); } catch (err) {}
+                };
+                cont.appendChild(curlinPdfBtn);
+            }
 
-        if (/solis/i.test(dt)) {
-            let solisOemBtn = document.createElement('button');
-            solisOemBtn.innerText = '🔧 Solis OEM Replaced Parts Selection...';
-            solisOemBtn.className = 'onetrack-btn';
-            solisOemBtn.style.cssText = 'display:block;width:100%;padding:8px 10px;margin:4px 0;background:#e2f0cb;color:#2b542c;border:1px solid #b5d89c;border-radius:4px;cursor:pointer;font-size:12px;text-align:left;font-weight:bold;line-height:1.4;';
-            solisOemBtn.onclick = () => {
-                ov.remove(); 
-                showSolisPartsModal(activeTheme, addHistoryItem, processTextSelection);
-            };
-            cont.appendChild(solisOemBtn);
-        }
-        
-        if (/enteralite\s*infinity/i.test(dt)) {
-            let infBtn = document.createElement('button');
-            infBtn.innerText = '⚡ Infinity Flat Rate Repair Calculation';
-            infBtn.className = 'onetrack-btn';
-            infBtn.style.cssText = 'display:block;width:100%;padding:8px 10px;margin:4px 0;background:#e2f0cb;color:#2b542c;border:1px solid #b5d89c;border-radius:4px;cursor:pointer;font-size:12px;text-align:left;font-weight:bold;line-height:1.4;';
-            infBtn.onclick = () => {
-                let findings = calculateInfinityFlatRateFindings();
-                if (findings) { addHistoryItem(findings); processTextSelection(findings); }
-            };
-            cont.appendChild(infBtn);
-            let oemBtn = document.createElement('button');
-            oemBtn.innerText = '🔧 OEM Replaced Parts Selection...';
-            oemBtn.className = 'onetrack-btn';
-            oemBtn.style.cssText = 'display:block;width:100%;padding:8px 10px;margin:4px 0;background:#e2f0cb;color:#2b542c;border:1px solid #b5d89c;border-radius:4px;cursor:pointer;font-size:12px;text-align:left;font-weight:bold;line-height:1.4;';
-            oemBtn.onclick = () => {
-                ov.remove();
-                showInfinityPartsModal(activeTheme);
-            };
-            cont.appendChild(oemBtn);
-        }
+            if (/solis/i.test(dt)) {
+                let solisOemBtn = document.createElement('button');
+                solisOemBtn.innerText = '🔧 Solis OEM Replaced Parts Selection...';
+                solisOemBtn.className = 'onetrack-btn';
+                solisOemBtn.style.cssText = 'display:block;width:100%;padding:8px 10px;margin:4px 0;background:#e2f0cb;color:#2b542c;border:1px solid #b5d89c;border-radius:4px;cursor:pointer;font-size:12px;text-align:left;font-weight:bold;line-height:1.4;';
+                solisOemBtn.onclick = () => {
+                    ov.remove(); 
+                    showSolisPartsModal(activeTheme, addHistoryItem, processTextSelection);
+                };
+                cont.appendChild(solisOemBtn);
+            }
 
-        let db = document.createElement('button');
-        db.innerText = 'Repairs declined...';
-        db.className = 'onetrack-btn';
-        db.style.cssText = 'display:block;width:100%;padding:8px 10px;margin:4px 0;background:#fff3cd;color:#856404;border:1px solid #ffeeba;border-radius:4px;cursor:pointer;font-size:12px;text-align:left;font-weight:bold;line-height:1.4;';
-        db.onclick = () => { ov.remove(); showDeclineActionModal(activeTheme); };
-        cont.appendChild(db);
+            if (/legacy/i.test(dt)) {
+                let legacyBtn = document.createElement('button');
+                legacyBtn.innerText = '📅 Legacy RTC Battery Age Calculator...';
+                legacyBtn.className = 'onetrack-btn';
+                legacyBtn.style.cssText = 'display:block;width:100%;padding:8px 10px;margin:4px 0;background:#e2f0cb;color:#2b542c;border:1px solid #b5d89c;border-radius:4px;cursor:pointer;font-size:12px;text-align:left;font-weight:bold;line-height:1.4;';
+                legacyBtn.onclick = () => {
+                    ov.remove();
+                    showLegacyDateCalculatorModal(activeTheme);
+                };
+                cont.appendChild(legacyBtn);
+            }
+            
+            if (/enteralite\s*infinity/i.test(dt)) {
+                let infBtn = document.createElement('button');
+                infBtn.innerText = '⚡ Infinity Flat Rate Repair Calculation';
+                infBtn.className = 'onetrack-btn';
+                infBtn.style.cssText = 'display:block;width:100%;padding:8px 10px;margin:4px 0;background:#e2f0cb;color:#2b542c;border:1px solid #b5d89c;border-radius:4px;cursor:pointer;font-size:12px;text-align:left;font-weight:bold;line-height:1.4;';
+                infBtn.onclick = () => {
+                    let findings = calculateInfinityFlatRateFindings();
+                    if (findings) { addHistoryItem(findings); processTextSelection(findings); }
+                };
+                cont.appendChild(infBtn);
+                let oemBtn = document.createElement('button');
+                oemBtn.innerText = '🔧 OEM Replaced Parts Selection...';
+                oemBtn.className = 'onetrack-btn';
+                oemBtn.style.cssText = 'display:block;width:100%;padding:8px 10px;margin:4px 0;background:#e2f0cb;color:#2b542c;border:1px solid #b5d89c;border-radius:4px;cursor:pointer;font-size:12px;text-align:left;font-weight:bold;line-height:1.4;';
+                oemBtn.onclick = () => {
+                    ov.remove();
+                    showInfinityPartsModal(activeTheme);
+                };
+                cont.appendChild(oemBtn);
+            }
 
-        let ab = document.createElement('button');
-        ab.innerText = 'Repairs approved...';
-        ab.className = 'onetrack-btn';
-        ab.style.cssText = 'display:block;width:100%;padding:8px 10px;margin:4px 0;background:#d4edda;color:#155724;border:1px solid #c3e6cb;border-radius:4px;cursor:pointer;font-size:12px;text-align:left;font-weight:bold;line-height:1.4;';
-        ab.onclick = () => { ov.remove(); showClientSelectModal('Repairs approved', false, activeTheme); };
-        cont.appendChild(ab);
+            let db = document.createElement('button');
+            db.innerText = 'Repairs declined...';
+            db.className = 'onetrack-btn';
+            db.style.cssText = 'display:block;width:100%;padding:8px 10px;margin:4px 0;background:#fff3cd;color:#856404;border:1px solid #ffeeba;border-radius:4px;cursor:pointer;font-size:12px;text-align:left;font-weight:bold;line-height:1.4;';
+            db.onclick = () => { ov.remove(); showDeclineActionModal(activeTheme); };
+            cont.appendChild(db);
 
-        if (!hrm && hist.length > 0) {
-            let rHead = document.createElement('div');
-            rHead.innerText = '⭐ Smart Clipboard History';
-            rHead.style.cssText = `font-size:11px;font-weight:bold;color:${isDark ? '#aaa' : '#666'};margin:8px 0 2px 2px;`;
-            cont.appendChild(rHead);
-            hist.forEach(hTxt => {
-                let btn = document.createElement('button');
-                btn.innerText = "⚡ " + hTxt;
+            let ab = document.createElement('button');
+            ab.innerText = 'Repairs approved...';
+            ab.className = 'onetrack-btn';
+            ab.style.cssText = 'display:block;width:100%;padding:8px 10px;margin:4px 0;background:#d4edda;color:#155724;border:1px solid #c3e6cb;border-radius:4px;cursor:pointer;font-size:12px;text-align:left;font-weight:bold;line-height:1.4;';
+            ab.onclick = () => { ov.remove(); showClientSelectModal('Repairs approved', false, activeTheme); };
+            cont.appendChild(ab);
+
+            if (!hrm && hist.length > 0) {
+                let rHead = document.createElement('div');
+                rHead.innerText = '⭐ Smart Clipboard History';
+                rHead.style.cssText = `font-size:11px;font-weight:bold;color:${isDark ? '#aaa' : '#666'};margin:8px 0 2px 2px;`;
+                cont.appendChild(rHead);
+                hist.forEach(hTxt => {
+                    let btn = document.createElement('button');
+                    btn.innerText = "⚡ " + hTxt;
+                    btn.className = 'onetrack-btn';
+                    btn.style.cssText = 'display:block;width:100%;padding:8px 10px;margin:4px 0;background:#eef7fe;color:#0366d6;border:1px solid #c8e1ff;border-radius:4px;cursor:pointer;font-size:12px;text-align:left;line-height:1.4;';
+                    btn.onclick = () => { addHistoryItem(hTxt); processTextSelection(hTxt); };
+                    cont.appendChild(btn);
+                });
+            }
+
+            let pHead = document.createElement('div');
+            pHead.innerText = '📝 Standard Presets';
+            pHead.style.cssText = `font-size:11px;font-weight:bold;color:${isDark ? '#aaa' : '#666'};margin:8px 0 2px 2px;`;
+            cont.appendChild(pHead);
+
+            ph.forEach(txt => {
+                let dtTxt = txt.replace(/\{DATE\}/gi, tds).replace(/\{SERIAL\}/gi, serialNum),
+                    cln = dtTxt.replace(/\s*\([^)]*\)\s*$/, '').trim(),
+                    btn = document.createElement('button');
+                btn.innerText = dtTxt;
                 btn.className = 'onetrack-btn';
-                btn.style.cssText = 'display:block;width:100%;padding:8px 10px;margin:4px 0;background:#eef7fe;color:#0366d6;border:1px solid #c8e1ff;border-radius:4px;cursor:pointer;font-size:12px;text-align:left;line-height:1.4;';
-                btn.onclick = () => { addHistoryItem(hTxt); processTextSelection(hTxt); };
+                btn.style.cssText = `display:block;width:100%;padding:8px 10px;margin:4px 0;background:${isDark ? '#2a2a2a' : '#f8f9fa'};color:${isDark ? '#fff' : '#212529'};border:1px solid ${isDark ? '#444' : '#ced4da'};border-radius:4px;cursor:pointer;font-size:12px;text-align:left;line-height:1.4;`;
+                btn.onclick = () => { addHistoryItem(cln); processTextSelection(cln); };
                 cont.appendChild(btn);
             });
         }
-
-        let pHead = document.createElement('div');
-        pHead.innerText = '📝 Standard Presets';
-        pHead.style.cssText = `font-size:11px;font-weight:bold;color:${isDark ? '#aaa' : '#666'};margin:8px 0 2px 2px;`;
-        cont.appendChild(pHead);
-
-        ph.forEach(txt => {
-            let dtTxt = txt.replace(/\{DATE\}/gi, tds).replace(/\{SERIAL\}/gi, serialNum),
-                cln = dtTxt.replace(/\s*\([^)]*\)\s*$/, '').trim(),
-                btn = document.createElement('button');
-            btn.innerText = dtTxt;
-            btn.className = 'onetrack-btn';
-            btn.style.cssText = `display:block;width:100%;padding:8px 10px;margin:4px 0;background:${isDark ? '#2a2a2a' : '#f8f9fa'};color:${isDark ? '#fff' : '#212529'};border:1px solid ${isDark ? '#444' : '#ced4da'};border-radius:4px;cursor:pointer;font-size:12px;text-align:left;line-height:1.4;`;
-            btn.onclick = () => { addHistoryItem(cln); processTextSelection(cln); };
-            cont.appendChild(btn);
-        });
         box.appendChild(cont);
 
         let eb = document.createElement('button');
@@ -3946,8 +4243,11 @@ function showCurlinUploadModal(passedTheme) {
         let hotkeyInput = document.createElement('input');
         hotkeyInput.type = 'text';
         hotkeyInput.maxLength = 1;
-        let activePrefix = (typeof CONFIG !== 'undefined' && CONFIG.storagePrefix) ? CONFIG.storagePrefix : 'onetrack_test_';
-        let currentSavedHotkey = localStorage.getItem(activePrefix + 'custom_hotkey') || (typeof CONFIG !== 'undefined' ? CONFIG.hotkey : 'KeyP');
+        let isTestRun = (typeof GM_info !== 'undefined' && GM_info && GM_info.script && GM_info.script.name.includes('Test'));
+        let activePrefix = isTestRun ? 'onetrack_test_' : 'onetrack_live_';
+        let defaultKey = isTestRun ? 'KeyP' : 'KeyQ';
+        
+        let currentSavedHotkey = localStorage.getItem(activePrefix + 'custom_hotkey') || defaultKey;
         hotkeyInput.value = currentSavedHotkey.replace('Key', '');
         hotkeyInput.style.cssText = isDark ? 'width:40px; text-align:center; padding:4px; font-weight:bold; border-radius:4px; border:1px solid #555; background:#2a2d2e; color:#fff;' : 'width:40px; text-align:center; padding:4px; font-weight:bold; border-radius:4px; border:1px solid #ccc;';
         hotkeyInput.onkeydown = (e) => {
