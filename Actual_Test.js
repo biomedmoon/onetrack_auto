@@ -1076,7 +1076,18 @@
                 };
                 cont.appendChild(legacyBtn);
             }
-            
+
+            if (/curlin/i.test(dt)) {
+                let curlinBtn = document.createElement('button');
+                curlinBtn.innerText = '🔧 OEM Replaced Parts Selection...';
+                curlinBtn.className = 'onetrack-btn';
+                curlinBtn.style.cssText = 'display:block;width:100%;padding:8px 10px;margin:4px 0;background:#e2f0cb;color:#2b542c;border:1px solid #c5e1a5;border-radius:4px;cursor:pointer;font-weight:bold;';
+                curlinBtn.onclick = () => {
+                    ov.remove();
+                    showCurlinPartsModal(activeTheme, addHistoryItem, processTextSelection);
+                };
+                cont.appendChild(curlinBtn);
+            }
             if (/enteralite\s*infinity/i.test(dt)) {
                 let infBtn = document.createElement('button');
                 infBtn.innerText = '⚡ Infinity Flat Rate Repair Calculation';
@@ -2506,6 +2517,685 @@ function showCurlinUploadModal(passedTheme) {
                 processTextSelection(summaryText);
             } else {
                 if (typeof showToast === 'function') showToast('✓ Findings copied to clipboard!');
+            }
+        };
+    
+        btnRow.appendChild(cancelBtn);
+        btnRow.appendChild(backBtn);
+        btnRow.appendChild(confirmBtn);
+        box.appendChild(btnRow);
+    
+        ov.appendChild(box);
+        document.body.appendChild(ov);
+    }
+    function showCurlinPartsModal(passedTheme, addHistoryItem, processTextSelection) {
+        let activeTheme = passedTheme || document.getElementById('preset-notes-modal')?.getAttribute('data-theme') || 'light';
+        let isDark = activeTheme === 'dark';
+    
+        let ex = document.getElementById('preset-notes-modal');
+        if (ex) ex.remove();
+    
+        let ov = document.createElement('div');
+        ov.id = 'preset-notes-modal';
+        ov.setAttribute('data-theme', activeTheme);
+        ov.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:transparent;z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;pointer-events:none;';
+    
+        let boxBg = isDark ? '#1e1e1e' : '#fff';
+        let boxColor = isDark ? '#e0e0e0' : '#333';
+    
+        let box = document.createElement('div');
+        box.className = 'onetrack-modal' + (typeof compactMode !== 'undefined' && compactMode ? ' onetrack-compact-mode' : '');
+        box.style.cssText = `background:${boxBg};color:${boxColor};padding:20px;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.25);width:650px;max-height:92vh;display:flex;flex-direction:column;position:relative;pointer-events:auto;`;
+    
+        if (typeof applyUIScale === 'function') applyUIScale(box);
+        if (typeof applySavedPosition === 'function') applySavedPosition(box);
+        if (typeof applySavedScale === 'function') applySavedScale(box);
+    
+        let h = document.createElement('h3');
+        h.innerText = 'Select Curlin OEM Replaced Parts & Scanner';
+        h.style.cssText = `margin-top:0;margin-bottom:12px;font-size:16px;color:${isDark ? '#fff' : '#222'};text-align:center;cursor:move;`;
+        if (typeof makeDraggable === 'function') makeDraggable(box, h);
+        box.appendChild(h);
+    
+        let defaultCurlinParts = [
+            { num: '340-0049', name: 'Mech seal' },
+            { num: '340-0055', name: 'Pump Mechanism Assembly' },
+            { num: '340-0057', name: 'Sub-Assembly w/o Motor' },
+            { num: '340-0070', name: 'Bezel with Overmold' },
+            { num: '340-1003', name: 'Rear Case Assy.' },
+            { num: '350-2011', name: 'Keypad w/o overlay' },
+            { num: '360-0016', name: 'LCD lens' },
+            { num: '360-0022', name: 'Battery Ejector' },
+            { num: '360-1004', name: 'Battery Door' },
+            { num: '360-0091', name: 'Battery Door' },
+            { num: '360-2004-00', name: 'PCB Assembly' },
+            { num: '360-2009', name: 'Keypad overlay' },
+            { num: '59933', name: 'Motor & Worm Gear Assy.' },
+            { num: '66419', name: 'Front Case Sub Assembly' },
+            { num: 'C12-02001', name: 'BT2' },
+            { num: 'C12-04002', name: 'BT3' },
+            { num: 'C14-05003', name: 'LCD Module' },
+            { num: '58553', name: 'LCD Module' }
+        ];
+    
+        let storedPartsJson = localStorage.getItem('curlin_custom_parts_list');
+        let partsList = storedPartsJson ? JSON.parse(storedPartsJson) : defaultCurlinParts;
+    
+        let selectedItems = new Set();
+        let usageCounts = JSON.parse(localStorage.getItem('curlin_parts_usage') || '{}');
+        let isExpandedView = false;
+    
+        // --- TOP SCANNER & UPLOAD RECEPTACLE ---
+        let scannerControls = document.createElement('div');
+        scannerControls.style.cssText = 'display:flex;gap:8px;margin-bottom:8px;';
+    
+        let scanToggleBtn = document.createElement('button');
+        scanToggleBtn.innerText = '📷 Open Document Scanner Viewfinder';
+        scanToggleBtn.style.cssText = 'flex:1;background:#008CBA;color:white;border:none;padding:8px;border-radius:4px;cursor:pointer;font-weight:bold;font-size:11px;';
+        
+        scanToggleBtn.onclick = () => {
+            let rect = box.getBoundingClientRect();
+            let currentLeft = rect.left;
+            let currentTop = rect.top;
+            showCurlinStandaloneOCRScanner(currentLeft, currentTop);
+        };
+    
+        scannerControls.appendChild(scanToggleBtn);
+        box.appendChild(scannerControls);
+    
+        // --- DROPZONE & CLIPBOARD PASTE RECEPTACLE ---
+        let dropZone = document.createElement('div');
+        dropZone.style.cssText = `border: 2px dashed ${isDark ? '#555' : '#aaa'}; border-radius: 6px; padding: 12px; text-align: center; margin-bottom: 8px; background: ${isDark ? '#252525' : '#f8f9fa'}; color: ${isDark ? '#ccc' : '#555'}; font-size: 11px; cursor: pointer; transition: background 0.2s;`;
+        dropZone.innerHTML = '📁 <b>Click to upload</b>, <b>drag & drop</b> invoice, or <b>Ctrl+V</b> paste screenshot here for OCR';
+        
+        let hiddenFileInput = document.createElement('input');
+        hiddenFileInput.type = 'file';
+        hiddenFileInput.accept = 'image/*,application/pdf';
+        hiddenFileInput.style.display = 'none';
+        dropZone.appendChild(hiddenFileInput);
+        box.appendChild(dropZone);
+    
+        // --- WEBCAM CONTAINER WITH EXPAND VIEW ---
+        let webcamContainer = document.createElement('div');
+        webcamContainer.style.cssText = 'display:none;flex-direction:column;align-items:center;margin-bottom:8px;background:#111;padding:8px;border-radius:6px;';
+        
+        let videoElement = document.createElement('video');
+        videoElement.autoplay = true;
+        videoElement.playsInline = true;
+        videoElement.style.cssText = 'width:100%;max-height:200px;border-radius:4px;background:#000;object-fit:cover;transition:max-height 0.2s ease;';
+        webcamContainer.appendChild(videoElement);
+    
+        let camActionRow = document.createElement('div');
+        camActionRow.style.cssText = 'display:flex;gap:6px;width:100%;margin-top:6px;';
+    
+        let captureBtn = document.createElement('button');
+        captureBtn.innerText = '📸 Capture & Run OCR';
+        captureBtn.style.cssText = 'flex:2;background:#4CAF50;color:white;border:none;padding:6px;border-radius:4px;cursor:pointer;font-weight:bold;font-size:11px;';
+    
+        let expandCamBtn = document.createElement('button');
+        expandCamBtn.innerText = '🔍 Expand View';
+        expandCamBtn.style.cssText = 'flex:1;background:#555;color:white;border:none;padding:6px;border-radius:4px;cursor:pointer;font-size:11px;';
+    
+        camActionRow.appendChild(captureBtn);
+        camActionRow.appendChild(expandCamBtn);
+        webcamContainer.appendChild(camActionRow);
+        box.appendChild(webcamContainer);
+    
+        let mediaStream = null;
+    
+        expandCamBtn.onclick = () => {
+            isExpandedView = !isExpandedView;
+            videoElement.style.maxHeight = isExpandedView ? '400px' : '200px';
+            expandCamBtn.innerText = isExpandedView ? '📉 Normal View' : '🔍 Expand View';
+        };
+    
+        // Standalone Full-Screen OCR Scanner Modal Builder for Curlin
+        function showCurlinStandaloneOCRScanner(initLeft, initTop) {
+            let scanOv = document.createElement('div');
+            scanOv.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:transparent;z-index:999999;display:flex;align-items:center;justify-content:center;font-family:sans-serif;pointer-events:none;'; 
+            
+            let scanBox = document.createElement('div');
+            scanBox.className = 'onetrack-modal';
+            
+            let positionStyle = (initLeft !== undefined && initTop !== undefined) 
+                ? `position:fixed;left:${initLeft}px;top:${initTop}px;transform:none;` 
+                : 'position:fixed;top:50%;left:50%;transform:translate(-50%, -50%);';
+
+            scanBox.style.cssText = `background:${boxBg};color:${boxColor};padding:22px;border-radius:10px;box-shadow:0 8px 30px rgba(0,0,0,0.35);width:850px;max-width:96vw;display:flex;flex-direction:column;align-items:center;position:relative;pointer-events:auto;${positionStyle}`;
+            let scHeader = document.createElement('div');
+            scHeader.style.cssText = 'display:flex;justify-content:space-between;align-items:center;width:100%;margin-bottom:10px;cursor:move;';
+    
+            let scTitle = document.createElement('h3');
+            scTitle.innerText = `🔍 Full-Screen Curlin OCR Scanner`;
+            scTitle.style.cssText = `margin:0;font-size:15px;font-weight:bold;color:${isDark ? '#fff' : '#222'};`;
+            scHeader.appendChild(scTitle);
+    
+            let topControls = document.createElement('div');
+            topControls.style.cssText = 'display:flex;gap:6px;align-items:center;flex-shrink:0;';
+    
+            let camSelect = document.createElement('select');
+            camSelect.style.cssText = 'background:#333;color:#fff;border:none;padding:4px 6px;border-radius:4px;font-size:11px;max-width:130px;cursor:pointer;';
+    
+            let currentWidth = 850;
+            let zoomOutBtn = document.createElement('button');
+            zoomOutBtn.innerText = '−';
+            zoomOutBtn.style.cssText = 'background:#555;color:#fff;border:none;width:24px;height:24px;border-radius:4px;cursor:pointer;font-weight:bold;display:flex;align-items:center;justify-content:center;';
+            
+            let zoomInBtn = document.createElement('button');
+            zoomInBtn.innerText = '+';
+            zoomInBtn.style.cssText = 'background:#0366d6;color:#fff;border:none;width:24px;height:24px;border-radius:4px;cursor:pointer;font-weight:bold;display:flex;align-items:center;justify-content:center;';
+    
+            zoomOutBtn.onclick = () => {
+                currentWidth = Math.max(600, currentWidth - 100);
+                scanBox.style.width = currentWidth + 'px';
+            };
+            zoomInBtn.onclick = () => {
+                currentWidth = Math.min(1200, currentWidth + 100);
+                scanBox.style.width = currentWidth + 'px';
+            };
+    
+            topControls.appendChild(camSelect);
+            topControls.appendChild(zoomOutBtn);
+            topControls.appendChild(zoomInBtn);
+            scHeader.appendChild(topControls);
+    
+            if (typeof makeDraggable === 'function') makeDraggable(scanBox, scHeader);
+            scanBox.appendChild(scHeader);
+    
+            let bigVideoContainer = document.createElement('div');
+            bigVideoContainer.style.cssText = 'position:relative;width:100%;height:460px;background:#000;border-radius:6px;overflow:hidden;margin-bottom:10px;cursor:crosshair;';
+    
+            let bigVideo = document.createElement('video');
+            bigVideo.autoplay = true;
+            bigVideo.playsInline = true;
+            bigVideo.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+            bigVideoContainer.appendChild(bigVideo);
+    
+            let ocrGuideBox = document.createElement('div');
+            ocrGuideBox.style.cssText = 'position:absolute;top:15%;left:15%;width:70%;height:70%;border:2px dashed rgba(40,167,69,0.7);border-radius:6px;pointer-events:none;display:flex;align-items:flex-start;justify-content:center;padding:6px;color:rgba(255,255,255,0.8);font-size:11px;font-weight:bold;text-shadow:0 1px 3px rgba(0,0,0,0.8);';
+            ocrGuideBox.innerText = '🎯 Align Curlin Quote Label Here for OCR';
+            bigVideoContainer.appendChild(ocrGuideBox);
+            scanBox.appendChild(bigVideoContainer);
+    
+            let filterBar = document.createElement('div');
+            filterBar.style.cssText = 'display:flex;gap:10px;width:100%;margin-bottom:12px;font-size:11px;align-items:center;justify-content:center;flex-wrap:wrap;';
+            filterBar.innerHTML = `
+                <label>Brightness: <input type="range" id="scanBright" min="50" max="150" value="100" style="width:80px;cursor:pointer;vertical-align:middle;"></label>
+                <label>Contrast: <input type="range" id="scanContrast" min="50" max="200" value="110" style="width:80px;cursor:pointer;vertical-align:middle;"></label>
+                <label style="cursor:pointer;font-weight:bold;color:#4CAF50;"><input type="checkbox" id="scanGray" style="vertical-align:middle;margin-right:3px;">OCR Mono</label>
+            `;
+            scanBox.appendChild(filterBar);
+    
+            let sBright = filterBar.querySelector('#scanBright');
+            let sContrast = filterBar.querySelector('#scanContrast');
+            let sGray = filterBar.querySelector('#scanGray');
+    
+            let updateBigFilters = () => {
+                let mono = sGray.checked ? 'grayscale(100%) contrast(190%)' : '';
+                bigVideo.style.filter = `brightness(${sBright.value}%) contrast(${sContrast.value}%) ${mono}`;
+            };
+            sBright.oninput = updateBigFilters;
+            sContrast.oninput = updateBigFilters;
+            sGray.onchange = updateBigFilters;
+    
+            let btnRow = document.createElement('div');
+            btnRow.style.cssText = 'display:flex;gap:10px;width:100%;';
+    
+            let bigSnapBtn = document.createElement('button');
+            bigSnapBtn.innerText = '📸 Capture & Run OCR';
+            bigSnapBtn.style.cssText = 'flex:2;background:#28a745;color:white;border:none;padding:10px;border-radius:6px;cursor:pointer;font-weight:bold;font-size:13px;';
+    
+            let bigCancelBtn = document.createElement('button');
+            bigCancelBtn.innerText = 'Close Scanner';
+            bigCancelBtn.style.cssText = 'flex:1;background:#6c757d;color:white;border:none;padding:10px;border-radius:6px;cursor:pointer;font-size:13px;';
+    
+            btnRow.appendChild(bigSnapBtn);
+            btnRow.appendChild(bigCancelBtn);
+            scanBox.appendChild(btnRow);
+            scanOv.appendChild(scanBox);
+            document.body.appendChild(scanOv);
+    
+            let activeStream = null;
+            const initBigCam = async (devId = null) => {
+                if (activeStream) activeStream.getTracks().forEach(t => t.stop());
+                try {
+                    activeStream = await navigator.mediaDevices.getUserMedia({
+                        video: devId ? { deviceId: { exact: devId }, focusMode: 'continuous' } : { facingMode: 'environment', width: { ideal: 2560 }, height: { ideal: 1440 }, focusMode: { ideal: 'continuous' } }
+                    });
+                    bigVideo.srcObject = activeStream;
+                    updateBigFilters();
+    
+                    if (camSelect.options.length <= 1) {
+                        let devices = await navigator.mediaDevices.enumerateDevices();
+                        let vDevs = devices.filter(d => d.kind === 'videoinput');
+                        camSelect.innerHTML = '';
+                        vDevs.forEach((d, i) => {
+                            let opt = document.createElement('option');
+                            opt.value = d.deviceId;
+                            opt.innerText = d.label || `Camera ${i + 1}`;
+                            if (d.deviceId === devId) opt.selected = true;
+                            camSelect.appendChild(opt);
+                        });
+                    }
+                } catch (err) {
+                    alert('Camera access denied or unavailable.');
+                    scanOv.remove();
+                }
+            };
+    
+            camSelect.onchange = () => initBigCam(camSelect.value);
+            initBigCam();
+    
+            bigCancelBtn.onclick = () => {
+                if (activeStream) activeStream.getTracks().forEach(t => t.stop());
+                scanOv.remove();
+            };
+    
+            bigSnapBtn.onclick = async () => {
+                let canvas = document.createElement('canvas');
+                let settings = activeStream ? activeStream.getVideoTracks()[0].getSettings() : {};
+                canvas.width = settings.width || bigVideo.videoWidth || 2560;
+                canvas.height = settings.height || bigVideo.videoHeight || 1440;
+    
+                let ctx = canvas.getContext('2d');
+                let monoFilter = sGray.checked ? 'grayscale(100%) contrast(190%)' : '';
+                ctx.filter = `brightness(${sBright.value}%) contrast(${sContrast.value}%) ${monoFilter}`;
+                ctx.drawImage(bigVideo, 0, 0, canvas.width, canvas.height);
+                let imgDataUrl = canvas.toDataURL('image/jpeg', 0.98);
+    
+                if (activeStream) activeStream.getTracks().forEach(t => t.stop());
+                scanOv.remove();
+    
+                await processCurlinOCR(imgDataUrl);
+            };
+        }
+    
+        async function processCurlinOCR(imageDataUrl) {
+            if (typeof showToast === 'function') showToast('⏳ Analyzing Curlin service quote...');
+            try {
+                if (typeof Tesseract === 'undefined') {
+                    await new Promise((resolve, reject) => {
+                        let script = document.createElement('script');
+                        script.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+                        script.onload = resolve;
+                        script.onerror = reject;
+                        document.head.appendChild(script);
+                    });
+                }
+    
+                let result = await Tesseract.recognize(
+                    imageDataUrl, 
+                    'eng', 
+                    { 
+                        logger: m => console.log(m), 
+                        tessedit_pageseg_mode: '6' 
+                    }
+                );
+    
+                let rawText = result.data.text ? result.data.text.trim().toUpperCase() : '';
+                console.log("--- CURLIN RAW OCR TEXT --- \n", rawText);
+    
+                if (rawText) {
+                    let matchedCount = 0;
+                    let cleanScanText = rawText.replace(/[\s,\-\/]+/g, ' ');
+    
+                    partsList.forEach(p => {
+                        let isMatched = false;
+                        if (p.num && p.num.trim()) {
+                            let cleanPartNum = p.num.trim().toUpperCase();
+                            if (rawText.includes(cleanPartNum) || cleanScanText.includes(cleanPartNum.replace(/[\s,\-\/]+/g, ' '))) {
+                                isMatched = true;
+                            }
+                        }
+                        if (p.name && rawText.includes(p.name.toUpperCase())) {
+                            isMatched = true;
+                        }
+    
+                        if (isMatched && !selectedItems.has(p.name)) {
+                            selectedItems.add(p.name);
+                            matchedCount++;
+                        }
+                    });
+    
+                    renderList();
+                    if (typeof showToast === 'function') showToast(`✓ OCR scanned! Auto-selected ${matchedCount} Curlin part(s).`);
+                } else {
+                    alert('Could not detect text from image.');
+                }
+            } catch (err) {
+                console.error('Curlin OCR Error:', err);
+                alert('Error running OCR engine.');
+            }
+        }
+    
+        captureBtn.onclick = async () => {
+            if (videoElement.readyState < videoElement.HAVE_CURRENT_DATA) {
+                alert("Camera feed is still loading. Please wait a moment.");
+                return;
+            }
+    
+            let canvas = document.createElement('canvas');
+            canvas.width = videoElement.videoWidth || 2560;
+            canvas.height = videoElement.videoHeight || 1440;
+            let ctx = canvas.getContext('2d');
+            ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+            let imageDataUrl = canvas.toDataURL('image/jpeg', 0.92);
+    
+            if (mediaStream) mediaStream.getTracks().forEach(t => t.stop());
+            webcamContainer.style.display = 'none';
+            scanToggleBtn.innerText = '📷 Open Document Scanner Viewfinder';
+    
+            await processCurlinOCR(imageDataUrl);
+        };
+    
+        dropZone.onclick = () => hiddenFileInput.click();
+        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.style.borderColor = '#0366d6'; });
+        dropZone.addEventListener('dragleave', () => { dropZone.style.borderColor = isDark ? '#555' : '#aaa'; });
+        dropZone.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = isDark ? '#555' : '#aaa';
+            let file = e.dataTransfer.files[0];
+            if (file && file.type.startsWith('image/')) {
+                let reader = new FileReader();
+                reader.onload = async (event) => await processCurlinOCR(event.target.result);
+                reader.readAsDataURL(file);
+            }
+        });
+    
+        hiddenFileInput.onchange = (e) => {
+            let file = e.target.files[0];
+            if (!file) return;
+            let reader = new FileReader();
+            reader.onload = async (event) => await processCurlinOCR(event.target.result);
+            reader.readAsDataURL(file);
+        };
+    
+        const handlePaste = async (e) => {
+            let items = (e.clipboardData || e.originalEvent.clipboardData).items;
+            for (let item of items) {
+                if (item.type.indexOf('image') !== -1) {
+                    let blob = item.getAsFile();
+                    let reader = new FileReader();
+                    reader.onload = async (event) => await processCurlinOCR(event.target.result);
+                    reader.readAsDataURL(blob);
+                    e.preventDefault();
+                    break;
+                }
+            }
+        };
+        document.addEventListener('paste', handlePaste);
+        ov.addEventListener('DOMNodeRemoved', () => { document.removeEventListener('paste', handlePaste); });
+    
+        // --- CONTROLS ROW: SEARCH, SORT & RESET ---
+        let controlRow = document.createElement('div');
+        controlRow.style.cssText = 'display:flex;gap:8px;margin-bottom:8px;align-items:center;';
+        
+        let searchInput = document.createElement('input');
+        searchInput.type = 'text';
+        searchInput.placeholder = '🔍 Search part name or #...';
+        searchInput.style.cssText = `flex:1;padding:6px 8px;background:${isDark ? '#2a2a2a' : '#fff'};color:${boxColor};border:1px solid ${isDark ? '#444' : '#ccc'};border-radius:4px;font-size:11px;`;
+        
+        let sortSelect = document.createElement('select');
+        sortSelect.style.cssText = `background:${isDark ? '#2a2a2a' : '#fff'};color:${boxColor};border:1px solid ${isDark ? '#444' : '#ccc'};border-radius:4px;padding:6px;font-size:11px;cursor:pointer;`;
+        let optAlpha = document.createElement('option');
+        optAlpha.value = 'alpha';
+        optAlpha.innerText = 'Alphabetical';
+        let optRecent = document.createElement('option');
+        optRecent.value = 'recent';
+        optRecent.innerText = 'Most Recently Used';
+        sortSelect.appendChild(optAlpha);
+        sortSelect.appendChild(optRecent);
+        let currentSort = localStorage.getItem('curlin_parts_sort_pref') || 'alpha';
+        sortSelect.value = currentSort;
+    
+        let resetDefaultsBtn = document.createElement('button');
+        resetDefaultsBtn.innerText = '🔄 Reset Defaults';
+        resetDefaultsBtn.style.cssText = 'background:#6c757d;color:white;border:none;padding:6px 10px;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;margin-left:auto;white-space:nowrap;';
+        resetDefaultsBtn.onclick = () => {
+            if (confirm('Are you sure you want to reset all Curlin parts back to defaults?')) {
+                localStorage.removeItem('curlin_custom_parts_list');
+                partsList = [...defaultCurlinParts];
+                selectedItems.clear();
+                renderList();
+                if (typeof showToast === 'function') showToast('✓ Reset Curlin parts to defaults!');
+            }
+        };
+    
+        controlRow.appendChild(searchInput);
+        controlRow.appendChild(sortSelect);
+        controlRow.appendChild(resetDefaultsBtn);
+        box.appendChild(controlRow);
+    
+        // --- QUICK ADD BAR ---
+        let addRow = document.createElement('div');
+        addRow.style.cssText = 'display:flex;gap:6px;margin-bottom:8px;align-items:center;';
+    
+        let newDescInput = document.createElement('input');
+        newDescInput.type = 'text';
+        newDescInput.placeholder = 'Part Description';
+        newDescInput.style.cssText = `flex:2;padding:6px;font-size:11px;background:${isDark ? '#2a2a2a' : '#fff'};color:${boxColor};border:1px solid ${isDark ? '#444' : '#ccc'};border-radius:4px;`;
+    
+        let newNumInput = document.createElement('input');
+        newNumInput.type = 'text';
+        newNumInput.placeholder = 'Part #';
+        newNumInput.style.cssText = `flex:1;padding:6px;font-size:11px;background:${isDark ? '#2a2a2a' : '#fff'};color:${boxColor};border:1px solid ${isDark ? '#444' : '#ccc'};border-radius:4px;`;
+    
+        let addBtn = document.createElement('button');
+        addBtn.innerText = '+ Add';
+        addBtn.style.cssText = 'padding:6px 12px;background:#0366d6;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;white-space:nowrap;';
+    
+        addBtn.onclick = () => {
+            let desc = newDescInput.value.trim();
+            let num = newNumInput.value.trim();
+            if (!desc) {
+                alert('Please enter a part description.');
+                newDescInput.focus();
+                return;
+            }
+            partsList.push({ num: num, name: desc });
+            localStorage.setItem('curlin_custom_parts_list', JSON.stringify(partsList));
+            newDescInput.value = '';
+            newNumInput.value = '';
+            renderList();
+        };
+    
+        addRow.appendChild(newDescInput);
+        addRow.appendChild(newNumInput);
+        addRow.appendChild(addBtn);
+        box.appendChild(addRow);
+    
+        // --- LIST CONTAINER ---
+        let listContainer = document.createElement('div');
+        listContainer.style.cssText = 'max-height:180px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;margin-bottom:8px;padding-right:4px;';
+    
+        function renderList() {
+            listContainer.innerHTML = '';
+            let query = searchInput.value.toLowerCase();
+            let filtered = partsList.filter(p => p.name.toLowerCase().includes(query) || p.num.toLowerCase().includes(query));
+    
+            if (sortSelect.value === 'alpha') {
+                filtered.sort((a, b) => a.name.localeCompare(b.name));
+            } else {
+                filtered.sort((a, b) => (usageCounts[b.name] || 0) - (usageCounts[a.name] || 0));
+            }
+    
+            if (filtered.length === 0) {
+                let emptyMsg = document.createElement('div');
+                emptyMsg.innerText = 'No matching parts found.';
+                emptyMsg.style.cssText = 'text-align:center;padding:15px;font-size:11px;opacity:0.6;';
+                listContainer.appendChild(emptyMsg);
+                return;
+            }
+    
+            filtered.forEach((partObj) => {
+                let itemBox = document.createElement('div');
+                let baseBg = isDark ? '#2a2a2a' : '#f8f9fa';
+                let baseBorder = isDark ? '#444' : '#dee2e6';
+                let isSelected = selectedItems.has(partObj.name);
+    
+                itemBox.style.cssText = `display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:${isSelected ? (isDark ? '#0d3b66' : '#e7f5ff') : baseBg};border:1px solid ${isSelected ? '#0366d6' : baseBorder};border-radius:4px;font-size:11px;transition:all 0.15s ease;`;
+    
+                let leftInfo = document.createElement('div');
+                leftInfo.style.cssText = 'display:flex;align-items:center;gap:8px;flex:1;cursor:pointer;overflow:hidden;';
+    
+                let checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.checked = isSelected;
+                checkbox.style.cssText = 'cursor:pointer;margin:0;';
+    
+                let nameSpan = document.createElement('span');
+                nameSpan.innerText = partObj.name;
+                nameSpan.style.cssText = `color:${isDark ? '#e0e0e0' : '#212529'};font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;`;
+    
+                leftInfo.appendChild(checkbox);
+                leftInfo.appendChild(nameSpan);
+    
+                let rightInfo = document.createElement('div');
+                rightInfo.style.cssText = 'display:flex;align-items:center;gap:6px;flex-shrink:0;margin-left:8px;';
+    
+                let numSpan = document.createElement('span');
+                numSpan.innerText = partObj.num || '';
+                numSpan.style.cssText = `font-weight:bold;color:${isDark ? '#aaa' : '#666'};font-family:monospace;font-size:10px;min-width:75px;text-align:right;`;
+    
+                let editBtn = document.createElement('button');
+                editBtn.innerText = 'Edit';
+                editBtn.style.cssText = 'padding:2px 5px;background:#f0ad4e;color:#fff;border:none;border-radius:3px;cursor:pointer;font-size:10px;font-weight:bold;';
+    
+                let deleteBtn = document.createElement('button');
+                deleteBtn.innerText = 'Delete';
+                deleteBtn.style.cssText = 'padding:2px 5px;background:#d9534f;color:#fff;border:none;border-radius:3px;cursor:pointer;font-size:10px;font-weight:bold;';
+    
+                const toggleSelection = () => {
+                    if (selectedItems.has(partObj.name)) {
+                        selectedItems.delete(partObj.name);
+                        checkbox.checked = false;
+                        itemBox.style.background = baseBg;
+                        itemBox.style.borderColor = baseBorder;
+                    } else {
+                        selectedItems.add(partObj.name);
+                        checkbox.checked = true;
+                        itemBox.style.background = isDark ? '#0d3b66' : '#e7f5ff';
+                        itemBox.style.borderColor = '#0366d6';
+                    }
+                };
+    
+                leftInfo.onclick = toggleSelection;
+                checkbox.onclick = (e) => {
+                    e.stopPropagation();
+                    toggleSelection();
+                };
+    
+                editBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    let newN = prompt('Edit Part Description:', partObj.name);
+                    if (newN !== null && newN.trim() !== '') {
+                        let newNum = prompt('Edit Part Number:', partObj.num);
+                        let originalName = partObj.name;
+                        partObj.name = newN.trim();
+                        partObj.num = newNum !== null ? newNum.trim() : partObj.num;
+    
+                        if (selectedItems.has(originalName)) {
+                            selectedItems.delete(originalName);
+                            selectedItems.add(partObj.name);
+                        }
+                        localStorage.setItem('curlin_custom_parts_list', JSON.stringify(partsList));
+                        renderList();
+                    }
+                };
+    
+                deleteBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    if (confirm(`Remove "${partObj.name}" from list?`)) {
+                        partsList = partsList.filter(p => p !== partObj);
+                        selectedItems.delete(partObj.name);
+                        localStorage.setItem('curlin_custom_parts_list', JSON.stringify(partsList));
+                        renderList();
+                    }
+                };
+    
+                rightInfo.appendChild(numSpan);
+                rightInfo.appendChild(editBtn);
+                rightInfo.appendChild(deleteBtn);
+    
+                itemBox.appendChild(leftInfo);
+                itemBox.appendChild(rightInfo);
+                listContainer.appendChild(itemBox);
+            });
+        }
+    
+        searchInput.oninput = renderList;
+        sortSelect.onchange = () => {
+            localStorage.setItem('curlin_parts_sort_pref', sortSelect.value);
+            renderList();
+        };
+    
+        renderList();
+        box.appendChild(listContainer);
+    
+        // --- SENTENCE STRUCTURE TEXTAREA ---
+        let sentenceLabel = document.createElement('label');
+        sentenceLabel.innerText = 'Customizable OEM Sentence Structure (Use [PARTS] for selections):';
+        sentenceLabel.style.cssText = `font-size:10px;font-weight:bold;color:${isDark ? '#aaa' : '#555'};margin-bottom:4px;display:block;`;
+        box.appendChild(sentenceLabel);
+    
+        let defaultTemplate = "Per Moog Medical the following has been replaced: [PARTS]. The device has passed Service Preventive Maintenance.";
+        let savedTemplate = localStorage.getItem('curlin_oem_sentence_template') || defaultTemplate;
+    
+        let sentenceTextarea = document.createElement('textarea');
+        sentenceTextarea.value = savedTemplate;
+        sentenceTextarea.style.cssText = `width:100%;height:55px;padding:6px;box-sizing:border-box;border:1px solid ${isDark ? '#444' : '#ccc'};border-radius:4px;background:${isDark ? '#2a2a2a' : '#fff'};color:${boxColor};font-size:11px;resize:vertical;font-family:inherit;margin-bottom:10px;`;
+    
+        sentenceTextarea.oninput = () => {
+            localStorage.setItem('curlin_oem_sentence_template', sentenceTextarea.value);
+        };
+        box.appendChild(sentenceTextarea);
+    
+        // --- ACTION BUTTON ROW ---
+        let btnRow = document.createElement('div');
+        btnRow.style.cssText = 'display:flex;justify-content:flex-end;gap:8px;';
+    
+        let cancelBtn = document.createElement('button');
+        cancelBtn.innerText = 'Cancel';
+        cancelBtn.style.cssText = isDark ? 'padding:6px 12px;background:#444;color:#e0e0e0;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;' : 'padding:6px 12px;background:#dc3545;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;';
+        cancelBtn.onclick = () => ov.remove();
+    
+        let backBtn = document.createElement('button');
+        backBtn.innerText = '← Back';
+        backBtn.style.cssText = isDark ? 'padding:6px 12px;background:#555;color:#e0e0e0;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;' : 'padding:6px 12px;background:#6c757d;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;';
+        backBtn.onclick = () => {
+            ov.remove();
+            if (typeof showMainModal === 'function') showMainModal(activeTheme);
+        };
+    
+        let confirmBtn = document.createElement('button');
+        confirmBtn.innerText = 'Confirm Selection';
+        confirmBtn.style.cssText = 'padding:6px 14px;background:#28a745;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;';
+    
+        confirmBtn.onclick = async () => {
+            let arr = Array.from(selectedItems);
+            if (arr.length > 0) {
+                let now = Date.now();
+                arr.forEach(p => { usageCounts[p] = now; });
+                localStorage.setItem('curlin_parts_usage', JSON.stringify(usageCounts));
+            }
+            
+            let partsString = arr.length > 0 ? arr.join(', ') : 'None';
+            let template = sentenceTextarea.value.trim() || defaultTemplate;
+            let summaryText = template.replace(/\[PARTS\]/gi, partsString);
+    
+            ov.remove();
+    
+            try {
+                await navigator.clipboard.writeText(summaryText);
+            } catch (err) {
+                console.error('Clipboard write error:', err);
+            }
+    
+            if (typeof addHistoryItem === 'function') addHistoryItem(summaryText);
+            if (typeof processTextSelection === 'function') {
+                processTextSelection(summaryText);
+            } else {
+                if (typeof showToast === 'function') showToast('✓ Curlin findings copied to clipboard!');
             }
         };
     
