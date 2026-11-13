@@ -1081,7 +1081,7 @@
                 let curlinBtn = document.createElement('button');
                 curlinBtn.innerText = '🔧 OEM Replaced Parts Selection...';
                 curlinBtn.className = 'onetrack-btn';
-                curlinBtn.style.cssText = 'display:block;width:100%;padding:8px 10px;margin:4px 0;background:#e2f0cb;color:#2b542c;border:1px solid #c5e1a5;border-radius:4px;cursor:pointer;font-weight:bold;';
+                curlinBtn.style.cssText = 'display:block;width:100%;padding:8px 10px;margin:4px 0;background:#e2f0cb;color:#2b542c;border:1px solid #b5d89c;border-radius:4px;cursor:pointer;font-size:12px;text-align:left;font-weight:bold;line-height:1.4;';
                 curlinBtn.onclick = () => {
                     ov.remove();
                     showCurlinPartsModal(activeTheme, addHistoryItem, processTextSelection);
