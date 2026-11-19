@@ -29,7 +29,7 @@
             localStorage.setItem(key, val);
         };
     }
-    const CURRENT_VERSION = '1.5.0';
+    const CURRENT_VERSION = '1.5.2';
     // --- ENVIRONMENT AUTO-DETECTION ---
     const isTestEnv = typeof GM_info !== 'undefined' && GM_info && GM_info.script && GM_info.script.name.includes('Test');
     const CONFIG = {
