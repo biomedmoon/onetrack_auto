@@ -1027,6 +1027,20 @@
         tlt2.style.cssText = 'font-weight:bold;';
         tr2.appendChild(tlt2);
         tRow.appendChild(tr2);
+
+        let attrUrl = buildDeviceAttributesUrl();
+        if (attrUrl) {
+            let attrBtn = document.createElement('button');
+            attrBtn.type = 'button';
+            attrBtn.innerText = 'Attributes';
+            attrBtn.title = 'Go to Device Attributes tab';
+            attrBtn.style.cssText = `font-size:10px;font-weight:bold;cursor:pointer;background:${rowBg};color:${rowColor};border:1px solid ${rowBorder};border-radius:4px;padding:6px 8px;white-space:nowrap;flex-shrink:0;`;
+            attrBtn.onclick = () => {
+                ov.remove();
+                window.location.assign(attrUrl);
+            };
+            tRow.appendChild(attrBtn);
+        }
         box.appendChild(tRow);
 
         let cont = document.createElement('div');
@@ -4047,6 +4061,15 @@ function showCurlinUploadModal(passedTheme) {
     
         ov.appendChild(box);
         document.body.appendChild(ov);
+    }
+    function buildDeviceAttributesUrl() {
+        const url = new URL(window.location.href);
+        const match = url.pathname.match(/^(.*?\/Device\/\d+)(?:\/.*)?$/i);
+        if (!match) return null;
+    
+        url.pathname = `${match[1]}/Attributes`;
+        url.search = ''; // optional: clear tab/query params if OneTrack doesn't need them here
+        return url.toString();
     }
     // --- NEW: COLLAPSIBLE COMPANY / CLIENT MAPPING SUB-MENU ---
     function showManageCompaniesModal(passedTheme) {
